@@ -1,0 +1,46 @@
+# https://golangci-lint.run/usage/configuration/
+
+linters:
+  disable:
+    - gofumpt
+    - scopelint
+  enable:
+    - gomodguard
+    - gosimple
+    - importas
+    - misspell
+  presets:
+    - bugs
+    - format
+    - unused
+
+linters-settings:
+  exhaustive:
+    default-signifies-exhaustive: true
+  goimports:
+    local-prefixes: github.com/crunchydata/postgres-operator
+  gomodguard:
+    blocked:
+      modules:
+        - gopkg.in/yaml.v2: { recommendations: [sigs.k8s.io/yaml] }
+        - gopkg.in/yaml.v3: { recommendations: [sigs.k8s.io/yaml] }
+        - gotest.tools: { recommendations: [gotest.tools/v3] }
+        - k8s.io/kubernetes:
+            reason: >
+              k8s.io/kubernetes is for managing dependencies of the Kubernetes
+              project, i.e. building kubelet and kubeadm.
+  importas:
+    alias:
+      - pkg: k8s.io/api/(\w+)/(v[\w\w]+)
+        alias: $1$2
+      - pkg: k8s.io/apimachinery/pkg/apis/(\w+)/(v[\w\d]+)
+        alias: $1$2
+      - pkg: k8s.io/apimachinery/pkg/api/errors
+        alias: apierrors
+    no-unaliased: true
+
+run:
+  build-tags:
+    - envtest
+  skip-dirs:
+    - pkg/generated
