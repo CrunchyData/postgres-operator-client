@@ -9,16 +9,25 @@ linters:
     - gosimple
     - importas
     - misspell
+    - predeclared
+    - tenv
+    - tparallel
+    - unconvert
   presets:
     - bugs
     - format
     - unused
 
 linters-settings:
-  exhaustive:
-    default-signifies-exhaustive: true
+  gci:
+    sections:
+      - standard
+      - default
+      - prefix(github.com/crunchydata/postgres-operator-client)
+
   goimports:
-    local-prefixes: github.com/crunchydata/postgres-operator
+    local-prefixes: github.com/crunchydata/postgres-operator-client
+
   gomodguard:
     blocked:
       modules:
@@ -29,7 +38,9 @@ linters-settings:
             reason: >
               k8s.io/kubernetes is for managing dependencies of the Kubernetes
               project, i.e. building kubelet and kubeadm.
+
   importas:
+    no-unaliased: true
     alias:
       - pkg: k8s.io/api/(\w+)/(v[\w\w]+)
         alias: $1$2
@@ -37,10 +48,7 @@ linters-settings:
         alias: $1$2
       - pkg: k8s.io/apimachinery/pkg/api/errors
         alias: apierrors
-    no-unaliased: true
 
-run:
-  build-tags:
-    - envtest
-  skip-dirs:
-    - pkg/generated
+issues:
+  # https://github.com/golangci/golangci-lint/issues/2239
+  exclude-use-default: false
