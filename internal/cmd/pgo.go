@@ -15,17 +15,29 @@
 package cmd
 
 import (
+	"io"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
-func NewCmdPGO(streams genericclioptions.IOStreams) *cobra.Command {
-	options := genericclioptions.NewConfigFlags(true)
+// NewPGOCommand returns the root command of the PGO plugin. This command
+// prints the same information as its --help flag: the available subcommands
+// and their short descriptions.
+func NewPGOCommand(stdin io.Reader, stdout, stderr io.Writer) *cobra.Command {
+	kubeconfig := genericclioptions.NewConfigFlags(true)
+	_ = genericclioptions.IOStreams{In: stdin, Out: stdout, ErrOut: stderr}
 
 	root := &cobra.Command{
-		Use:   "kubectl pgo",
+		// When this executable is named `kubectl-pgo`, it can be invoked as
+		// either `kubectl-pgo` or `kubectl pgo`. Assume the former for now.
+		// - https://docs.k8s.io/tasks/extend-kubectl/kubectl-plugins/
+		//
+		// NOTE: The cobra package notices spaces in this value. The "first word"
+		// appears in various places as the [cobra.Command.Name].
+		Use: "kubectl-pgo",
+
 		Short: "pgo is a kubectl plugin for PGO, the open source Postgres Operator",
 		Long: strings.TrimSpace(`
 pgo is a kubectl plugin for PGO, the open source Postgres Operator from Crunchy Data.
@@ -33,11 +45,23 @@ pgo is a kubectl plugin for PGO, the open source Postgres Operator from Crunchy 
 	https://github.com/CrunchyData/postgres-operator
 `),
 
+		// Support shell completion, but do not list it as one of the available
+		// subcommands. It can be invoked via `kubectl pgo completion`.
+		//
+		// NOTE: `kubectl` completion does not currently consider plugins.
+		// - https://issue.k8s.io/74178
+		CompletionOptions: cobra.CompletionOptions{
+			HiddenDefaultCmd: true,
+		},
+
+		// Do not append "[flags]" to the UseLine.
+		DisableFlagsInUseLine: true,
+
 		// Print the long description and usage when there is no subcommand.
-		RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
+		Run: nil,
 	}
 
-	options.AddFlags(root.PersistentFlags())
+	root.AddCommand(newExampleCommand(kubeconfig))
 
 	return root
 }

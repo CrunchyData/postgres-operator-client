@@ -12,21 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package cmd
 
-import (
-	"os"
+func ExampleNewPGOCommand() {
+	cmd := NewPGOCommand(nil, nil, nil)
+	_ = cmd.Execute()
 
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
-
-	"github.com/crunchydata/postgres-operator-client/internal/cmd"
-)
-
-func main() {
-	flags := pflag.NewFlagSet("kubectl-pgo", pflag.ExitOnError)
-	pflag.CommandLine = flags
-
-	root := cmd.NewPGOCommand(os.Stdin, os.Stdout, os.Stderr)
-	cobra.CheckErr(root.Execute())
+	// Output:
+	// pgo is a kubectl plugin for PGO, the open source Postgres Operator from Crunchy Data.
+	//
+	//	https://github.com/CrunchyData/postgres-operator
+	//
+	// Usage:
+	//   kubectl-pgo [command]
+	//
+	// Available Commands:
+	//   example     short description
+	//   help        Help about any command
+	//
+	// Flags:
+	//   -h, --help   help for kubectl-pgo
+	//
+	// Use "kubectl-pgo [command] --help" for more information about a command.
 }
