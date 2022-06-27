@@ -20,6 +20,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 )
 
 // NewPGOCommand returns the root command of the PGO plugin. This command
@@ -61,7 +62,11 @@ pgo is a kubectl plugin for PGO, the open source Postgres Operator from Crunchy 
 		Run: nil,
 	}
 
+	// add all the expected global flags
+	kubeconfig.AddFlags(root.PersistentFlags())
+
 	root.AddCommand(newExampleCommand(kubeconfig))
+	root.AddCommand(newCreateCommand(kubeconfig))
 
 	return root
 }

@@ -12,26 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+package util
 
-func ExampleNewPGOCommand() {
-	cmd := NewPGOCommand(nil, nil, nil)
-	_ = cmd.Execute()
+import (
+	"strings"
 
-	// Output:
-	// pgo is a kubectl plugin for PGO, the open source Postgres Operator from Crunchy Data.
-	//
-	//	https://github.com/CrunchyData/postgres-operator
-	//
-	// Usage:
-	//   kubectl-pgo [command]
-	//
-	// Available Commands:
-	//   example     short description
-	//   help        Help about any command
-	//
-	// Flags:
-	//   -h, --help   help for kubectl-pgo
-	//
-	// Use "kubectl-pgo [command] --help" for more information about a command.
+	gotest "gotest.tools/v3/assert/cmp"
+	"sigs.k8s.io/yaml"
+)
+
+type Comparison = gotest.Comparison
+
+// MarshalMatches converts actual to YAML and compares that to expected.
+func MarshalMatches(actual interface{}, expected string) Comparison {
+	b, err := yaml.Marshal(actual)
+	if err != nil {
+		return func() gotest.Result { return gotest.ResultFromError(err) }
+	}
+	return gotest.DeepEqual(string(b), strings.Trim(expected, "\t\n")+"\n")
 }
