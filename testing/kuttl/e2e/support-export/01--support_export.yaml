@@ -1,0 +1,7 @@
+---
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: kubectl pgo --namespace $NAMESPACE support export kuttl-support-cluster -o .
+- script: tar -xf ./crunchy_k8s_support_export_*.tar
+- script: rm -r ./kuttl-support-cluster ./crunchy_k8s_support_export_*.tar

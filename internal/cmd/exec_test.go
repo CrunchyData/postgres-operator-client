@@ -69,3 +69,60 @@ func TestPGBackRestInfo(t *testing.T) {
 
 	})
 }
+
+func TestListPGLogFiles(t *testing.T) {
+
+	t.Run("default", func(t *testing.T) {
+		expected := errors.New("pass-through")
+		exec := func(
+			stdin io.Reader, stdout, stderr io.Writer, command ...string,
+		) error {
+			assert.DeepEqual(t, command, []string{"bash", "-ceu", "--", "ls -1dt pgdata/pg[0-9][0-9]/log/* | head -1"})
+			assert.Assert(t, stdout != nil, "should capture stdout")
+			assert.Assert(t, stderr != nil, "should capture stderr")
+			return expected
+		}
+		_, _, err := Executor(exec).listPGLogFiles("1")
+		assert.ErrorContains(t, err, "pass-through")
+
+	})
+
+}
+
+func TestCatFile(t *testing.T) {
+
+	t.Run("default", func(t *testing.T) {
+		expected := errors.New("pass-through")
+		exec := func(
+			stdin io.Reader, stdout, stderr io.Writer, command ...string,
+		) error {
+			assert.DeepEqual(t, command, []string{"bash", "-ceu", "--", "cat /path/to/file"})
+			assert.Assert(t, stdout != nil, "should capture stdout")
+			assert.Assert(t, stderr != nil, "should capture stderr")
+			return expected
+		}
+		_, _, err := Executor(exec).catFile("/path/to/file")
+		assert.ErrorContains(t, err, "pass-through")
+
+	})
+
+}
+
+func TestPatronictl(t *testing.T) {
+
+	t.Run("default", func(t *testing.T) {
+		expected := errors.New("pass-through")
+		exec := func(
+			stdin io.Reader, stdout, stderr io.Writer, command ...string,
+		) error {
+			assert.DeepEqual(t, command, []string{"bash", "-ceu", "--", "patronictl sub-command"})
+			assert.Assert(t, stdout != nil, "should capture stdout")
+			assert.Assert(t, stderr != nil, "should capture stderr")
+			return expected
+		}
+		_, _, err := Executor(exec).patronictl("sub-command")
+		assert.ErrorContains(t, err, "pass-through")
+
+	})
+
+}
