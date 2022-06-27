@@ -13,6 +13,13 @@ Create basic PostgresCluster with a given name.
 kubectl-pgo create postgrescluster [flags]
 ```
 
+### Examples
+
+```
+# Create a postgrescluster
+kubectl pgo create postgrescluster hippo
+```
+
 ### Options
 
 ```

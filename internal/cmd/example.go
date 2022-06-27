@@ -15,12 +15,14 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/client-go/dynamic"
 )
 
@@ -72,9 +74,14 @@ func newExampleCommand(kubeconfig *genericclioptions.ConfigFlags) *cobra.Command
 			return err
 		}
 
-		for _, ns := range list.Items {
-			cmd.Println(ns.GetName())
+		var buf bytes.Buffer
+
+		p := printers.NewTablePrinter(printers.PrintOptions{})
+		if err := p.PrintObj(list, &buf); err != nil {
+			return err
 		}
+
+		cmd.Println(buf.String())
 
 		return nil
 	}

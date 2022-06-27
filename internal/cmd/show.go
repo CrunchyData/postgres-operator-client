@@ -15,7 +15,6 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -28,11 +27,6 @@ import (
 	"github.com/crunchydata/postgres-operator-client/internal"
 	"github.com/crunchydata/postgres-operator-client/internal/util"
 )
-
-// Executor calls commands
-type Executor func(
-	stdin io.Reader, stdout, stderr io.Writer, command ...string,
-) error
 
 // newShowCommand returns the show subcommand of the PGO plugin. The 'show' command
 // allows you to display particular details related to the PostgreSQL cluster.
@@ -154,18 +148,4 @@ func newShowBackupCommand(config *internal.Config) *cobra.Command {
 	}
 
 	return cmdShowBackup
-}
-
-// pgBackRestInfo defines a pgBackRest info command with relevant flags set
-func (exec Executor) pgBackRestInfo(output, repoNum string) (string, string, error) {
-	var stdout, stderr bytes.Buffer
-	var command string
-
-	command = "pgbackrest info --output=" + output
-	if repoNum != "" {
-		command += " --repo=" + repoNum
-	}
-	err := exec(nil, &stdout, &stderr, "bash", "-ceu", "--", command)
-
-	return stdout.String(), stderr.String(), err
 }
