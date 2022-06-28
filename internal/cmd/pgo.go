@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"io"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -65,8 +66,13 @@ pgo is a kubectl plugin for PGO, the open source Postgres Operator from Crunchy 
 	// add all the expected global flags
 	kubeconfig.AddFlags(root.PersistentFlags())
 
+	// Defined command output. If not set, it falls back to Stderr.
+	// - https://pkg.go.dev/github.com/spf13/cobra#Command.Printf
+	root.SetOut(os.Stdout)
+
 	root.AddCommand(newExampleCommand(kubeconfig))
 	root.AddCommand(newCreateCommand(kubeconfig))
+	root.AddCommand(newShowCommand(kubeconfig))
 
 	return root
 }
