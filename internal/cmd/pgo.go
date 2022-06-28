@@ -62,7 +62,6 @@ pgo is a kubectl plugin for PGO, the open source Postgres Operator from Crunchy 
 		// Print the long description and usage when there is no subcommand.
 		Run: nil,
 	}
-
 	// add all the expected global flags
 	kubeconfig.AddFlags(root.PersistentFlags())
 
@@ -73,6 +72,7 @@ pgo is a kubectl plugin for PGO, the open source Postgres Operator from Crunchy 
 	root.AddCommand(newExampleCommand(kubeconfig))
 	root.AddCommand(newCreateCommand(kubeconfig))
 	root.AddCommand(newShowCommand(kubeconfig))
+	root.AddCommand(newBackupCommand(kubeconfig))
 
 	return root
 }

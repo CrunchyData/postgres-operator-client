@@ -3,7 +3,7 @@ module github.com/crunchydata/postgres-operator-client
 go 1.17
 
 require (
-	github.com/spf13/cobra v1.4.0
+	github.com/spf13/cobra v1.5.0
 	github.com/spf13/pflag v1.0.5
 	gotest.tools/v3 v3.3.0
 	k8s.io/api v0.24.1

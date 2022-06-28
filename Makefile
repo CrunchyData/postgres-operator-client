@@ -9,6 +9,7 @@ GO_BUILD ?= $(GO) build --trimpath
 GO_TEST = $(GO) test
 
 KUBE_CLIENT ?= kubectl
+KUTTL_TEST ?= kuttl test
 
 ##@ General
 
@@ -47,7 +48,6 @@ check:
 
 # Expects operator to be running
 .PHONY: check-kuttl
-check-kuttl: KUTTL_TEST = kuttl test
 check-kuttl: PATH := $(PWD)/bin/kubectl-pgo:$(PATH)
 check-kuttl:
 	${KUBE_CLIENT} ${KUTTL_TEST} \

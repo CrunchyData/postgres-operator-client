@@ -1,0 +1,26 @@
+apiVersion: postgres-operator.crunchydata.com/v1beta1
+kind: PostgresCluster
+metadata:
+  name: backup-cluster
+spec:
+  backups:
+    pgbackrest:
+      manual:
+        options:
+        - --type=full
+        repoName: repo1
+status:
+  pgbackrest:
+    manualBackup:
+      finished: true
+      succeeded: 1
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    postgres-operator.crunchydata.com/cluster: backup-cluster
+    postgres-operator.crunchydata.com/pgbackrest-backup: manual
+    postgres-operator.crunchydata.com/pgbackrest-repo: repo1
+status:
+  succeeded: 1
