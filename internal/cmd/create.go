@@ -47,12 +47,18 @@ func newCreateCommand(config *internal.Config) *cobra.Command {
 // cluster using a kube client
 func newCreateClusterCommand(config *internal.Config) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "postgrescluster",
-		Short: "Create PostgresCluster with a given name",
-		Long:  strings.TrimSpace(`Create basic PostgresCluster with a given name.`),
+		Use:     "postgrescluster",
+		Aliases: []string{"postgresclusters"},
+		Short:   "Create PostgresCluster with a given name",
+		Long:    `Create basic PostgresCluster with a given name.`,
 	}
 
 	cmd.Args = cobra.ExactArgs(1)
+
+	cmd.Example = strings.TrimSpace(`
+# Create a postgrescluster
+kubectl pgo create postgrescluster hippo
+`)
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
