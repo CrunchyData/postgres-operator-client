@@ -17,19 +17,25 @@ package cmd
 import (
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+
+	"github.com/crunchydata/postgres-operator-client/internal"
 )
 
 // NewPGOCommand returns the root command of the PGO plugin. This command
 // prints the same information as its --help flag: the available subcommands
 // and their short descriptions.
 func NewPGOCommand(stdin io.Reader, stdout, stderr io.Writer) *cobra.Command {
-	kubeconfig := genericclioptions.NewConfigFlags(true)
-	_ = genericclioptions.IOStreams{In: stdin, Out: stdout, ErrOut: stderr}
+	config := &internal.Config{
+		ConfigFlags: genericclioptions.NewConfigFlags(true),
+		IOStreams:   genericclioptions.IOStreams{In: stdin, Out: stdout, ErrOut: stderr},
+		Patch:       internal.PatchConfig{FieldManager: filepath.Base(os.Args[0])},
+	}
 
 	root := &cobra.Command{
 		// When this executable is named `kubectl-pgo`, it can be invoked as
@@ -62,18 +68,21 @@ pgo is a kubectl plugin for PGO, the open source Postgres Operator from Crunchy 
 		// Print the long description and usage when there is no subcommand.
 		Run: nil,
 	}
-	// add all the expected global flags
-	kubeconfig.AddFlags(root.PersistentFlags())
 
-	// Defined command output. If not set, it falls back to Stderr.
-	// - https://pkg.go.dev/github.com/spf13/cobra#Command.Printf
-	root.SetOut(os.Stdout)
+	// Add flags for kubeconfig, authentication, namespace, and timeout to
+	// every subcommand.
+	// - https://docs.k8s.io/concepts/configuration/organize-cluster-access-kubeconfig/
+	config.ConfigFlags.AddFlags(root.PersistentFlags())
 
-	root.AddCommand(newExampleCommand(kubeconfig))
-	root.AddCommand(newCreateCommand(kubeconfig))
-	root.AddCommand(newDeleteCommand(kubeconfig))
-	root.AddCommand(newShowCommand(kubeconfig))
-	root.AddCommand(newBackupCommand(kubeconfig))
+	// Defined command output. If not set, it falls back to [os.Stderr].
+	// - https://pkg.go.dev/github.com/spf13/cobra#Command.Print
+	root.SetOut(stdout)
+
+	root.AddCommand(newExampleCommand(config.ConfigFlags))
+	root.AddCommand(newCreateCommand(config.ConfigFlags))
+	root.AddCommand(newDeleteCommand(config.ConfigFlags))
+	root.AddCommand(newShowCommand(config.ConfigFlags))
+	root.AddCommand(newBackupCommand(config.ConfigFlags))
 
 	return root
 }
