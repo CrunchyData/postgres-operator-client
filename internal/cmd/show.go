@@ -90,11 +90,10 @@ func newShowBackupCommand(kubeconfig *genericclioptions.ConfigFlags) *cobra.Comm
 	// Define the 'show backup' command
 	cmdShowBackup.RunE = func(cmd *cobra.Command, args []string) error {
 
-		// This command returns before, after and found.
 		// The only thing we need is the value after 'repo' which should be an
 		// integer. If anything else is provided, we let the pgbackrest command
 		// handle validation.
-		_, repoNum, _ := strings.Cut(repoName, "repo")
+		repoNum := strings.TrimPrefix(repoName, "repo")
 
 		// configure client
 		ctx := context.Background()
