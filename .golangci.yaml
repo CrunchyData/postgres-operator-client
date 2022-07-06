@@ -5,6 +5,7 @@ linters:
     - gofumpt
     - scopelint
   enable:
+    - depguard
     - goheader
     - gomodguard
     - gosimple
@@ -20,6 +21,20 @@ linters:
     - unused
 
 linters-settings:
+  depguard:
+    include-go-root: true
+    packages-with-error-message:
+      - io/ioutil: >
+          Use the "io" and "os" packages instead.
+          See https://go.dev/doc/go1.16#ioutil
+
+      - gotest.tools: Should be used only in tests.
+      - net/http/httptest: Should be used only in tests.
+      - testing: The "testing" packages should be used only in tests.
+
+      - github.com/crunchydata/postgres-operator-client/internal/testing: >
+          The "internal/testing" packages should be used only in tests.
+
   gci:
     sections:
       - standard
@@ -69,3 +84,10 @@ linters-settings:
 issues:
   # https://github.com/golangci/golangci-lint/issues/2239
   exclude-use-default: false
+
+  exclude-rules:
+    # These testing packages are allowed in test files. The packages are
+    # disallowed everywhere then ignored here because that is how depguard works.
+    - linters: [depguard]
+      path: ^internal/testing|_test[.]go$
+      text: \`(gotest.tools[^`]*|net/http/httptest|[^`]*testing[^`]*)`

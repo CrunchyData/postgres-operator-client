@@ -19,7 +19,7 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"github.com/crunchydata/postgres-operator-client/internal/util"
+	"github.com/crunchydata/postgres-operator-client/internal/testing/cmp"
 )
 
 func TestGenerateUnstructuredYaml(t *testing.T) {
@@ -53,7 +53,7 @@ spec:
 	u, err := generateUnstructuredClusterYaml("hippo")
 	assert.NilError(t, err)
 
-	assert.Assert(t, util.MarshalMatches(
+	assert.Assert(t, cmp.MarshalMatches(
 		interface{}(u),
 		expect,
 	))
