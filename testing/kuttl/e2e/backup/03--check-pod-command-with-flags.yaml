@@ -10,7 +10,6 @@ commands:
       BACKUP_COMMAND=$(
           kubectl get pod --namespace "${NAMESPACE}" \
             --output jsonpath="{.items[*].spec.containers[*].env[?(@.name=='COMMAND_OPTS')].value}" \
-            --field-selector status.phase=Succeeded \
             --selector '
               postgres-operator.crunchydata.com/cluster=backup-cluster,
               postgres-operator.crunchydata.com/pgbackrest-backup=manual,
