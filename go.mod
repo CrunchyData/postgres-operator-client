@@ -10,6 +10,7 @@ require (
 	k8s.io/apimachinery v0.24.1
 	k8s.io/cli-runtime v0.24.1
 	k8s.io/client-go v0.24.1
+	sigs.k8s.io/structured-merge-diff/v4 v4.2.1
 	sigs.k8s.io/yaml v1.3.0
 )
 
@@ -68,5 +69,4 @@ require (
 	sigs.k8s.io/json v0.0.0-20211208200746-9f7c6b3444d2 // indirect
 	sigs.k8s.io/kustomize/api v0.11.4 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.13.6 // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 )
