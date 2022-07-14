@@ -1,0 +1,27 @@
+# Due to KUTTL's trouble comparing slices I found it easier to check through a script.
+# - https://github.com/kudobuilder/kuttl/issues/76
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    # Retry getting a successful pod from the most recent backup job.
+    # If that pod doesn't have the expected command, sleep and retry for five times
+    for i in {1..5}; do
+      BACKUP_COMMAND=$(
+          kubectl get pod --namespace "${NAMESPACE}" \
+            --output jsonpath="{.items[*].spec.containers[*].env[?(@.name=='COMMAND_OPTS')].value}" \
+            --selector '
+              postgres-operator.crunchydata.com/cluster=backup-cluster,
+              postgres-operator.crunchydata.com/pgbackrest-backup=manual,
+              postgres-operator.crunchydata.com/pgbackrest-repo=repo1'
+      )
+
+      echo "BACKUP_COMMAND found ${BACKUP_COMMAND}"
+
+      if [[ -n $BACKUP_COMMAND && "$BACKUP_COMMAND" == "--stanza=db --repo=1 --type=full" ]]; then
+          exit 0
+      fi
+      sleep 3
+    done
+    
+    exit 1

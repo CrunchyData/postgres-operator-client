@@ -1,0 +1,13 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    RESULT=$(kubectl-pgo --namespace "${NAMESPACE}" backup backup-cluster --repoName repo1 --options="--type=full")
+
+    echo "RESULT from taking backup: ${RESULT}"
+
+    if [[ -n $RESULT && "$RESULT" == "postgresclusters/backup-cluster backup initiated" ]]; then
+        exit 0
+    fi
+
+    exit 1
