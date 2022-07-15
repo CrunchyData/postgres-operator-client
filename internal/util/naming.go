@@ -53,14 +53,6 @@ const (
 	ContainerDatabase = "database"
 )
 
-const (
-	// GVK values
-
-	PostgresGroup    = "postgres-operator.crunchydata.com"
-	PostgresVersion  = "v1beta1"
-	PostgresResource = "postgresclusters"
-)
-
 // PrimaryInstanceLabels provides labels for a PostgreSQL cluster primary instance
 func PrimaryInstanceLabels(clusterName string) string {
 	return LabelCluster + "=" + clusterName + "," +

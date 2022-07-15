@@ -21,20 +21,17 @@ import (
 
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/client-go/dynamic"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 
-	"github.com/crunchydata/postgres-operator-client/internal/util"
+	"github.com/crunchydata/postgres-operator-client/internal"
+	"github.com/crunchydata/postgres-operator-client/internal/apis/postgres-operator.crunchydata.com/v1beta1"
 )
 
 // newBackupCommand returns the backup command of the PGO plugin.
 // It optionally takes a `repoName` and `options` flag, which it uses
 // to update the spec; if left out, the backup command will use whatever
 // is extant on the spec.
-func newBackupCommand(kubeconfig *genericclioptions.ConfigFlags) *cobra.Command {
+func newBackupCommand(config *internal.Config) *cobra.Command {
 
 	cmdBackup := &cobra.Command{
 		Use:   "backup",
@@ -65,23 +62,18 @@ func newBackupCommand(kubeconfig *genericclioptions.ConfigFlags) *cobra.Command 
 	cmdBackup.MarkFlagsRequiredTogether("repoName", "options")
 
 	// Define the 'backup' command
-	// TODO(benjaminjb): Refactor when we have a postgrescluster client util
 	cmdBackup.RunE = func(cmd *cobra.Command, args []string) error {
 
 		// configure client
 		ctx := context.Background()
-		config, err := kubeconfig.ToRESTConfig()
-		if err != nil {
-			return err
-		}
-		client, err := dynamic.NewForConfig(config)
+		mapping, client, err := v1beta1.NewPostgresClusterClient(config)
 		if err != nil {
 			return err
 		}
 
 		// Get the namespace. This will either be from the Kubernetes configuration
 		// or from the --namespace (-n) flag.
-		configNamespace, _, err := kubeconfig.ToRawKubeConfigLoader().Namespace()
+		configNamespace, err := config.Namespace()
 		if err != nil {
 			return err
 		}
@@ -96,18 +88,12 @@ func newBackupCommand(kubeconfig *genericclioptions.ConfigFlags) *cobra.Command 
 		// Update the spec/annotate
 		// TODO(benjaminjb): Would we want to allow a dry-run option here?
 		// TODO(benjaminjb): Would we want to allow a force option here?
-		_, err = client.Resource(schema.GroupVersionResource{
-			Group:    util.PostgresGroup,
-			Version:  util.PostgresVersion,
-			Resource: util.PostgresResource,
-		}).Namespace(configNamespace).Patch(ctx,
+		_, err = client.Namespace(configNamespace).Patch(ctx,
 			args[0], // the name of the cluster object, limited to one name through `ExactArgs(1)`
 			types.MergePatchType,
 			patch,
-			// TODO(benjaminjb): What do we want the FieldManager to be?
-			metav1.PatchOptions{
-				FieldManager: "postgrescluster-cli",
-			})
+			config.Patch.PatchOptions(metav1.PatchOptions{}),
+		)
 
 		if err != nil {
 			cmd.Printf("\nError requesting update: %s\n", err)
@@ -116,7 +102,7 @@ func newBackupCommand(kubeconfig *genericclioptions.ConfigFlags) *cobra.Command 
 
 		// Print the output received.
 		// TODO(benjaminjb): consider a more informative output
-		cmd.Printf("postgresclusters/%s backup initiated\n", args[0])
+		cmd.Printf("%s/%s backup initiated\n", mapping.Resource.Resource, args[0])
 
 		return nil
 	}
