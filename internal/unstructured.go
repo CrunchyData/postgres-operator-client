@@ -189,6 +189,19 @@ func objectHasKey(object map[string]interface{}, key value.FieldList) bool {
 	return true
 }
 
+// MergeStringMaps returns a new map that contains all the keys and values in
+// maps. When two or more maps have the same key, the value from the rightmost
+// map is used.
+func MergeStringMaps(maps ...map[string]string) map[string]string {
+	merged := map[string]string{}
+	for _, m := range maps {
+		for k, v := range m {
+			merged[k] = v
+		}
+	}
+	return merged
+}
+
 // RemoveEmptyField removes a nested field from object when it is an empty map
 // or slice or it is the zero value for its type.
 func RemoveEmptyField(object *unstructured.Unstructured, fields ...string) {
