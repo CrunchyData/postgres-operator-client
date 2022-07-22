@@ -17,6 +17,7 @@ package internal
 import (
 	"bytes"
 	"fmt"
+	"reflect"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -186,4 +187,29 @@ func objectHasKey(object map[string]interface{}, key value.FieldList) bool {
 		}
 	}
 	return true
+}
+
+// RemoveEmptyField removes a nested field from object when it is an empty map
+// or slice or it is the zero value for its type.
+func RemoveEmptyField(object *unstructured.Unstructured, fields ...string) {
+	value, _, _ := unstructured.NestedFieldNoCopy(object.Object, fields...)
+	rv := reflect.ValueOf(value)
+
+	if value == nil || rv.IsZero() {
+		unstructured.RemoveNestedField(object.Object, fields...)
+		return
+	}
+
+	if (rv.Kind() == reflect.Slice || rv.Kind() == reflect.Map) && rv.Len() == 0 {
+		unstructured.RemoveNestedField(object.Object, fields...)
+		return
+	}
+}
+
+// RemoveEmptySections removes an empty nested field from object the same as
+// [RemoveEmptyField] then removes all its empty parent fields.
+func RemoveEmptySections(object *unstructured.Unstructured, sections ...string) {
+	for i := len(sections); i > 0; i-- {
+		RemoveEmptyField(object, sections[:i]...)
+	}
 }
