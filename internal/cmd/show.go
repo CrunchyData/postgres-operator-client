@@ -23,10 +23,9 @@ import (
 
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/client-go/dynamic"
+	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
+	"github.com/crunchydata/postgres-operator-client/internal"
 	"github.com/crunchydata/postgres-operator-client/internal/util"
 )
 
@@ -37,7 +36,7 @@ type Executor func(
 
 // newShowCommand returns the show subcommand of the PGO plugin. The 'show' command
 // allows you to display particular details related to the PostgreSQL cluster.
-func newShowCommand(kubeconfig *genericclioptions.ConfigFlags) *cobra.Command {
+func newShowCommand(config *internal.Config) *cobra.Command {
 
 	cmdShow := &cobra.Command{
 		Use:   "show",
@@ -46,7 +45,7 @@ func newShowCommand(kubeconfig *genericclioptions.ConfigFlags) *cobra.Command {
 	}
 
 	cmdShow.AddCommand(
-		newShowBackupCommand(kubeconfig),
+		newShowBackupCommand(config),
 	)
 
 	// No arguments for 'show', but there are arguments for the subcommands, e.g.
@@ -59,7 +58,7 @@ func newShowCommand(kubeconfig *genericclioptions.ConfigFlags) *cobra.Command {
 // newShowBackupCommand returns the backup subcommand of the show command. The
 // 'backup' command displays the output of the 'pgbackrest info' command.
 // - https://pgbackrest.org/command.html ('8 Info Command (info)')
-func newShowBackupCommand(kubeconfig *genericclioptions.ConfigFlags) *cobra.Command {
+func newShowBackupCommand(config *internal.Config) *cobra.Command {
 
 	cmdShowBackup := &cobra.Command{
 		Use:     "backup",
@@ -97,18 +96,18 @@ func newShowBackupCommand(kubeconfig *genericclioptions.ConfigFlags) *cobra.Comm
 
 		// configure client
 		ctx := context.Background()
-		config, err := kubeconfig.ToRESTConfig()
+		rest, err := config.ToRESTConfig()
 		if err != nil {
 			return err
 		}
-		client, err := dynamic.NewForConfig(config)
+		client, err := corev1.NewForConfig(rest)
 		if err != nil {
 			return err
 		}
 
 		// Get the namespace. This will either be from the Kubernetes configuration
 		// or from the --namespace (-n) flag.
-		configNamespace, _, err := kubeconfig.ToRawKubeConfigLoader().Namespace()
+		configNamespace, err := config.Namespace()
 		if err != nil {
 			return err
 		}
@@ -118,9 +117,7 @@ func newShowBackupCommand(kubeconfig *genericclioptions.ConfigFlags) *cobra.Comm
 		//    postgres-operator.crunchydata.com/cluster=hippo
 		//    postgres-operator.crunchydata.com/data=postgres
 		//    postgres-operator.crunchydata.com/role=master
-		pods, err := client.Resource(schema.GroupVersionResource{
-			Version: "v1", Resource: "pods",
-		}).Namespace(configNamespace).List(ctx, metav1.ListOptions{
+		pods, err := client.Pods(configNamespace).List(ctx, metav1.ListOptions{
 			LabelSelector: util.PrimaryInstanceLabels(args[0]),
 		})
 		if err != nil {
@@ -131,7 +128,7 @@ func newShowBackupCommand(kubeconfig *genericclioptions.ConfigFlags) *cobra.Comm
 			return fmt.Errorf("Primary instance Pod not found.")
 		}
 
-		PodExec, err := util.NewPodExecutor(config)
+		PodExec, err := util.NewPodExecutor(rest)
 		if err != nil {
 			return err
 		}
