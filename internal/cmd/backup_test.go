@@ -15,54 +15,157 @@
 package cmd
 
 import (
-	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"gotest.tools/v3/assert"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"sigs.k8s.io/yaml"
+
+	"github.com/crunchydata/postgres-operator-client/internal/testing/cmp"
 )
 
-func TestGenerateBackupPatch(t *testing.T) {
-	timestamp := time.Now().Format(time.Stamp)
+func TestPGBackRestBackupModifyIntent(t *testing.T) {
+	now := time.Date(2020, 4, 5, 6, 7, 8, 99, time.FixedZone("ZONE", -11))
 
-	t.Run("flags present, single options", func(t *testing.T) {
-		output, err := generateBackupPatch(timestamp,
-			"testRepo",
-			[]string{"--quoth=raven --midnight=dreary"})
+	for _, tt := range []struct {
+		Name, Before, After string
+		Backup              pgBackRestBackup
+	}{
+		{
+			Name: "Zero",
+			After: strings.TrimSpace(`
+metadata:
+  annotations:
+    postgres-operator.crunchydata.com/pgbackrest-backup: "2020-04-05T06:07:19Z"
+			`),
+		},
+		{
+			Name: "Options",
+			Backup: pgBackRestBackup{
+				Options: []string{"--quoth=raven --midnight=dreary", "--ever=never"},
+			},
+			After: strings.TrimSpace(`
+metadata:
+  annotations:
+    postgres-operator.crunchydata.com/pgbackrest-backup: "2020-04-05T06:07:19Z"
+spec:
+  backups:
+    pgbackrest:
+      manual:
+        options:
+        - --quoth=raven --midnight=dreary
+        - --ever=never
+			`),
+		},
+		{
+			Name:   "RepoName",
+			Backup: pgBackRestBackup{RepoName: "testRepo"},
+			After: strings.TrimSpace(`
+metadata:
+  annotations:
+    postgres-operator.crunchydata.com/pgbackrest-backup: "2020-04-05T06:07:19Z"
+spec:
+  backups:
+    pgbackrest:
+      manual:
+        repoName: testRepo
+			`),
+		},
+		{
+			Name: "OldRepoAndOptions",
+			Before: strings.TrimSpace(`
+metadata:
+  annotations:
+    postgres-operator.crunchydata.com/pgbackrest-backup: existingTrigger
+spec:
+  backups:
+    pgbackrest:
+      manual:
+        options: ["--from=before"]
+        repoName: priorRepo
+			`),
+			After: strings.TrimSpace(`
+metadata:
+  annotations:
+    postgres-operator.crunchydata.com/pgbackrest-backup: "2020-04-05T06:07:19Z"
+			`),
+		},
+		{
+			Name:   "NewRepoButOptions",
+			Backup: pgBackRestBackup{RepoName: "testRepo"},
+			Before: strings.TrimSpace(`
+metadata:
+  annotations:
+    postgres-operator.crunchydata.com/pgbackrest-backup: existingTrigger
+spec:
+  backups:
+    pgbackrest:
+      manual:
+        options: ["--from=before"]
+        repoName: priorRepo
+			`),
+			After: strings.TrimSpace(`
+metadata:
+  annotations:
+    postgres-operator.crunchydata.com/pgbackrest-backup: "2020-04-05T06:07:19Z"
+spec:
+  backups:
+    pgbackrest:
+      manual:
+        repoName: testRepo
+			`),
+		},
+		{
+			Name:   "NewOptionsButRepo",
+			Backup: pgBackRestBackup{Options: []string{"a", "b c"}},
+			Before: strings.TrimSpace(`
+metadata:
+  annotations:
+    postgres-operator.crunchydata.com/pgbackrest-backup: existingTrigger
+spec:
+  backups:
+    pgbackrest:
+      manual:
+        options: ["--from=before"]
+        repoName: priorRepo
+			`),
+			After: strings.TrimSpace(`
+metadata:
+  annotations:
+    postgres-operator.crunchydata.com/pgbackrest-backup: "2020-04-05T06:07:19Z"
+spec:
+  backups:
+    pgbackrest:
+      manual:
+        options:
+        - a
+        - b c
+			`),
+		},
+	} {
+		t.Run(tt.Name, func(t *testing.T) {
+			var intent unstructured.Unstructured
+			assert.NilError(t, yaml.Unmarshal([]byte(tt.Before), &intent.Object))
 
-		assert.NilError(t, err)
+			assert.NilError(t, tt.Backup.modifyIntent(&intent, now))
+			assert.Assert(t, cmp.MarshalMatches(&intent, tt.After))
+		})
+	}
 
-		stringOutput := string(output)
-		assert.Equal(t, stringOutput, fmt.Sprintf(`{"metadata":{"annotations":`+
-			`{"postgres-operator.crunchydata.com/pgbackrest-backup":"%s"}},`+
-			`"spec":{"backups":{"pgbackrest":{"manual":{"options":`+
-			`["--quoth=raven --midnight=dreary"],"repoName":"testRepo"}}}}}`, timestamp))
-	})
+	t.Run("UnexpectedStructure", func(t *testing.T) {
+		var intent unstructured.Unstructured
+		assert.NilError(t, yaml.Unmarshal(
+			[]byte(`{ spec: { backups: 1234 } }`), &intent.Object,
+		))
 
-	t.Run("flags present, multiple options", func(t *testing.T) {
-		output, err := generateBackupPatch(timestamp,
-			"testRepo",
-			[]string{"--quoth=raven --midnight=dreary", "--ever=never"})
+		err := pgBackRestBackup{Options: []string{"a"}}.modifyIntent(&intent, now)
+		assert.ErrorContains(t, err, ".spec.backups")
+		assert.ErrorContains(t, err, "is not a map")
 
-		assert.NilError(t, err)
-
-		stringOutput := string(output)
-		assert.Equal(t, stringOutput, fmt.Sprintf(`{"metadata":{"annotations":`+
-			`{"postgres-operator.crunchydata.com/pgbackrest-backup":"%s"}},`+
-			`"spec":{"backups":{"pgbackrest":{"manual":{"options":`+
-			`["--quoth=raven --midnight=dreary","--ever=never"],"repoName":"testRepo"}}}}}`,
-			timestamp))
-	})
-
-	t.Run("flags absent", func(t *testing.T) {
-		output, err := generateBackupPatch(timestamp,
-			"",
-			[]string{})
-
-		assert.NilError(t, err)
-
-		stringOutput := string(output)
-		assert.Equal(t, stringOutput, fmt.Sprintf(`{"metadata":{"annotations":`+
-			`{"postgres-operator.crunchydata.com/pgbackrest-backup":"%s"}}}`, timestamp))
+		err = pgBackRestBackup{RepoName: "b"}.modifyIntent(&intent, now)
+		assert.ErrorContains(t, err, ".spec.backups")
+		assert.ErrorContains(t, err, "is not a map")
 	})
 }

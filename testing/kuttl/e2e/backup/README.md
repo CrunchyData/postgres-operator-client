@@ -16,12 +16,11 @@
 * Trigger a backup through the CLI with multiple flags
 * Check the command on the backup pod -- it should have multiple options
 
-(5) 08-09
-* Trigger a backup through the CLI with no flags
-* Check the command on the backup pod -- it should have multiple options (the last set)
+(5) 08
+* Call the backup CLI with no flags
+* Check the annotation on the cluster
+* No backup occurs
 
-(6) 10-12
+(6) 10-11
 * Update the spec through KUTTL, changing the ownership of that field
-* Trigger a backup through the CLI with different flags
-* Check the command on the backup pod -- it should have the different flags
-TODO(benjaminjb): is this truly the behavior we want?
+* Call the backup CLI with different flags, and see a conflict

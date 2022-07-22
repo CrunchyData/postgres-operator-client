@@ -2,12 +2,20 @@ apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
 - script: |
-    RESULT=$(kubectl-pgo --namespace "${NAMESPACE}" backup backup-cluster --repoName repo1 --options="--type=full --start-fast=y")
+    RESULT=$(kubectl-pgo --namespace "${NAMESPACE}" backup backup-cluster --repoName repo1 --options="--type=full" 2>&1)
+    STATUS=$?
 
     echo "RESULT from taking backup: ${RESULT}"
 
-    if [[ -n $RESULT && "$RESULT" == *"postgresclusters/backup-cluster backup initiated"* ]]; then
-        exit 0
+    if [ "${STATUS-0}" -eq 0 ]; then
+      printf 'Expected error, got none'
+      exit 1
     fi
 
-    exit 1
+    # FIXME(cbandy): why does the output start with a blank line?
+    ERROR=$(echo "${RESULT}" | head -n2)
+
+    if [[ "${ERROR,,}" != *conflict* || "${ERROR}" != *repoName* ]]; then
+      printf 'Expected conflict on repoName, got %q' "${ERROR}"
+      exit 1
+    fi

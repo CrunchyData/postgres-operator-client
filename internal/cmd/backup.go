@@ -16,11 +16,11 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"time"
 
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/crunchydata/postgres-operator-client/internal"
@@ -29,8 +29,7 @@ import (
 
 // newBackupCommand returns the backup command of the PGO plugin.
 // It optionally takes a `repoName` and `options` flag, which it uses
-// to update the spec; if left out, the backup command will use whatever
-// is extant on the spec.
+// to update the spec.
 func newBackupCommand(config *internal.Config) *cobra.Command {
 
 	cmdBackup := &cobra.Command{
@@ -54,12 +53,10 @@ func newBackupCommand(config *internal.Config) *cobra.Command {
 	// 1) multiple options flags can be used, with each becoming a new line
 	// in the options array on the spec
 	// 2) the `repoName` and `options` flags must be used together
-	var repoName string
-	var options []string
-	cmdBackup.Flags().StringVar(&repoName, "repoName", "", "repoName to backup to")
-	cmdBackup.Flags().StringArrayVar(&options, "options", []string{},
+	backup := pgBackRestBackup{}
+	cmdBackup.Flags().StringVar(&backup.RepoName, "repoName", "", "repoName to backup to")
+	cmdBackup.Flags().StringArrayVar(&backup.Options, "options", []string{},
 		"options for taking a backup; can be used multiple times")
-	cmdBackup.MarkFlagsRequiredTogether("repoName", "options")
 
 	// Define the 'backup' command
 	cmdBackup.RunE = func(cmd *cobra.Command, args []string) error {
@@ -78,8 +75,23 @@ func newBackupCommand(config *internal.Config) *cobra.Command {
 			return err
 		}
 
-		patch, err := generateBackupPatch(time.Now().Format(time.Stamp),
-			repoName, options)
+		cluster, err := client.Namespace(configNamespace).Get(ctx,
+			args[0], // the name of the cluster object, limited to one name through `ExactArgs(1)`
+			metav1.GetOptions{},
+		)
+		if err != nil {
+			return err
+		}
+
+		intent := new(unstructured.Unstructured)
+		if err := internal.ExtractFieldsInto(cluster, intent, config.Patch.FieldManager); err != nil {
+			return err
+		}
+		if err := backup.modifyIntent(intent, time.Now()); err != nil {
+			return err
+		}
+
+		patch, err := intent.MarshalJSON()
 		if err != nil {
 			cmd.Printf("\nError packaging payload: %s\n", err)
 			return err
@@ -90,7 +102,7 @@ func newBackupCommand(config *internal.Config) *cobra.Command {
 		// TODO(benjaminjb): Would we want to allow a force option here?
 		_, err = client.Namespace(configNamespace).Patch(ctx,
 			args[0], // the name of the cluster object, limited to one name through `ExactArgs(1)`
-			types.MergePatchType,
+			types.ApplyPatchType,
 			patch,
 			config.Patch.PatchOptions(metav1.PatchOptions{}),
 		)
@@ -110,32 +122,41 @@ func newBackupCommand(config *internal.Config) *cobra.Command {
 	return cmdBackup
 }
 
-// generateBackupPatch takes a trigger (string) to add to the postgrescluster annotations;
-// it takes repoName and options from the CLI flags (optional); if the flags are omitted,
-// the backup patch will just be the trigger annotation.
-// For ease of legibility and output (e.g., to make sure each entry in `options` is a separate
-// line in the spec), this creates a golang struct and marshals it as json
-func generateBackupPatch(trigger, repoName string, options []string) (out []byte, err error) {
-	update := map[string]interface{}{
-		"metadata": map[string]interface{}{
-			"annotations": map[string]string{
-				"postgres-operator.crunchydata.com/pgbackrest-backup": trigger,
-			},
-		},
+type pgBackRestBackup struct {
+	Options  []string
+	RepoName string
+}
+
+func (config pgBackRestBackup) modifyIntent(
+	intent *unstructured.Unstructured, now time.Time,
+) error {
+	intent.SetAnnotations(internal.MergeStringMaps(
+		intent.GetAnnotations(), map[string]string{
+			"postgres-operator.crunchydata.com/pgbackrest-backup": now.UTC().Format(time.RFC3339),
+		}))
+
+	if value, path := config.Options, []string{
+		"spec", "backups", "pgbackrest", "manual", "options",
+	}; len(value) == 0 {
+		unstructured.RemoveNestedField(intent.Object, path...)
+	} else if err := unstructured.SetNestedStringSlice(
+		intent.Object, value, path...,
+	); err != nil {
+		return err
 	}
 
-	if repoName != "" {
-		update["spec"] = map[string]interface{}{
-			"backups": map[string]interface{}{
-				"pgbackrest": map[string]interface{}{
-					"manual": map[string]interface{}{
-						"repoName": repoName,
-						"options":  options,
-					},
-				},
-			},
-		}
+	if value, path := config.RepoName, []string{
+		"spec", "backups", "pgbackrest", "manual", "repoName",
+	}; len(value) == 0 {
+		unstructured.RemoveNestedField(intent.Object, path...)
+	} else if err := unstructured.SetNestedField(
+		intent.Object, value, path...,
+	); err != nil {
+		return err
 	}
 
-	return json.Marshal(update)
+	internal.RemoveEmptySections(intent,
+		"spec", "backups", "pgbackrest", "manual")
+
+	return nil
 }
