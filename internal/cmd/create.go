@@ -22,22 +22,22 @@ import (
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/yaml"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/client-go/dynamic"
+
+	"github.com/crunchydata/postgres-operator-client/internal"
+	"github.com/crunchydata/postgres-operator-client/internal/apis/postgres-operator.crunchydata.com/v1beta1"
 )
 
 // newCreateCommand returns the create subcommand of the PGO plugin.
 // Subcommands of create will be use to create objects, backups, etc.
-func newCreateCommand(kubeconfig *genericclioptions.ConfigFlags) *cobra.Command {
+func newCreateCommand(config *internal.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create a resource",
 		Long:  "Create a resource",
 	}
 
-	cmd.AddCommand(newCreateClusterCommand(kubeconfig))
+	cmd.AddCommand(newCreateClusterCommand(config))
 
 	return cmd
 }
@@ -45,7 +45,7 @@ func newCreateCommand(kubeconfig *genericclioptions.ConfigFlags) *cobra.Command 
 // newCreateClusterCommand returns the create cluster subcommand.
 // create cluster will take a cluster name as an argument and create a basic
 // cluster using a kube client
-func newCreateClusterCommand(kubeconfig *genericclioptions.ConfigFlags) *cobra.Command {
+func newCreateClusterCommand(config *internal.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "postgrescluster",
 		Short: "Create PostgresCluster with a given name",
@@ -59,17 +59,12 @@ func newCreateClusterCommand(kubeconfig *genericclioptions.ConfigFlags) *cobra.C
 
 		clusterName := args[0]
 
-		namespace, _, err := kubeconfig.ToRawKubeConfigLoader().Namespace()
+		namespace, err := config.Namespace()
 		if err != nil {
 			return err
 		}
 
-		config, err := kubeconfig.ToRESTConfig()
-		if err != nil {
-			return err
-		}
-
-		client, err := dynamic.NewForConfig(config)
+		mapping, client, err := v1beta1.NewPostgresClusterClient(config)
 		if err != nil {
 			return err
 		}
@@ -80,18 +75,13 @@ func newCreateClusterCommand(kubeconfig *genericclioptions.ConfigFlags) *cobra.C
 		}
 
 		u, err := client.
-			Resource(schema.GroupVersionResource{
-				Group:    "postgres-operator.crunchydata.com",
-				Version:  "v1beta1",
-				Resource: "postgresclusters",
-			}).
 			Namespace(namespace).
-			Create(ctx, cluster, metav1.CreateOptions{})
+			Create(ctx, cluster, config.Patch.CreateOptions(metav1.CreateOptions{}))
 		if err != nil {
 			return err
 		}
 
-		cmd.Printf("postgresclusters/%s created\n", u.GetName())
+		cmd.Printf("%s/%s created\n", mapping.Resource.Resource, u.GetName())
 
 		return nil
 	}
