@@ -78,7 +78,6 @@ pgo is a kubectl plugin for PGO, the open source Postgres Operator from Crunchy 
 	// - https://pkg.go.dev/github.com/spf13/cobra#Command.Print
 	root.SetOut(stdout)
 
-	root.AddCommand(newExampleCommand(config.ConfigFlags))
 	root.AddCommand(newBackupCommand(config))
 	root.AddCommand(newCreateCommand(config))
 	root.AddCommand(newDeleteCommand(config))

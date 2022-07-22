@@ -26,6 +26,8 @@ import (
 
 // newExampleCommand returns the example subcommand of the PGO plugin.
 // - https://github.com/spf13/cobra/blob/-/user_guide.md
+//
+//nolint:deadcode,unused
 func newExampleCommand(kubeconfig *genericclioptions.ConfigFlags) *cobra.Command {
 	// NOTE: Take as arguments 👆 anything you want passed in.
 
