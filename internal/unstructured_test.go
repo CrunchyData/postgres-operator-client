@@ -182,6 +182,26 @@ metadata:
 	})
 }
 
+func TestMergeStringMaps(t *testing.T) {
+	assert.DeepEqual(t, MergeStringMaps(), map[string]string{})
+
+	assert.DeepEqual(t, MergeStringMaps(
+		map[string]string{"a": "1", "b": "2"},
+		map[string]string{"m": "x", "n": "y"},
+		map[string]string{"c": "6", "d": "9"},
+	), map[string]string{
+		"a": "1", "b": "2", "c": "6", "d": "9", "m": "x", "n": "y",
+	})
+
+	assert.DeepEqual(t, MergeStringMaps(
+		map[string]string{"a": "1", "b": "2"},
+		map[string]string{"a": "3", "c": "4"},
+		map[string]string{"b": "5", "d": "6"},
+	), map[string]string{
+		"a": "3", "b": "5", "c": "4", "d": "6",
+	})
+}
+
 func TestRemoveEmptyField(t *testing.T) {
 	var object unstructured.Unstructured
 	assert.NilError(t, yaml.Unmarshal([]byte(strings.TrimSpace(`
