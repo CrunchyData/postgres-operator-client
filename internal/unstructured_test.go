@@ -15,6 +15,7 @@
 package internal
 
 import (
+	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -179,4 +180,132 @@ metadata:
   - something/finalizer
 		`))
 	})
+}
+
+func TestRemoveEmptyField(t *testing.T) {
+	var object unstructured.Unstructured
+	assert.NilError(t, yaml.Unmarshal([]byte(strings.TrimSpace(`
+string:
+  zero: ""
+  full: asdf
+
+integer:
+  zero: 0
+  full: 99
+
+boolean:
+  zero: false
+  full: true
+
+array:
+  empty: []
+  full: [asdf]
+
+object:
+  empty: {}
+  full:
+    some: true
+
+blank:
+	`)), &object.Object))
+
+	t.Run("String", func(t *testing.T) {
+		RemoveEmptyField(&object, "string", "full")
+		assert.Assert(t, cmp.MarshalMatches(object.Object["string"], `
+full: asdf
+zero: ""
+		`))
+
+		RemoveEmptyField(&object, "string", "zero")
+		assert.Assert(t, cmp.MarshalMatches(object.Object["string"], `
+full: asdf
+		`))
+	})
+
+	t.Run("Integer", func(t *testing.T) {
+		RemoveEmptyField(&object, "integer", "full")
+		assert.Assert(t, cmp.MarshalMatches(object.Object["integer"], `
+full: 99
+zero: 0
+		`))
+
+		RemoveEmptyField(&object, "integer", "zero")
+		assert.Assert(t, cmp.MarshalMatches(object.Object["integer"], `
+full: 99
+		`))
+	})
+
+	t.Run("Boolean", func(t *testing.T) {
+		RemoveEmptyField(&object, "boolean", "full")
+		assert.Assert(t, cmp.MarshalMatches(object.Object["boolean"], `
+full: true
+zero: false
+		`))
+
+		RemoveEmptyField(&object, "boolean", "zero")
+		assert.Assert(t, cmp.MarshalMatches(object.Object["boolean"], `
+full: true
+		`))
+	})
+
+	t.Run("Array", func(t *testing.T) {
+		RemoveEmptyField(&object, "array", "full")
+		assert.Assert(t, cmp.MarshalMatches(object.Object["array"], `
+empty: []
+full:
+- asdf
+		`))
+
+		RemoveEmptyField(&object, "array", "empty")
+		assert.Assert(t, cmp.MarshalMatches(object.Object["array"], `
+full:
+- asdf
+		`))
+	})
+
+	t.Run("Object", func(t *testing.T) {
+		RemoveEmptyField(&object, "object", "full")
+		assert.Assert(t, cmp.MarshalMatches(object.Object["object"], `
+empty: {}
+full:
+  some: true
+		`))
+
+		RemoveEmptyField(&object, "object", "empty")
+		assert.Assert(t, cmp.MarshalMatches(object.Object["object"], `
+full:
+  some: true
+		`))
+	})
+
+	t.Run("Blank", func(t *testing.T) {
+		_, exists, _ := unstructured.NestedFieldNoCopy(object.Object, "blank")
+		assert.Assert(t, exists)
+
+		RemoveEmptyField(&object, "blank")
+
+		_, exists, _ = unstructured.NestedFieldNoCopy(object.Object, "blank")
+		assert.Assert(t, !exists)
+	})
+}
+
+func TestRemoveEmptySections(t *testing.T) {
+	var object unstructured.Unstructured
+	assert.NilError(t, yaml.Unmarshal([]byte(strings.TrimSpace(`
+spec:
+  section:
+    other:
+    empty:
+      more:
+        than:
+          once: {}
+	`)), &object.Object))
+
+	RemoveEmptySections(&object, "spec", "section", "empty", "more", "than", "once")
+
+	assert.Assert(t, cmp.MarshalMatches(&object, `
+spec:
+  section:
+    other: null
+	`))
 }
