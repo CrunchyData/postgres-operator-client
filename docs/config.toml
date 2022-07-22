@@ -1,0 +1,73 @@
+baseURL= ""
+
+languageCode = "en-us"
+DefaultContentLanguage = "en"
+title = "PGO, the Postgres Operator Client from Crunchy Data"
+theme = "crunchy-hugo-theme"
+pygmentsCodeFences = true
+pygmentsStyle = "monokailight"
+publishDir = ""
+canonifyurls = true
+relativeURLs = true
+
+defaultContentLanguage = "en"
+defaultContentLanguageInSubdir= false
+enableMissingTranslationPlaceholders = false
+
+[params]
+clientVersion = "0.1"
+
+# crunchy-hugo-theme params
+editURL = "https://github.com/CrunchyData/postgres-operator/edit/master/docs/content/"
+showVisitedLinks = false # default is false # in theme
+themeStyle = "flex" # "original" or "flex" # default "flex"
+themeVariant = "" # choose theme variant "green", "gold" , "gray", "blue" (default)
+ordersectionsby = "weight" # ordersectionsby = "title"
+disableHomeIcon = true # default is false
+disableSearch = false # default is false
+disableNavChevron = false # set true to hide next/prev chevron, default is false
+highlightClientSide = false # set true to use highlight.pack.js instead of the default hugo chroma highlighter
+menushortcutsnewtab = true # set true to open shortcuts links to a new tab/window
+enableGitInfo = true
+
+
+[outputs]
+home = [ "HTML", "RSS", "JSON"]
+
+[[menu.shortcuts]]
+name = "<label>Overview</label>"
+url = "/"
+weight = 1
+
+[[menu.shortcuts]]
+name = "<i class='fab fa-github'></i> <label>Source</label>"
+url = "https://github.com/CrunchyData/postgres-operator-client"
+weight = 10
+
+[[menu.shortcuts]]
+name = "<i class='fas fa-bookmark'></i> <label>Kubernetes</label>"
+identifier = "kubedoc"
+url = "https://kubernetes.io/docs/"
+weight = 20
+
+[[menu.shortcuts]]
+name = "<i class='fas fa-file-contract'></i> <label>License</label>"
+url = "https://github.com/CrunchyData/postgres-operator-client/blob/master/LICENSE.md"
+weight = 30
+
+# TODO: Allow users to download copies of the documentation. As the website is
+# setup, these files will need to be created and stored at these links
+#[[menu.downloads]]
+#name = "<i class='fas fa-file-pdf'></i> <label>PDF</label>"
+#url = "/pdf/postgres_operator-client.pdf"
+#weight = 20
+
+#[[menu.downloads]]
+#name = "<i class='fas fa-book'></i> <label>EPUB</label>"
+#url = "/epub/postgres_operator-client.epub"
+#weight = 30
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
