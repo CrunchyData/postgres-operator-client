@@ -23,28 +23,28 @@ import (
 
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/client-go/dynamic"
+
+	"github.com/crunchydata/postgres-operator-client/internal"
+	"github.com/crunchydata/postgres-operator-client/internal/apis/postgres-operator.crunchydata.com/v1beta1"
 )
 
 // newDeleteCommand returns the delete subcommand of the PGO plugin.
 // Subcommands of delete will be use to delete objects, etc.
-func newDeleteCommand(kubeconfig *genericclioptions.ConfigFlags) *cobra.Command {
+func newDeleteCommand(config *internal.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete",
 		Short: "Delete a resource",
 		Long:  "Delete a resource",
 	}
 
-	cmd.AddCommand(newDeleteClusterCommand(kubeconfig))
+	cmd.AddCommand(newDeleteClusterCommand(config))
 
 	return cmd
 }
 
 // newDeleteClusterCommand returns the delete cluster subcommand.
 // delete cluster will take a cluster name as an argument
-func newDeleteClusterCommand(kubeconfig *genericclioptions.ConfigFlags) *cobra.Command {
+func newDeleteClusterCommand(config *internal.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "postgrescluster",
 		Short: "Delete a PostgresCluster",
@@ -72,34 +72,24 @@ func newDeleteClusterCommand(kubeconfig *genericclioptions.ConfigFlags) *cobra.C
 			return nil
 		}
 
-		namespace, _, err := kubeconfig.ToRawKubeConfigLoader().Namespace()
+		namespace, err := config.Namespace()
 		if err != nil {
 			return err
 		}
 
-		config, err := kubeconfig.ToRESTConfig()
-		if err != nil {
-			return err
-		}
-
-		client, err := dynamic.NewForConfig(config)
+		mapping, client, err := v1beta1.NewPostgresClusterClient(config)
 		if err != nil {
 			return err
 		}
 
 		err = client.
-			Resource(schema.GroupVersionResource{
-				Group:    "postgres-operator.crunchydata.com",
-				Version:  "v1beta1",
-				Resource: "postgresclusters",
-			}).
 			Namespace(namespace).
 			Delete(ctx, clusterName, metav1.DeleteOptions{})
 		if err != nil {
 			return err
 		}
 
-		cmd.Printf("postgresclusters/%s deleted\n", clusterName)
+		cmd.Printf("%s/%s deleted\n", mapping.Resource.Resource, clusterName)
 
 		return nil
 	}
