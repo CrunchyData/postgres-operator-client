@@ -22,8 +22,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/crunchydata/postgres-operator-client/internal/cmd"
 	"github.com/spf13/cobra/doc"
+
+	"github.com/crunchydata/postgres-operator-client/internal/cmd"
 )
 
 const fmTemplate = `---
