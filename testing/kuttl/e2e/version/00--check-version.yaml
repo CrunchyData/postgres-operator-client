@@ -1,0 +1,23 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    OPERATOR_VERSION=$(
+        kubectl get crd postgresclusters.postgres-operator.crunchydata.com \
+          -o yaml | \
+          grep app.kubernetes.io/version | \
+          awk '{print $2}'
+    )
+
+    VERSION_OUTPUT=$(kubectl pgo version)
+    CLI_VERSION=$(kubectl pgo version | awk '{print $3}')
+
+    # the CLI version isn't empty and the CLI version output follows the expected format
+    if [[ -z $CLI_VERSION || $VERSION_OUTPUT != *"Client Version: "* ]]; then
+      exit 1
+    fi
+
+    # the operator version isn't empty and the version output matches the CRD value
+    if [[ -z $OPERATOR_VERSION || $VERSION_OUTPUT != *"Operator Version: v$OPERATOR_VERSION"* ]]; then
+      exit 1
+    fi

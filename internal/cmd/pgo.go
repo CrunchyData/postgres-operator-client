@@ -27,6 +27,9 @@ import (
 	"github.com/crunchydata/postgres-operator-client/internal"
 )
 
+// store the current PGO CLI version
+const clientVersion = "v0.1"
+
 // NewPGOCommand returns the root command of the PGO plugin. This command
 // prints the same information as its --help flag: the available subcommands
 // and their short descriptions.
@@ -86,5 +89,7 @@ pgo is a kubectl plugin for PGO, the open source Postgres Operator from Crunchy 
 	root.AddCommand(newDeleteCommand(config))
 	root.AddCommand(newShowCommand(config))
 	root.AddCommand(newSupportCommand(config))
+	root.AddCommand(newVersionCommand(config))
+
 	return root
 }
