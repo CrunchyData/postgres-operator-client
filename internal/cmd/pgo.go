@@ -72,7 +72,7 @@ pgo is a kubectl plugin for PGO, the open source Postgres Operator from Crunchy 
 		Run: nil,
 	}
 
-	// set the defualt directory for flag ----cache-dir
+	// set the default directory for flag ----cache-dir
 	cfgDir := "$HOME/.kube/cache"
 	config.CacheDir = &cfgDir
 
