@@ -65,6 +65,9 @@ pgo is a kubectl plugin for PGO, the open source Postgres Operator from Crunchy 
 		// Do not append "[flags]" to the UseLine.
 		DisableFlagsInUseLine: true,
 
+		// Do not include a heading with the date on which documentation was generated.
+		DisableAutoGenTag: true,
+
 		// Print the long description and usage when there is no subcommand.
 		Run: nil,
 	}
