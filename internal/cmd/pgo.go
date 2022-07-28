@@ -72,10 +72,6 @@ pgo is a kubectl plugin for PGO, the open source Postgres Operator from Crunchy 
 		Run: nil,
 	}
 
-	// set the default directory for flag ----cache-dir
-	cfgDir := "$HOME/.kube/cache"
-	config.CacheDir = &cfgDir
-
 	// Add flags for kubeconfig, authentication, namespace, and timeout to
 	// every subcommand.
 	// - https://docs.k8s.io/concepts/configuration/organize-cluster-access-kubeconfig/
