@@ -17,7 +17,6 @@ package main
 import (
 	"os"
 
-	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
 	"github.com/crunchydata/postgres-operator-client/internal/cmd"
@@ -28,5 +27,5 @@ func main() {
 	pflag.CommandLine = flags
 
 	root := cmd.NewPGOCommand(os.Stdin, os.Stdout, os.Stderr)
-	cobra.CheckErr(root.Execute())
+	root.Execute()
 }
