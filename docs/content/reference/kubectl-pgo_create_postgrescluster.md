@@ -10,7 +10,7 @@ Create PostgresCluster with a given name
 Create basic PostgresCluster with a given name.
 
 ```
-kubectl-pgo create postgrescluster [flags]
+kubectl-pgo create postgrescluster CLUSTER_NAME [flags]
 ```
 
 ### Examples

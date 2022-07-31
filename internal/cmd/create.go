@@ -47,7 +47,7 @@ func newCreateCommand(config *internal.Config) *cobra.Command {
 // cluster using a kube client
 func newCreateClusterCommand(config *internal.Config) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "postgrescluster",
+		Use:     "postgrescluster CLUSTER_NAME",
 		Aliases: []string{"postgresclusters"},
 		Short:   "Create PostgresCluster with a given name",
 		Long:    `Create basic PostgresCluster with a given name.`,

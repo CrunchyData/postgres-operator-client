@@ -99,7 +99,7 @@ func newSupportExportCommand(config *internal.Config) *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "export",
+		Use:   "export CLUSTER_NAME",
 		Short: "Export a snapshot of a PostgresCluster",
 		Long: fmt.Sprintf(`
 The support export tool will collect information that is commonly necessary for troubleshooting a

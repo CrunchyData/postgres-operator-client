@@ -10,7 +10,7 @@ Backup cluster
 Backup allows you to take a backup of a PostgreSQL cluster
 
 ```
-kubectl-pgo backup [flags]
+kubectl-pgo backup CLUSTER_NAME [flags]
 ```
 
 ### Examples
