@@ -27,5 +27,11 @@ func main() {
 	pflag.CommandLine = flags
 
 	root := cmd.NewPGOCommand(os.Stdin, os.Stdout, os.Stderr)
-	root.Execute()
+
+	// `cobra.CheckErr` both prints the error -- leading to duplicate error
+	// messages -- and exits with 1; so to avoid duplicate error messages,
+	// we handle the exiting.
+	if err := root.Execute(); err != nil {
+		os.Exit(1)
+	}
 }
