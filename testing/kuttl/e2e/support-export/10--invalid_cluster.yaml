@@ -3,7 +3,7 @@ apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
 - script: |
-    kubectl pgo --namespace $NAMESPACE support export invalid -o .
+    kubectl-pgo --namespace $NAMESPACE support export invalid -o .
     if [ $? ==  0 ]
     then
       echo "expected command to fail"
