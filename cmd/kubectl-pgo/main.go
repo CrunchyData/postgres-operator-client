@@ -28,6 +28,5 @@ func main() {
 	pflag.CommandLine = flags
 
 	root := cmd.NewPGOCommand(os.Stdin, os.Stdout, os.Stderr)
-
 	cobra.CheckErr(root.Execute())
 }
