@@ -2,7 +2,7 @@ apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
 - script: |
-    echo yes | kubectl pgo --namespace $NAMESPACE delete postgrescluster fake
+    echo yes | kubectl-pgo --namespace $NAMESPACE delete postgrescluster fake
 
     status=$?
     if [ $status -eq 1 ]; then
