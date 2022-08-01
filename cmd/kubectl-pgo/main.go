@@ -17,6 +17,7 @@ package main
 import (
 	"os"
 
+	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
 	"github.com/crunchydata/postgres-operator-client/internal/cmd"
@@ -28,10 +29,5 @@ func main() {
 
 	root := cmd.NewPGOCommand(os.Stdin, os.Stdout, os.Stderr)
 
-	// `cobra.CheckErr` both prints the error -- leading to duplicate error
-	// messages -- and exits with 1; so to avoid duplicate error messages,
-	// we handle the exiting.
-	if err := root.Execute(); err != nil {
-		os.Exit(1)
-	}
+	cobra.CheckErr(root.Execute())
 }

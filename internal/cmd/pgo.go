@@ -73,6 +73,11 @@ pgo is a kubectl plugin for PGO, the open source Postgres Operator from Crunchy 
 
 		// Prevent usage from printing unless requested
 		SilenceUsage: true,
+
+		// SilenceErrors prevents the command from printing errors
+		// which would be duplicates since we run `cobra.CheckErr`
+		// on the root command
+		SilenceErrors: true,
 	}
 
 	// Add flags for kubeconfig, authentication, namespace, and timeout to
