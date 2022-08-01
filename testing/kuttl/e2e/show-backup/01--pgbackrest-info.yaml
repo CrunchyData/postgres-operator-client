@@ -15,7 +15,7 @@ commands:
     )
 
     CLI_INFO=$(
-        kubectl-pgo --namespace "${NAMESPACE}" show backup show-backup-cluster
+        kubectl pgo --namespace "${NAMESPACE}" show backup show-backup-cluster
     )
 
     status=$?

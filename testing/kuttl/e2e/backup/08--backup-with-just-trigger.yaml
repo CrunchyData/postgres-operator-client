@@ -8,7 +8,7 @@ commands:
     }
 
     PRIOR=$(pgbackrest_backup_annotation)
-    RESULT=$(kubectl-pgo --namespace "${NAMESPACE}" backup backup-cluster)
+    RESULT=$(kubectl pgo --namespace "${NAMESPACE}" backup backup-cluster)
     CURRENT=$(pgbackrest_backup_annotation)
 
     if [ "${CURRENT}" = "${PRIOR}" ]; then

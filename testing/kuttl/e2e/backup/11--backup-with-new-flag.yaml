@@ -2,7 +2,7 @@ apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
 - script: |
-    RESULT=$(kubectl-pgo --namespace "${NAMESPACE}" backup backup-cluster --repoName repo1 --options="--type=full" 2>&1)
+    RESULT=$(kubectl pgo --namespace "${NAMESPACE}" backup backup-cluster --repoName repo1 --options="--type=full" 2>&1)
     STATUS=$?
 
     echo "RESULT from taking backup: ${RESULT}"
