@@ -10,7 +10,7 @@ Show backup information for a PostgresCluster
 Show backup information for a PostgresCluster from 'pgbackrest info' command.
 
 ```
-kubectl-pgo show backup [flags]
+kubectl-pgo show backup CLUSTER_NAME [flags]
 ```
 
 ### Examples

@@ -15,7 +15,7 @@ Collected Resources: [statefulsets deployments replicasets jobs cronjobs poddisr
 
 
 ```
-kubectl-pgo support export [flags]
+kubectl-pgo support export CLUSTER_NAME [flags]
 ```
 
 ### Examples

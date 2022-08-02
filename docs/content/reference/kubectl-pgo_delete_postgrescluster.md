@@ -10,7 +10,7 @@ Delete a PostgresCluster
 Delete a PostgresCluster with a given name.
 
 ```
-kubectl-pgo delete postgrescluster [flags]
+kubectl-pgo delete postgrescluster CLUSTER_NAME [flags]
 ```
 
 ### Options

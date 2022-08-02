@@ -33,7 +33,7 @@ import (
 func newBackupCommand(config *internal.Config) *cobra.Command {
 
 	cmdBackup := &cobra.Command{
-		Use:   "backup",
+		Use:   "backup CLUSTER_NAME",
 		Short: "Backup cluster",
 		Long:  "Backup allows you to take a backup of a PostgreSQL cluster",
 	}

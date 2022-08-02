@@ -46,7 +46,7 @@ func newDeleteCommand(config *internal.Config) *cobra.Command {
 // delete cluster will take a cluster name as an argument
 func newDeleteClusterCommand(config *internal.Config) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "postgrescluster",
+		Use:   "postgrescluster CLUSTER_NAME",
 		Short: "Delete a PostgresCluster",
 		Long:  `Delete a PostgresCluster with a given name.`,
 	}
