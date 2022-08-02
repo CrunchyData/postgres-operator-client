@@ -9,7 +9,7 @@ GO_BUILD ?= $(GO) build --trimpath
 GO_TEST = $(GO) test
 
 KUBE_CLIENT ?= kubectl
-KUTTL_TEST ?= kuttl test --test support-export
+KUTTL_TEST ?= kuttl test
 
 ##@ General
 
