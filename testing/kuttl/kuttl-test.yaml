@@ -11,4 +11,4 @@ parallel: 2
 # By default kuttl deletes the resources created during a test.
 # For debugging, it may be helpful to uncomment the following line
 # in order to inspect the resources.
-# skipDelete: true
+skipDelete: true
