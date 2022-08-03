@@ -1,0 +1,39 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    # Respond "yes" to the confirmation prompt of a restore command
+
+    RESULT=$(echo yes |
+      kubectl-pgo --namespace "${NAMESPACE}" restore restore-cluster \
+        --repoName repo1
+    )
+    STATUS=$?
+
+    [[ "${STATUS}" -eq 0 ]] || {
+      echo "Expected success, got ${STATUS}"
+      echo "STDOUT: ${RESULT}"
+      exit 1
+    }
+
+    [[ "${RESULT}" == 'WARNING: You are about to restore from pgBackRest'* ]] || {
+      echo "Expected a warning, got:"
+      echo "${RESULT}"
+      exit 1
+    }
+
+    [[ "${RESULT}" == *'patched'* ]] || {
+      echo "Expected to patch, got:"
+      echo "${RESULT}"
+      exit 1
+    }
+
+    RESTORE=$(
+      kubectl --namespace "${NAMESPACE}" get postgrescluster/restore-cluster \
+        --output "jsonpath-as-json={.metadata.annotations['postgres-operator\.crunchydata\.com/pgbackrest-restore']}"
+    )
+
+    [[ "${RESTORE}" != '[]' ]] || {
+      echo "Expected restore annotation to be populated, got ${RESTORE}"
+      exit 1
+    }

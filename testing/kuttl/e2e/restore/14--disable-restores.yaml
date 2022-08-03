@@ -1,0 +1,29 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    RESULT=$(kubectl-pgo --namespace "${NAMESPACE}" restore disable restore-cluster)
+    STATUS=$?
+
+    [[ "${STATUS}" -eq 0 ]] || {
+      echo "Expected success, got ${STATUS}"
+      echo "STDOUT: ${RESULT}"
+      exit 1
+    }
+
+    [[ "${RESULT}" == *'patched'* ]] || {
+      echo "Expected to patch, got:"
+      echo "${RESULT}"
+      exit 1
+    }
+
+    RESTORE=$(
+      kubectl --namespace "${NAMESPACE}" get postgrescluster/restore-cluster \
+        --output 'jsonpath-as-json={.spec.backups.pgbackrest.restore}'
+    )
+
+    [[ "${RESTORE}" == '[]' ]] || {
+      echo "Expected restore section to be empty, got:"
+      echo "${RESTORE}"
+      exit 1
+    }

@@ -1,0 +1,63 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    # Run a restore with specific options.
+
+    RESULT=$(echo yes |
+      kubectl-pgo --namespace "${NAMESPACE}" restore restore-cluster \
+        --repoName repo1 \
+        --options "--buffer-size=8MiB" \
+        --options "--io-timeout=120 --process-max=2"
+    )
+    STATUS=$?
+
+    [[ "${STATUS}" -eq 0 ]] || {
+      echo "Expected success, got ${STATUS}"
+      echo "STDOUT: ${RESULT}"
+      exit 1
+    }
+
+    [[
+      "${RESULT}" == 'WARNING: You are about to restore from pgBackRest'* &&
+      "${RESULT}" == *'options:[--buffer-size=8MiB --io-timeout=120 --process-max=2]'* &&
+      "${RESULT}" == *'repoName:repo1'*
+    ]] || {
+      echo "Expected a warning, got:"
+      echo "${RESULT}"
+      exit 1
+    }
+
+    [[ "${RESULT}" == *'patched'* ]] || {
+      echo "Expected to patch, got:"
+      echo "${RESULT}"
+      exit 1
+    }
+
+    RESTORE=$(
+      kubectl --namespace "${NAMESPACE}" get postgrescluster/restore-cluster \
+        --output "jsonpath-as-json={.metadata.annotations['postgres-operator\.crunchydata\.com/pgbackrest-restore']}"
+    )
+
+    [[ "${RESTORE}" != '[]' ]] || {
+      echo "Expected restore annotation to be populated, got:"
+      echo "${RESTORE}"
+      exit 1
+    }
+
+    # Wait for the restore process to be reflected in status.
+    for _ in {1..15}; do
+      STATUS=$(
+        kubectl --namespace "${NAMESPACE}" get postgrescluster/restore-cluster \
+          --output "jsonpath-as-json={.status.pgbackrest.restore.id}"
+      )
+
+      [[ "${STATUS}" == "${RESTORE}" ]] && break
+
+      sleep 1
+    done
+
+    [[ "${STATUS}" == "${RESTORE}" ]] || {
+      echo "Expected restore request to be processed, got ${STATUS} != ${RESTORE}"
+      exit 1
+    }

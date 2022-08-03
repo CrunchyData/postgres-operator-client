@@ -1,0 +1,26 @@
+---
+apiVersion: postgres-operator.crunchydata.com/v1beta1
+kind: PostgresCluster
+metadata:
+  name: restore-cluster
+
+  # There is a restore annotation asserted in the TestStep.
+
+spec:
+  backups:
+    pgbackrest:
+      # The restore section should be populated with options as they were on the CLI.
+      restore:
+        enabled: true
+        repoName: repo1
+        options:
+        - --buffer-size=8MiB
+
+# Wait for the restore to complete and for the instance to come back.
+status:
+  pgbackrest:
+    restore:
+      succeeded: 1
+  instances:
+    - replicas: 1
+      readyReplicas: 1
