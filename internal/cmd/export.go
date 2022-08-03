@@ -67,8 +67,13 @@ var namespacedResources = []schema.GroupVersionResource{{
 	Version:  batchv1beta1.SchemeGroupVersion.Version,
 	Resource: "cronjobs",
 }, {
-	Group:    policyv1.SchemeGroupVersion.Group,
-	Version:  policyv1.SchemeGroupVersion.Version,
+	Group: policyv1.SchemeGroupVersion.Group,
+	// As of PGO 5.2.x, we use `v1beta1` as the version for poddisruptionbudgets;
+	// this works from k8s 1.19 to 1.24, which is our current k8s
+	// supported range.
+	// If/when we start supporting k8s 1.25, we may need to revisit this decision for
+	// both pdb and cronjobs.
+	Version:  "v1beta1",
 	Resource: "poddisruptionbudgets",
 }, {
 	Version:  "v1",
