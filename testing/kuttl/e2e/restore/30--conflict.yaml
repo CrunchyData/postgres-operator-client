@@ -1,0 +1,53 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    # Try to restore while another tool manages the annotation.
+
+    # kubectl takes ownership, usually as "kubectl-patch".
+    kubectl --namespace "${NAMESPACE}" patch postgrescluster/restore-cluster \
+      --type 'merge' --patch '{
+        "spec": { "backups": { "pgbackrest": { "restore": { "enabled": false } } } }
+      }' || exit
+
+    # kubectl takes ownership, usually as "kubectl-annotate".
+    kubectl --namespace "${NAMESPACE}" annotate postgrescluster/restore-cluster \
+      --overwrite 'postgres-operator.crunchydata.com/pgbackrest-restore=anything' || exit
+
+    BEFORE=$(
+      kubectl --namespace "${NAMESPACE}" get postgrescluster/restore-cluster \
+        --output "jsonpath-as-json={.metadata.managedFields}"
+    ) || exit
+
+    RESULT=$( 2>&1 \
+      kubectl-pgo --namespace "${NAMESPACE}" restore restore-cluster \
+        --repoName repo1
+    )
+    STATUS=$?
+
+    [[ "${STATUS}" -ne 0 ]] || {
+      echo "Expected failure, got ${STATUS}"
+      echo "STDOUT+STDERR: ${RESULT}"
+      echo "Managed Fields: ${BEFORE}"
+      exit 1
+    }
+
+    [[
+        "${RESULT}" == 'Error: Apply failed'*'2 conflicts'* &&
+        "${RESULT}" == *'.metadata.annotations.'*'/pgbackrest-restore'* &&
+        "${RESULT}" == *'.spec.backups.pgbackrest.restore.enabled'
+    ]] || {
+      echo "Expected an error message, got:"
+      echo "${RESULT}"
+      exit 1
+    }
+
+    # Remove the annotation.
+    kubectl --namespace "${NAMESPACE}" annotate postgrescluster/restore-cluster \
+      'postgres-operator.crunchydata.com/pgbackrest-restore'- || exit
+
+    # Enable restores again.
+    kubectl --namespace "${NAMESPACE}" patch postgrescluster/restore-cluster \
+      --type 'merge' --patch '{
+        "spec": { "backups": { "pgbackrest": { "restore": { "enabled": true } } } }
+      }' || exit

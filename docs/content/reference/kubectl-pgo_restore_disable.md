@@ -1,17 +1,27 @@
 ---
-title: "PGO Client Reference"
+title: "kubectl-pgo restore disable"
 ---
-## kubectl-pgo
+## kubectl-pgo restore disable
 
-pgo is a kubectl plugin for PGO, the open source Postgres Operator
+Disable restores for a PostgresCluster
 
 ### Synopsis
 
-pgo is a kubectl plugin for PGO, the open source Postgres Operator from Crunchy Data.
+Update a PostgresCluster spec to disable restores.
 
-	https://github.com/CrunchyData/postgres-operator
+This is recommended after your restore is complete. Running "pgo restore" will enable restores again.
+
+```
+kubectl-pgo restore disable CLUSTER_NAME [flags]
+```
 
 ### Options
+
+```
+  -h, --help   help for disable
+```
+
+### Options inherited from parent commands
 
 ```
       --as string                      Username to impersonate for the operation. User could be a regular user or a service account in a namespace.
@@ -23,7 +33,6 @@ pgo is a kubectl plugin for PGO, the open source Postgres Operator from Crunchy 
       --client-key string              Path to a client key file for TLS
       --cluster string                 The name of the kubeconfig cluster to use
       --context string                 The name of the kubeconfig context to use
-  -h, --help                           help for kubectl-pgo
       --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string              Path to the kubeconfig file to use for CLI requests.
   -n, --namespace string               If present, the namespace scope for this CLI request
@@ -36,11 +45,5 @@ pgo is a kubectl plugin for PGO, the open source Postgres Operator from Crunchy 
 
 ### SEE ALSO
 
-* [kubectl-pgo backup](/reference/kubectl-pgo_backup/)	 - Backup cluster
-* [kubectl-pgo create](/reference/kubectl-pgo_create/)	 - Create a resource
-* [kubectl-pgo delete](/reference/kubectl-pgo_delete/)	 - Delete a resource
 * [kubectl-pgo restore](/reference/kubectl-pgo_restore/)	 - Restore cluster
-* [kubectl-pgo show](/reference/kubectl-pgo_show/)	 - Show PostgresCluster details
-* [kubectl-pgo support](/reference/kubectl-pgo_support/)	 - Crunchy Support commands for PGO
-* [kubectl-pgo version](/reference/kubectl-pgo_version/)	 - PGO client and operator versions
 

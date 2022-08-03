@@ -1,0 +1,13 @@
+apiVersion: postgres-operator.crunchydata.com/v1beta1
+kind: PostgresCluster
+metadata:
+  name: restore-cluster
+status:
+  instances:
+    - replicas: 1
+      readyReplicas: 1
+      updatedReplicas: 1
+  pgbackrest:
+    repos:
+    - replicaCreateBackupComplete: true
+      stanzaCreated: true

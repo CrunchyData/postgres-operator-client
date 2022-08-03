@@ -1,17 +1,37 @@
 ---
-title: "PGO Client Reference"
+title: "kubectl-pgo restore"
 ---
-## kubectl-pgo
+## kubectl-pgo restore
 
-pgo is a kubectl plugin for PGO, the open source Postgres Operator
+Restore cluster
 
 ### Synopsis
 
-pgo is a kubectl plugin for PGO, the open source Postgres Operator from Crunchy Data.
+Restore the data of a PostgreSQL cluster from a backup
 
-	https://github.com/CrunchyData/postgres-operator
+```
+kubectl-pgo restore CLUSTER_NAME [flags]
+```
+
+### Examples
+
+```
+# Restore the 'hippo' cluster using the latest backup and replay all available WAL
+pgo restore hippo --repoName repo1
+
+# Restore the 'hippo' cluster to a specific point in time
+pgo restore hippo --repoName repo1 --options '--type=time --target="2021-06-09 14:15:11-04"'
+```
 
 ### Options
+
+```
+  -h, --help                  help for restore
+      --options stringArray   options to pass to the "pgbackrest restore" command; can be used multiple times
+      --repoName string       repository to restore from
+```
+
+### Options inherited from parent commands
 
 ```
       --as string                      Username to impersonate for the operation. User could be a regular user or a service account in a namespace.
@@ -23,7 +43,6 @@ pgo is a kubectl plugin for PGO, the open source Postgres Operator from Crunchy 
       --client-key string              Path to a client key file for TLS
       --cluster string                 The name of the kubeconfig cluster to use
       --context string                 The name of the kubeconfig context to use
-  -h, --help                           help for kubectl-pgo
       --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string              Path to the kubeconfig file to use for CLI requests.
   -n, --namespace string               If present, the namespace scope for this CLI request
@@ -36,11 +55,6 @@ pgo is a kubectl plugin for PGO, the open source Postgres Operator from Crunchy 
 
 ### SEE ALSO
 
-* [kubectl-pgo backup](/reference/kubectl-pgo_backup/)	 - Backup cluster
-* [kubectl-pgo create](/reference/kubectl-pgo_create/)	 - Create a resource
-* [kubectl-pgo delete](/reference/kubectl-pgo_delete/)	 - Delete a resource
-* [kubectl-pgo restore](/reference/kubectl-pgo_restore/)	 - Restore cluster
-* [kubectl-pgo show](/reference/kubectl-pgo_show/)	 - Show PostgresCluster details
-* [kubectl-pgo support](/reference/kubectl-pgo_support/)	 - Crunchy Support commands for PGO
-* [kubectl-pgo version](/reference/kubectl-pgo_version/)	 - PGO client and operator versions
+* [kubectl-pgo](/reference/kubectl-pgo/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
+* [kubectl-pgo restore disable](/reference/kubectl-pgo_restore_disable/)	 - Disable restores for a PostgresCluster
 

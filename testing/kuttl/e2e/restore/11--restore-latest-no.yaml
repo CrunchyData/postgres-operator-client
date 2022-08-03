@@ -1,0 +1,39 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    # Respond "no" to the confirmation prompt of a restore command
+
+    RESULT=$(echo no |
+      kubectl-pgo --namespace "${NAMESPACE}" restore restore-cluster \
+        --repoName repo1
+    )
+    STATUS=$?
+
+    [[ "${STATUS}" -eq 0 ]] || {
+      echo "Expected success, got ${STATUS}"
+      echo "STDOUT: ${RESULT}"
+      exit 1
+    }
+
+    [[ "${RESULT}" == 'WARNING: You are about to restore from pgBackRest'* ]] || {
+      echo "Expected a warning, got:"
+      echo "${RESULT}"
+      exit 1
+    }
+
+    [[ "${RESULT}" != *'patched'* ]] || {
+      echo "Expected no patch, got:"
+      echo "${RESULT}"
+      exit 1
+    }
+
+    RESTORE=$(
+      kubectl --namespace "${NAMESPACE}" get postgrescluster/restore-cluster \
+        --output 'jsonpath-as-json={.spec.backups.pgbackrest.restore}'
+    )
+
+    [[ "${RESTORE}" == '[]' ]] || {
+      echo "Expected restore section to be empty, got ${RESTORE}"
+      exit 1
+    }
