@@ -17,7 +17,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,9 +54,9 @@ func newCreateClusterCommand(config *internal.Config) *cobra.Command {
 
 	cmd.Args = cobra.ExactArgs(1)
 
-	cmd.Example = strings.TrimSpace(`
+	cmd.Example = internal.FormatExample(`
 # Create a postgrescluster
-kubectl pgo create postgrescluster hippo
+pgo create postgrescluster hippo
 `)
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {

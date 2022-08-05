@@ -16,13 +16,12 @@ pgo backup CLUSTER_NAME [flags]
 ### Examples
 
 ```
-  # Trigger a backup on the 'hippo' pod using the current spec options
+  # Trigger a backup on the 'hippo' postgrescluster using the current spec options
   pgo backup hippo
-
+  
   # Update the 'backups.pgbackrest.manual.repoName' and 'backups.pgbackrest.manual.options' fields
   # on the 'hippo' postgrescluster and trigger a backup
-  pgo backup hippo --repoName="repo1"  --options="--type=full"
-
+  pgo backup hippo --repoName="repo1" --options="--type=full"
 ```
 
 ### Options

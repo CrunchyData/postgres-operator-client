@@ -126,7 +126,7 @@ Collected Resources: %v
 
 	cmd.Args = cobra.ExactArgs(1)
 
-	cmd.Example = strings.TrimSpace(`
+	cmd.Example = internal.FormatExample(`
 # Short Flags
 kubectl pgo support export daisy -o . -l 2
 

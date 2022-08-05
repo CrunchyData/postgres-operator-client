@@ -16,10 +16,14 @@ pgo show backup CLUSTER_NAME [flags]
 ### Examples
 
 ```
-  kubectl pgo show backup hippo
-  kubectl pgo show backup hippo --output=json
-  kubectl pgo show backup hippo --repoName=repo1
-	
+  # Show every repository of the 'hippo' postgrescluster
+  pgo show backup hippo
+  
+  # Show every repository of the 'hippo' postgrescluster as JSON
+  pgo show backup hippo --output=json
+  
+  # Show one repository of the 'hippo' postgrescluster
+  pgo show backup hippo --repoName=repo1
 ```
 
 ### Options

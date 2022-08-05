@@ -61,10 +61,16 @@ func newShowBackupCommand(config *internal.Config) *cobra.Command {
 		Long:    "Show backup information for a PostgresCluster from 'pgbackrest info' command.",
 	}
 
-	cmdShowBackup.Example = `  kubectl pgo show backup hippo
-  kubectl pgo show backup hippo --output=json
-  kubectl pgo show backup hippo --repoName=repo1
-	`
+	cmdShowBackup.Example = internal.FormatExample(`
+# Show every repository of the 'hippo' postgrescluster
+pgo show backup hippo
+
+# Show every repository of the 'hippo' postgrescluster as JSON
+pgo show backup hippo --output=json
+
+# Show one repository of the 'hippo' postgrescluster
+pgo show backup hippo --repoName=repo1
+	`)
 
 	// Define the command flags.
 	// - https://pgbackrest.org/command.html

@@ -36,7 +36,7 @@ func newRestoreCommand(config *internal.Config) *cobra.Command {
 		Long:  "Restore the data of a PostgreSQL cluster from a backup",
 	}
 
-	cmd.Example = strings.TrimSpace(`
+	cmd.Example = internal.FormatExample(`
 # Restore the 'hippo' cluster using the latest backup and replay all available WAL
 pgo restore hippo --repoName repo1
 

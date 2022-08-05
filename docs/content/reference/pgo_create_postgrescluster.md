@@ -16,8 +16,8 @@ pgo create postgrescluster CLUSTER_NAME [flags]
 ### Examples
 
 ```
-# Create a postgrescluster
-kubectl pgo create postgrescluster hippo
+  # Create a postgrescluster
+  pgo create postgrescluster hippo
 ```
 
 ### Options
