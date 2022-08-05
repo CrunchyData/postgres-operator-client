@@ -42,12 +42,12 @@ func NewPGOCommand(stdin io.Reader, stdout, stderr io.Writer) *cobra.Command {
 
 	root := &cobra.Command{
 		// When this executable is named `kubectl-pgo`, it can be invoked as
-		// either `kubectl-pgo` or `kubectl pgo`. Assume the former for now.
+		// either `kubectl-pgo` or `kubectl pgo`.
 		// - https://docs.k8s.io/tasks/extend-kubectl/kubectl-plugins/
 		//
 		// NOTE: The cobra package notices spaces in this value. The "first word"
 		// appears in various places as the [cobra.Command.Name].
-		Use: "kubectl-pgo",
+		Use: "pgo",
 
 		Short: "pgo is a kubectl plugin for PGO, the open source Postgres Operator",
 		Long: strings.TrimSpace(`

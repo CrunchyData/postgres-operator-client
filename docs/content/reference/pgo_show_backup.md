@@ -1,39 +1,33 @@
 ---
-title: "kubectl-pgo support export"
+title: "pgo show backup"
 ---
-## kubectl-pgo support export
+## pgo show backup
 
-Export a snapshot of a PostgresCluster
+Show backup information for a PostgresCluster
 
 ### Synopsis
 
-
-The support export tool will collect information that is commonly necessary for troubleshooting a
-PostgresCluster.
-
-Collected Resources: [statefulsets deployments replicasets jobs cronjobs poddisruptionbudgets pods persistentvolumeclaims configmaps services endpoints serviceaccounts]
-
+Show backup information for a PostgresCluster from 'pgbackrest info' command.
 
 ```
-kubectl-pgo support export CLUSTER_NAME [flags]
+pgo show backup CLUSTER_NAME [flags]
 ```
 
 ### Examples
 
 ```
-# Short Flags
-kubectl pgo support export daisy -o . -l 2
-
-# Long Flags
-kubectl pgo support export daisy --output . --pg-logs-count 2
+  kubectl pgo show backup hippo
+  kubectl pgo show backup hippo --output=json
+  kubectl pgo show backup hippo --repoName=repo1
+	
 ```
 
 ### Options
 
 ```
-  -h, --help                help for export
-  -o, --output string       Path to save export tarball
-  -l, --pg-logs-count int   Number of pg_log files to save (default 2)
+  -h, --help              help for backup
+  -o, --output string     output format. types supported: text,json (default "text")
+      --repoName string   Set the repository name for the command. example: repo1
 ```
 
 ### Options inherited from parent commands
@@ -60,5 +54,5 @@ kubectl pgo support export daisy --output . --pg-logs-count 2
 
 ### SEE ALSO
 
-* [kubectl-pgo support](/reference/kubectl-pgo_support/)	 - Crunchy Support commands for PGO
+* [pgo show](/reference/pgo_show/)	 - Show PostgresCluster details
 

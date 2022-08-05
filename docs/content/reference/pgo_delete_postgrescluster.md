@@ -1,34 +1,22 @@
 ---
-title: "kubectl-pgo restore"
+title: "pgo delete postgrescluster"
 ---
-## kubectl-pgo restore
+## pgo delete postgrescluster
 
-Restore cluster
+Delete a PostgresCluster
 
 ### Synopsis
 
-Restore the data of a PostgreSQL cluster from a backup
+Delete a PostgresCluster with a given name.
 
 ```
-kubectl-pgo restore CLUSTER_NAME [flags]
-```
-
-### Examples
-
-```
-# Restore the 'hippo' cluster using the latest backup and replay all available WAL
-pgo restore hippo --repoName repo1
-
-# Restore the 'hippo' cluster to a specific point in time
-pgo restore hippo --repoName repo1 --options '--type=time --target="2021-06-09 14:15:11-04"'
+pgo delete postgrescluster CLUSTER_NAME [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help                  help for restore
-      --options stringArray   options to pass to the "pgbackrest restore" command; can be used multiple times
-      --repoName string       repository to restore from
+  -h, --help   help for postgrescluster
 ```
 
 ### Options inherited from parent commands
@@ -55,6 +43,5 @@ pgo restore hippo --repoName repo1 --options '--type=time --target="2021-06-09 1
 
 ### SEE ALSO
 
-* [kubectl-pgo](/reference/kubectl-pgo/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
-* [kubectl-pgo restore disable](/reference/kubectl-pgo_restore_disable/)	 - Disable restores for a PostgresCluster
+* [pgo delete](/reference/pgo_delete/)	 - Delete a resource
 

@@ -1,18 +1,18 @@
 ---
-title: "kubectl-pgo create"
+title: "pgo delete"
 ---
-## kubectl-pgo create
+## pgo delete
 
-Create a resource
+Delete a resource
 
 ### Synopsis
 
-Create a resource
+Delete a resource
 
 ### Options
 
 ```
-  -h, --help   help for create
+  -h, --help   help for delete
 ```
 
 ### Options inherited from parent commands
@@ -39,6 +39,6 @@ Create a resource
 
 ### SEE ALSO
 
-* [kubectl-pgo](/reference/kubectl-pgo/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
-* [kubectl-pgo create postgrescluster](/reference/kubectl-pgo_create_postgrescluster/)	 - Create PostgresCluster with a given name
+* [pgo](/reference/pgo/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
+* [pgo delete postgrescluster](/reference/pgo_delete_postgrescluster/)	 - Delete a PostgresCluster
 

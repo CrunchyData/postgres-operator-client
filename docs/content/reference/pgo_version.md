@@ -1,18 +1,22 @@
 ---
-title: "kubectl-pgo delete"
+title: "pgo version"
 ---
-## kubectl-pgo delete
+## pgo version
 
-Delete a resource
+PGO client and operator versions
 
 ### Synopsis
 
-Delete a resource
+Version displays the versions of the PGO client and the Crunchy Postgres Operator
+
+```
+pgo version [flags]
+```
 
 ### Options
 
 ```
-  -h, --help   help for delete
+  -h, --help   help for version
 ```
 
 ### Options inherited from parent commands
@@ -39,6 +43,5 @@ Delete a resource
 
 ### SEE ALSO
 
-* [kubectl-pgo](/reference/kubectl-pgo/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
-* [kubectl-pgo delete postgrescluster](/reference/kubectl-pgo_delete_postgrescluster/)	 - Delete a PostgresCluster
+* [pgo](/reference/pgo/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
 

@@ -1,33 +1,18 @@
 ---
-title: "kubectl-pgo show backup"
+title: "pgo show"
 ---
-## kubectl-pgo show backup
+## pgo show
 
-Show backup information for a PostgresCluster
+Show PostgresCluster details
 
 ### Synopsis
 
-Show backup information for a PostgresCluster from 'pgbackrest info' command.
-
-```
-kubectl-pgo show backup CLUSTER_NAME [flags]
-```
-
-### Examples
-
-```
-  kubectl pgo show backup hippo
-  kubectl pgo show backup hippo --output=json
-  kubectl pgo show backup hippo --repoName=repo1
-	
-```
+Show allows you to display particular details related to the PostgresCluster
 
 ### Options
 
 ```
-  -h, --help              help for backup
-  -o, --output string     output format. types supported: text,json (default "text")
-      --repoName string   Set the repository name for the command. example: repo1
+  -h, --help   help for show
 ```
 
 ### Options inherited from parent commands
@@ -54,5 +39,6 @@ kubectl-pgo show backup CLUSTER_NAME [flags]
 
 ### SEE ALSO
 
-* [kubectl-pgo show](/reference/kubectl-pgo_show/)	 - Show PostgresCluster details
+* [pgo](/reference/pgo/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
+* [pgo show backup](/reference/pgo_show_backup/)	 - Show backup information for a PostgresCluster
 
