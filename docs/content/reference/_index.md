@@ -1,7 +1,9 @@
 ---
-title: "PGO Client Reference"
+title: PGO Client Reference
+aliases:
+- /reference/pgo
 ---
-## kubectl-pgo
+## pgo
 
 pgo is a kubectl plugin for PGO, the open source Postgres Operator
 
@@ -23,7 +25,7 @@ pgo is a kubectl plugin for PGO, the open source Postgres Operator from Crunchy 
       --client-key string              Path to a client key file for TLS
       --cluster string                 The name of the kubeconfig cluster to use
       --context string                 The name of the kubeconfig context to use
-  -h, --help                           help for kubectl-pgo
+  -h, --help                           help for pgo
       --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string              Path to the kubeconfig file to use for CLI requests.
   -n, --namespace string               If present, the namespace scope for this CLI request
@@ -36,11 +38,11 @@ pgo is a kubectl plugin for PGO, the open source Postgres Operator from Crunchy 
 
 ### SEE ALSO
 
-* [kubectl-pgo backup](/reference/kubectl-pgo_backup/)	 - Backup cluster
-* [kubectl-pgo create](/reference/kubectl-pgo_create/)	 - Create a resource
-* [kubectl-pgo delete](/reference/kubectl-pgo_delete/)	 - Delete a resource
-* [kubectl-pgo restore](/reference/kubectl-pgo_restore/)	 - Restore cluster
-* [kubectl-pgo show](/reference/kubectl-pgo_show/)	 - Show PostgresCluster details
-* [kubectl-pgo support](/reference/kubectl-pgo_support/)	 - Crunchy Support commands for PGO
-* [kubectl-pgo version](/reference/kubectl-pgo_version/)	 - PGO client and operator versions
+* [pgo backup](/reference/pgo_backup/)	 - Backup cluster
+* [pgo create](/reference/pgo_create/)	 - Create a resource
+* [pgo delete](/reference/pgo_delete/)	 - Delete a resource
+* [pgo restore](/reference/pgo_restore/)	 - Restore cluster
+* [pgo show](/reference/pgo_show/)	 - Show PostgresCluster details
+* [pgo support](/reference/pgo_support/)	 - Crunchy Support commands for PGO
+* [pgo version](/reference/pgo_version/)	 - PGO client and operator versions
 

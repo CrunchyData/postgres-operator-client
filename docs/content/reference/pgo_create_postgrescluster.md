@@ -1,24 +1,29 @@
 ---
-title: "kubectl-pgo restore disable"
+title: "pgo create postgrescluster"
 ---
-## kubectl-pgo restore disable
+## pgo create postgrescluster
 
-Disable restores for a PostgresCluster
+Create PostgresCluster with a given name
 
 ### Synopsis
 
-Update a PostgresCluster spec to disable restores.
-
-This is recommended after your restore is complete. Running "pgo restore" will enable restores again.
+Create basic PostgresCluster with a given name.
 
 ```
-kubectl-pgo restore disable CLUSTER_NAME [flags]
+pgo create postgrescluster CLUSTER_NAME [flags]
+```
+
+### Examples
+
+```
+# Create a postgrescluster
+kubectl pgo create postgrescluster hippo
 ```
 
 ### Options
 
 ```
-  -h, --help   help for disable
+  -h, --help   help for postgrescluster
 ```
 
 ### Options inherited from parent commands
@@ -45,5 +50,5 @@ kubectl-pgo restore disable CLUSTER_NAME [flags]
 
 ### SEE ALSO
 
-* [kubectl-pgo restore](/reference/kubectl-pgo_restore/)	 - Restore cluster
+* [pgo create](/reference/pgo_create/)	 - Create a resource
 

@@ -1,36 +1,34 @@
 ---
-title: "kubectl-pgo backup"
+title: "pgo restore"
 ---
-## kubectl-pgo backup
+## pgo restore
 
-Backup cluster
+Restore cluster
 
 ### Synopsis
 
-Backup allows you to take a backup of a PostgreSQL cluster
+Restore the data of a PostgreSQL cluster from a backup
 
 ```
-kubectl-pgo backup CLUSTER_NAME [flags]
+pgo restore CLUSTER_NAME [flags]
 ```
 
 ### Examples
 
 ```
-  # Trigger a backup on the 'hippo' pod using the current spec options
-  pgo backup hippo
+# Restore the 'hippo' cluster using the latest backup and replay all available WAL
+pgo restore hippo --repoName repo1
 
-  # Update the 'backups.pgbackrest.manual.repoName' and 'backups.pgbackrest.manual.options' fields
-  # on the 'hippo' postgrescluster and trigger a backup
-  pgo backup hippo --repoName="repo1"  --options="--type=full"
-
+# Restore the 'hippo' cluster to a specific point in time
+pgo restore hippo --repoName repo1 --options '--type=time --target="2021-06-09 14:15:11-04"'
 ```
 
 ### Options
 
 ```
-  -h, --help                  help for backup
-      --options stringArray   options for taking a backup; can be used multiple times
-      --repoName string       repoName to backup to
+  -h, --help                  help for restore
+      --options stringArray   options to pass to the "pgbackrest restore" command; can be used multiple times
+      --repoName string       repository to restore from
 ```
 
 ### Options inherited from parent commands
@@ -57,5 +55,6 @@ kubectl-pgo backup CLUSTER_NAME [flags]
 
 ### SEE ALSO
 
-* [kubectl-pgo](/reference/kubectl-pgo/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
+* [pgo](/reference/pgo/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
+* [pgo restore disable](/reference/pgo_restore_disable/)	 - Disable restores for a PostgresCluster
 

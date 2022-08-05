@@ -1,7 +1,7 @@
 ---
-title: "kubectl-pgo support"
+title: "pgo support"
 ---
-## kubectl-pgo support
+## pgo support
 
 Crunchy Support commands for PGO
 
@@ -72,6 +72,6 @@ Crunchy Support related commands <link to crunchy?>
 
 ### SEE ALSO
 
-* [kubectl-pgo](/reference/kubectl-pgo/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
-* [kubectl-pgo support export](/reference/kubectl-pgo_support_export/)	 - Export a snapshot of a PostgresCluster
+* [pgo](/reference/pgo/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
+* [pgo support export](/reference/pgo_support_export/)	 - Export a snapshot of a PostgresCluster
 

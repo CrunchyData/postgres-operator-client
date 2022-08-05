@@ -1,29 +1,18 @@
 ---
-title: "kubectl-pgo create postgrescluster"
+title: "pgo create"
 ---
-## kubectl-pgo create postgrescluster
+## pgo create
 
-Create PostgresCluster with a given name
+Create a resource
 
 ### Synopsis
 
-Create basic PostgresCluster with a given name.
-
-```
-kubectl-pgo create postgrescluster CLUSTER_NAME [flags]
-```
-
-### Examples
-
-```
-# Create a postgrescluster
-kubectl pgo create postgrescluster hippo
-```
+Create a resource
 
 ### Options
 
 ```
-  -h, --help   help for postgrescluster
+  -h, --help   help for create
 ```
 
 ### Options inherited from parent commands
@@ -50,5 +39,6 @@ kubectl pgo create postgrescluster hippo
 
 ### SEE ALSO
 
-* [kubectl-pgo create](/reference/kubectl-pgo_create/)	 - Create a resource
+* [pgo](/reference/pgo/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
+* [pgo create postgrescluster](/reference/pgo_create_postgrescluster/)	 - Create PostgresCluster with a given name
 

@@ -1,22 +1,36 @@
 ---
-title: "kubectl-pgo version"
+title: "pgo backup"
 ---
-## kubectl-pgo version
+## pgo backup
 
-PGO client and operator versions
+Backup cluster
 
 ### Synopsis
 
-Version displays the versions of the PGO client and the Crunchy Postgres Operator
+Backup allows you to take a backup of a PostgreSQL cluster
 
 ```
-kubectl-pgo version [flags]
+pgo backup CLUSTER_NAME [flags]
+```
+
+### Examples
+
+```
+  # Trigger a backup on the 'hippo' pod using the current spec options
+  pgo backup hippo
+
+  # Update the 'backups.pgbackrest.manual.repoName' and 'backups.pgbackrest.manual.options' fields
+  # on the 'hippo' postgrescluster and trigger a backup
+  pgo backup hippo --repoName="repo1"  --options="--type=full"
+
 ```
 
 ### Options
 
 ```
-  -h, --help   help for version
+  -h, --help                  help for backup
+      --options stringArray   options for taking a backup; can be used multiple times
+      --repoName string       repoName to backup to
 ```
 
 ### Options inherited from parent commands
@@ -43,5 +57,5 @@ kubectl-pgo version [flags]
 
 ### SEE ALSO
 
-* [kubectl-pgo](/reference/kubectl-pgo/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
+* [pgo](/reference/pgo/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
 

@@ -1,22 +1,24 @@
 ---
-title: "kubectl-pgo delete postgrescluster"
+title: "pgo restore disable"
 ---
-## kubectl-pgo delete postgrescluster
+## pgo restore disable
 
-Delete a PostgresCluster
+Disable restores for a PostgresCluster
 
 ### Synopsis
 
-Delete a PostgresCluster with a given name.
+Update a PostgresCluster spec to disable restores.
+
+This is recommended after your restore is complete. Running "pgo restore" will enable restores again.
 
 ```
-kubectl-pgo delete postgrescluster CLUSTER_NAME [flags]
+pgo restore disable CLUSTER_NAME [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for postgrescluster
+  -h, --help   help for disable
 ```
 
 ### Options inherited from parent commands
@@ -43,5 +45,5 @@ kubectl-pgo delete postgrescluster CLUSTER_NAME [flags]
 
 ### SEE ALSO
 
-* [kubectl-pgo delete](/reference/kubectl-pgo_delete/)	 - Delete a resource
+* [pgo restore](/reference/pgo_restore/)	 - Restore cluster
 
