@@ -38,13 +38,14 @@ func newBackupCommand(config *internal.Config) *cobra.Command {
 		Long:  "Backup allows you to take a backup of a PostgreSQL cluster",
 	}
 
-	cmdBackup.Example = `  # Trigger a backup on the 'hippo' pod using the current spec options
-  pgo backup hippo
+	cmdBackup.Example = internal.FormatExample(`
+# Trigger a backup on the 'hippo' postgrescluster using the current spec options
+pgo backup hippo
 
-  # Update the 'backups.pgbackrest.manual.repoName' and 'backups.pgbackrest.manual.options' fields
-  # on the 'hippo' postgrescluster and trigger a backup
-  pgo backup hippo --repoName="repo1"  --options="--type=full"
-`
+# Update the 'backups.pgbackrest.manual.repoName' and 'backups.pgbackrest.manual.options' fields
+# on the 'hippo' postgrescluster and trigger a backup
+pgo backup hippo --repoName="repo1" --options="--type=full"
+`)
 
 	// Limit the number of args, that is, only one cluster name
 	cmdBackup.Args = cobra.ExactArgs(1)

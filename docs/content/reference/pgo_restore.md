@@ -16,11 +16,11 @@ pgo restore CLUSTER_NAME [flags]
 ### Examples
 
 ```
-# Restore the 'hippo' cluster using the latest backup and replay all available WAL
-pgo restore hippo --repoName repo1
-
-# Restore the 'hippo' cluster to a specific point in time
-pgo restore hippo --repoName repo1 --options '--type=time --target="2021-06-09 14:15:11-04"'
+  # Restore the 'hippo' cluster using the latest backup and replay all available WAL
+  pgo restore hippo --repoName repo1
+  
+  # Restore the 'hippo' cluster to a specific point in time
+  pgo restore hippo --repoName repo1 --options '--type=time --target="2021-06-09 14:15:11-04"'
 ```
 
 ### Options

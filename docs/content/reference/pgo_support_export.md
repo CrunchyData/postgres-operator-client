@@ -21,11 +21,11 @@ pgo support export CLUSTER_NAME [flags]
 ### Examples
 
 ```
-# Short Flags
-kubectl pgo support export daisy -o . -l 2
-
-# Long Flags
-kubectl pgo support export daisy --output . --pg-logs-count 2
+  # Short Flags
+  kubectl pgo support export daisy -o . -l 2
+  
+  # Long Flags
+  kubectl pgo support export daisy --output . --pg-logs-count 2
 ```
 
 ### Options
