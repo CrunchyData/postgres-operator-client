@@ -177,8 +177,8 @@ kubectl pgo support export daisy --output . --pg-logs-count 2
 		}
 
 		// Name file with year-month-day-HrMinSecTimezone suffix
-		// Example: crunchy_k8s_support_export_2022-07-25-173613EDT.tar
-		outputFile := "crunchy_k8s_support_export_" + time.Now().Format("2006-01-02-150405MST") + ".tar"
+		// Example: crunchy_k8s_support_export_2022-08-08-115726-0400.tar
+		outputFile := "crunchy_k8s_support_export_" + time.Now().Format("2006-01-02-150405-0700") + ".tar"
 		// #nosec G304 -- We intentionally write to the directory supplied by the user.
 		tarFile, err := os.Create(outputDir + "/" + outputFile)
 		if err != nil {
