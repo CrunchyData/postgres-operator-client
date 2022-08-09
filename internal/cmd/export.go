@@ -111,7 +111,30 @@ The support export tool will collect information that is commonly necessary for 
 PostgresCluster.
 
 Collected Resources: %v
-`, collectedResources),
+
+RBAC Requirements
+Resources                                           Verbs
+---------                                           -----
+configmaps                                          [get list]
+cronjobs.batch                                      [list get]
+deployments.apps                                    [list get]
+endpoints                                           [get list]
+events                                              [get list]
+jobs.batch                                          [list get]
+namespaces                                          [get]
+nodes                                               [list]
+persistentvolumeclaims                              [get list]
+poddisruptionbudgets.policy                         [list get]
+pods                                                [get list]
+pods/exec                                           [create]
+pods/log                                            [get]
+postgresclusters.postgres-operator.crunchydata.com  [get]
+replicasets.apps                                    [list get]
+serviceaccounts                                     [get list]
+services                                            [get list]
+statefulsets.apps                                   [list get]
+
+Note: This RBAC needs to be cluster-scoped to retrieve information on nodes.`, collectedResources),
 	}
 
 	var outputDir string

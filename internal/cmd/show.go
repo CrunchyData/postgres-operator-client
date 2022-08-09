@@ -58,7 +58,13 @@ func newShowBackupCommand(config *internal.Config) *cobra.Command {
 		Use:     "backup CLUSTER_NAME",
 		Aliases: []string{"backups"},
 		Short:   "Show backup information for a PostgresCluster",
-		Long:    "Show backup information for a PostgresCluster from 'pgbackrest info' command.",
+		Long: `Show backup information for a PostgresCluster from 'pgbackrest info' command.
+
+RBAC Requirements
+Resources  Verbs
+---------  -----
+pods       [list]
+pods/exec  [create]`,
 	}
 
 	cmdShowBackup.Example = internal.FormatExample(`

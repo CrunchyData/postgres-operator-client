@@ -49,7 +49,12 @@ func newCreateClusterCommand(config *internal.Config) *cobra.Command {
 		Use:     "postgrescluster CLUSTER_NAME",
 		Aliases: []string{"postgresclusters"},
 		Short:   "Create PostgresCluster with a given name",
-		Long:    `Create basic PostgresCluster with a given name.`,
+		Long: `Create basic PostgresCluster with a given name.
+
+RBAC Requirements
+Resources                                           Verbs
+---------                                           -----
+postgresclusters.postgres-operator.crunchydata.com  [create]`,
 	}
 
 	cmd.Args = cobra.ExactArgs(1)

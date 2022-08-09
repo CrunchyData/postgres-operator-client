@@ -9,6 +9,12 @@ Show backup information for a PostgresCluster
 
 Show backup information for a PostgresCluster from 'pgbackrest info' command.
 
+RBAC Requirements
+Resources  Verbs
+---------  -----
+pods       [list]
+pods/exec  [create]
+
 ```
 pgo show backup CLUSTER_NAME [flags]
 ```

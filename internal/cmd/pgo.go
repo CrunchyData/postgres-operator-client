@@ -18,7 +18,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -50,11 +49,9 @@ func NewPGOCommand(stdin io.Reader, stdout, stderr io.Writer) *cobra.Command {
 		Use: "pgo",
 
 		Short: "pgo is a kubectl plugin for PGO, the open source Postgres Operator",
-		Long: strings.TrimSpace(`
-pgo is a kubectl plugin for PGO, the open source Postgres Operator from Crunchy Data.
+		Long: `pgo is a kubectl plugin for PGO, the open source Postgres Operator from Crunchy Data.
 
-	https://github.com/CrunchyData/postgres-operator
-`),
+	https://github.com/CrunchyData/postgres-operator`,
 
 		// Support shell completion, but do not list it as one of the available
 		// subcommands. It can be invoked via `kubectl pgo completion`.

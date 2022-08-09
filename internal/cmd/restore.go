@@ -33,7 +33,12 @@ func newRestoreCommand(config *internal.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "restore CLUSTER_NAME",
 		Short: "Restore cluster",
-		Long:  "Restore the data of a PostgreSQL cluster from a backup",
+		Long: `Restore the data of a PostgreSQL cluster from a backup
+
+RBAC Requirements
+Resources                                           Verbs
+---------                                           -----
+postgresclusters.postgres-operator.crunchydata.com  [get patch]`,
 	}
 
 	cmd.Example = internal.FormatExample(`
@@ -75,7 +80,12 @@ func newRestoreDisableCommand(config *internal.Config) *cobra.Command {
 		Short: "Disable restores for a PostgresCluster",
 		Long: `Update a PostgresCluster spec to disable restores.
 
-This is recommended after your restore is complete. Running "pgo restore" will enable restores again.`,
+This is recommended after your restore is complete. Running "pgo restore" will enable restores again.
+
+RBAC Requirements
+Resources                                           Verbs
+---------                                           -----
+postgresclusters.postgres-operator.crunchydata.com  [get patch]`,
 	}
 
 	disable := pgBackRestRestoreDisable{Config: config}
