@@ -16,7 +16,7 @@ generally active in responding to issues.
 - **For general questions or community support**: please join the
 [PostgreSQL Operator community mailing list](https://groups.google.com/a/crunchydata.com/forum/#!forum/postgres-operator/join)
 at
-[https://groups.google.com/a/crunchydata.com/forum/#!forum/postgres-operator/join](https://groups.google.com/a/crunchydata.com/forum/#!forum/postgres-operator/join).
+https://groups.google.com/a/crunchydata.com/forum/#!forum/postgres-operator/join.
 
 In all cases, please be sure to provide as many details as possible in regards to your issue, including:
 

@@ -12,7 +12,7 @@ If you have a feature request, please open up a
 You can find information about general PGO
 [support](https://access.crunchydata.com/documentation/postgres-operator-client/latest/support/) at:
 
-[https://access.crunchydata.com/documentation/postgres-operator-client/latest/support/](https://access.crunchydata.com/documentation/postgres-operator-client/latest/support/)
+https://access.crunchydata.com/documentation/postgres-operator-client/latest/support/
 
 ## Questions
 
@@ -25,7 +25,7 @@ For questions that are neither bugs nor feature requests, please be sure to
 
 Besides Pod logs, logs may also be found in the `/pgdata/pg<MAJOR_VERSION>/log` directory on your Postgres instance.
 
-If you are looking for [general support](https://access.crunchydata.com/documentation/postgres-operator/latest/support/), please view the [support](https://access.crunchydata.com/documentation/postgres-operator/latest/support/) page for where you can ask questions.
+If you are looking for [general support](https://access.crunchydata.com/documentation/postgres-operator-client/latest/support/), please view the [support](https://access.crunchydata.com/documentation/postgres-operator-client/latest/support/) page for where you can ask questions.
 
 ### Environment
 

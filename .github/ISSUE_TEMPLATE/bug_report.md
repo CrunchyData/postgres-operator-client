@@ -18,9 +18,9 @@ An incomplete bug report can lead to delays in resolving the issue or the closin
 of a ticket, so please be as detailed as possible.
 
 If you are looking for
-[general support](https://access.crunchydata.com/documentation/postgres-operator/latest/support/),
+[general support](https://access.crunchydata.com/documentation/postgres-operator-client/latest/support/),
 please view the
-[support](https://access.crunchydata.com/documentation/postgres-operator/latest/support/)
+[support](https://access.crunchydata.com/documentation/postgres-operator-client/latest/support/)
 page for where you can ask questions.
 
 Thanks for reporting the issue, we're looking forward to helping you!
