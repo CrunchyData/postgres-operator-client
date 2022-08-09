@@ -17,23 +17,23 @@ RBAC Requirements
 Resources                                           Verbs
 ---------                                           -----
 configmaps                                          [get list]
-cronjobs.batch                                      [list get]
-deployments.apps                                    [list get]
+cronjobs.batch                                      [get list]
+deployments.apps                                    [get list]
 endpoints                                           [get list]
 events                                              [get list]
-jobs.batch                                          [list get]
+jobs.batch                                          [get list]
 namespaces                                          [get]
 nodes                                               [list]
 persistentvolumeclaims                              [get list]
-poddisruptionbudgets.policy                         [list get]
+poddisruptionbudgets.policy                         [get list]
 pods                                                [get list]
 pods/exec                                           [create]
 pods/log                                            [get]
 postgresclusters.postgres-operator.crunchydata.com  [get]
-replicasets.apps                                    [list get]
+replicasets.apps                                    [get list]
 serviceaccounts                                     [get list]
 services                                            [get list]
-statefulsets.apps                                   [list get]
+statefulsets.apps                                   [get list]
 
 Note: This RBAC needs to be cluster-scoped to retrieve information on nodes.
 
