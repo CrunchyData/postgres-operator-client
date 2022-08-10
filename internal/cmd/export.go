@@ -33,6 +33,7 @@ import (
 	policyv1 "k8s.io/api/policy/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/duration"
 	"k8s.io/cli-runtime/pkg/printers"
@@ -43,6 +44,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/crunchydata/postgres-operator-client/internal"
+	"github.com/crunchydata/postgres-operator-client/internal/apis/postgres-operator.crunchydata.com/v1beta1"
 	"github.com/crunchydata/postgres-operator-client/internal/util"
 )
 
@@ -188,15 +190,17 @@ kubectl pgo support export daisy --output . --pg-logs-count 2
 		}
 		// Ensure cluster exists in the namespace before we create a file or gather
 		// any information
-		gvr := schema.GroupVersionResource{
-			Group:    "postgres-operator.crunchydata.com",
-			Version:  "v1beta1",
-			Resource: "postgresclusters",
+		_, postgresClient, err := v1beta1.NewPostgresClusterClient(config)
+		if err != nil {
+			return err
 		}
-		get, err := dynamicClient.Resource(gvr).Namespace(namespace).
-			Get(ctx, clusterName, metav1.GetOptions{})
+		get, err := postgresClient.Namespace(namespace).Get(ctx,
+			clusterName, metav1.GetOptions{})
 		if err != nil || get == nil {
-			return fmt.Errorf("Could not find cluster %s in namespace %s: %w", clusterName, namespace, err)
+			if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
+				return fmt.Errorf(err.Error())
+			}
+			return fmt.Errorf("could not find cluster %s in namespace %s: %w", clusterName, namespace, err)
 		}
 
 		// Name file with year-month-day-HrMinSecTimezone suffix
@@ -237,7 +241,7 @@ kubectl pgo support export daisy --output . --pg-logs-count 2
 		}
 
 		// Namespaced resources
-		if err := gatherClusterSpec(ctx, dynamicClient, namespace, clusterName, *tw); err != nil {
+		if err := gatherClusterSpec(ctx, get, clusterName, *tw); err != nil {
 			return err
 		}
 
@@ -348,33 +352,11 @@ func gatherCurrentNamespace(ctx context.Context,
 }
 
 func gatherClusterSpec(ctx context.Context,
-	client dynamic.Interface,
-	namespace string,
+	postgresCluster *unstructured.Unstructured,
 	clusterName string,
 	tw tar.Writer,
 ) error {
-	gvr := schema.GroupVersionResource{
-		Group:    "postgres-operator.crunchydata.com",
-		Version:  "v1beta1",
-		Resource: "postgresclusters",
-	}
-	get, err := client.Resource(gvr).Namespace(namespace).
-		Get(ctx, clusterName, metav1.GetOptions{})
-	if err != nil {
-		// We have already run this get call so we should have the proper RBAC
-		// and the cluster should exist, but check anyway
-		if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
-			fmt.Println(err.Error())
-			return nil
-		}
-		return err
-	}
-	if get == nil {
-		fmt.Printf("Could not find cluster %s in namespace %s", clusterName, namespace)
-		return nil
-	}
-
-	b, err := yaml.Marshal(get)
+	b, err := yaml.Marshal(postgresCluster)
 	if err != nil {
 		return err
 	}
@@ -553,7 +535,7 @@ func gatherPostgresqlLogs(ctx context.Context,
 		return err
 	}
 	if len(pods.Items) != 1 {
-		return fmt.Errorf("Expect one primary instance pod")
+		return fmt.Errorf("expect one primary instance pod")
 	}
 
 	podExec, err := util.NewPodExecutor(config)
@@ -687,7 +669,7 @@ func gatherPatroniInfo(ctx context.Context,
 		return err
 	}
 	if len(pods.Items) < 1 {
-		return fmt.Errorf("Expect at least one pod")
+		return fmt.Errorf("expect at least one pod")
 	}
 
 	podExec, err := util.NewPodExecutor(config)
