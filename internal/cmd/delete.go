@@ -48,7 +48,12 @@ func newDeleteClusterCommand(config *internal.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "postgrescluster CLUSTER_NAME",
 		Short: "Delete a PostgresCluster",
-		Long:  `Delete a PostgresCluster with a given name.`,
+		Long: `Delete a PostgresCluster with a given name.
+
+RBAC Requirements
+Resources                                           Verbs
+---------                                           -----
+postgresclusters.postgres-operator.crunchydata.com  [delete]`,
 	}
 
 	cmd.Args = cobra.ExactArgs(1)

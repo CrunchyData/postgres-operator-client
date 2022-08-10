@@ -31,7 +31,14 @@ func newVersionCommand(config *internal.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "version",
 		Short: "PGO client and operator versions",
-		Long:  "Version displays the versions of the PGO client and the Crunchy Postgres Operator",
+		Long: `Version displays the versions of the PGO client and the Crunchy Postgres Operator
+
+RBAC Requirements
+Resources                                       Verbs
+---------                                       -----
+customresourcedefinitions.apiextensions.k8s.io  [get]
+
+Note: This RBAC needs to be cluster-scoped.`,
 	}
 
 	// No arguments for 'version'
