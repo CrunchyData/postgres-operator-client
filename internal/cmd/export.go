@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -188,6 +189,7 @@ kubectl pgo support export daisy --output . --pg-logs-count 2
 		if err != nil {
 			return err
 		}
+
 		// Ensure cluster exists in the namespace before we create a file or gather
 		// any information
 		_, postgresClient, err := v1beta1.NewPostgresClusterClient(config)
@@ -222,6 +224,34 @@ kubectl pgo support export daisy --output . --pg-logs-count 2
 			if tarFile != nil {
 				_ = tarFile.Close()
 			}
+		}()
+
+		// Configure MultiWriter logging so that logs go both to stdout/stderr
+		// and to a buffer which gets written to the tar
+		var cliOutput bytes.Buffer
+		mw := io.MultiWriter(os.Stdout, &cliOutput)
+
+		// Replace stdout/stderr with pipe
+		r, w, _ := os.Pipe()
+		os.Stdout = w
+		os.Stderr = w
+
+		// Set logging to multiwriter
+		log.SetOutput(mw)
+
+		// Create channel to block until io.Copy finishes reading from `r`,
+		// the pipe reader
+		exit := make(chan bool)
+
+		go func() {
+			_, _ = io.Copy(mw, r)
+			exit <- true
+		}()
+
+		defer func() {
+			// Close writer, block on `exit` channel until recieve
+			_ = w.Close()
+			<-exit
 		}()
 
 		// TODO (jmckulk): collect context info
@@ -265,6 +295,12 @@ kubectl pgo support export daisy --output . --pg-logs-count 2
 
 		// Exec resources
 		if err := gatherPatroniInfo(ctx, clientset, restConfig, namespace, clusterName, *tw); err != nil {
+			return err
+		}
+
+		// Print cli output
+		path := clusterName + "/logs/cli"
+		if err := writeTar(tw, cliOutput.Bytes(), path); err != nil {
 			return err
 		}
 
@@ -394,7 +430,8 @@ func gatherNamespacedAPIResources(ctx context.Context,
 		}
 		if len(list.Items) == 0 {
 			// If we didn't find any resources, skip
-			fmt.Printf("Resource %s not found, skipping\n", gvr.Resource)
+			msg := fmt.Sprintf("Resource %s not found, skipping", gvr.Resource)
+			fmt.Println(msg)
 			continue
 		}
 
