@@ -1,15 +1,13 @@
-<h1 align="center">pgo: The CLI for the Postgres Operator from Crunchy Data</h1>
+<h1 align="center"><code>pgo</code>, the Postgres Operator CLI from Crunchy Data</h1>
 <p align="center">
   <img width="150" src="./docs/static/logos/pgo.svg" alt="pgo: The CLI for the Postgres Operator from Crunchy Data"/>
 </p>
 
-# `pgo`, the Postgres Operator CLI from Crunchy Data
-
-Welcome to the repository for the `pgo` Command Line Interface (CLI) for PGO,
-the Postgres Operator from Crunchy Data! Built as a `kubectl` plugin, the `pgo`
-CLI facilitates the creation and management of PostgreSQL clusters created using
-the Crunchy Postgres Operator. For more information about using the CLI and the
-various commands available, please see the PGO CLI
+Welcome to the repository for `pgo`, the Command Line Interface (CLI) for
+the [Crunchy Postgres Operator](https://github.com/CrunchyData/postgres-operator)!
+Built as a `kubectl` plugin, the `pgo` CLI facilitates the creation and management of PostgreSQL
+clusters created using the Crunchy Postgres Operator. For more information about using the CLI and
+the various commands available, please see the PGO CLI
 [documentation](https://access.crunchydata.com/documentation/postgres-operator-client/latest).
 
 ## Install `pgo`, the Postgres Operator for Kubernetes Client
