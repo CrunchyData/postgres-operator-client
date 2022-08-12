@@ -1,5 +1,5 @@
 ---
-title: "`pgo`, the Postgres Operator Client from Crunchy Data"
+title: "pgo, the Postgres Operator Client from Crunchy Data"
 date:
 draft: false
 ---
