@@ -224,43 +224,43 @@ kubectl pgo support export daisy --output . --pg-logs-count 2
 		// TODO (jmckulk): collect client version, after pgo version command is implemented
 
 		// Gather cluster wide resources
-		if err := gatherKubeServerVersion(ctx, discoveryClient, clusterName, *tw); err != nil {
+		if err := gatherKubeServerVersion(ctx, discoveryClient, clusterName, tw); err != nil {
 			return err
 		}
 
-		if err := gatherNodes(ctx, clientset, clusterName, *tw); err != nil {
+		if err := gatherNodes(ctx, clientset, clusterName, tw); err != nil {
 			return err
 		}
 
-		if err := gatherCurrentNamespace(ctx, clientset, namespace, clusterName, *tw); err != nil {
+		if err := gatherCurrentNamespace(ctx, clientset, namespace, clusterName, tw); err != nil {
 			return err
 		}
 
 		// Namespaced resources
-		if err := gatherClusterSpec(ctx, dynamicClient, namespace, clusterName, *tw); err != nil {
+		if err := gatherClusterSpec(ctx, dynamicClient, namespace, clusterName, tw); err != nil {
 			return err
 		}
 
 		// TODO (jmckulk): pod describe output
-		if err := gatherNamespacedAPIResources(ctx, dynamicClient, namespace, clusterName, *tw); err != nil {
+		if err := gatherNamespacedAPIResources(ctx, dynamicClient, namespace, clusterName, tw); err != nil {
 			return err
 		}
 
-		if err := gatherEvents(ctx, clientset, namespace, clusterName, *tw); err != nil {
+		if err := gatherEvents(ctx, clientset, namespace, clusterName, tw); err != nil {
 			return err
 		}
 
 		// Logs
-		if err := gatherPostgresqlLogs(ctx, clientset, restConfig, namespace, clusterName, numLogs, *tw); err != nil {
+		if err := gatherPostgresqlLogs(ctx, clientset, restConfig, namespace, clusterName, numLogs, tw); err != nil {
 			return err
 		}
 
-		if err := gatherPodLogs(ctx, clientset, namespace, clusterName, *tw); err != nil {
+		if err := gatherPodLogs(ctx, clientset, namespace, clusterName, tw); err != nil {
 			return err
 		}
 
 		// Exec resources
-		if err := gatherPatroniInfo(ctx, clientset, restConfig, namespace, clusterName, *tw); err != nil {
+		if err := gatherPatroniInfo(ctx, clientset, restConfig, namespace, clusterName, tw); err != nil {
 			return err
 		}
 
@@ -274,7 +274,7 @@ kubectl pgo support export daisy --output . --pg-logs-count 2
 func gatherKubeServerVersion(_ context.Context,
 	client *discovery.DiscoveryClient,
 	clusterName string,
-	tw tar.Writer,
+	tw *tar.Writer,
 ) error {
 	ver, err := client.ServerVersion()
 	if err != nil {
@@ -282,7 +282,7 @@ func gatherKubeServerVersion(_ context.Context,
 	}
 
 	path := clusterName + "/server-version"
-	if err := writeTar(&tw, []byte(ver.String()), path); err != nil {
+	if err := writeTar(tw, []byte(ver.String()), path); err != nil {
 		return err
 	}
 	return nil
@@ -293,7 +293,7 @@ func gatherKubeServerVersion(_ context.Context,
 func gatherNodes(ctx context.Context,
 	clientset *kubernetes.Clientset,
 	clusterName string,
-	tw tar.Writer,
+	tw *tar.Writer,
 ) error {
 	list, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
@@ -312,7 +312,7 @@ func gatherNodes(ctx context.Context,
 	}
 
 	path := clusterName + "/nodes/list"
-	if err := writeTar(&tw, buf.Bytes(), path); err != nil {
+	if err := writeTar(tw, buf.Bytes(), path); err != nil {
 		return err
 	}
 
@@ -324,7 +324,7 @@ func gatherCurrentNamespace(ctx context.Context,
 	clientset *kubernetes.Clientset,
 	namespace string,
 	clusterName string,
-	tw tar.Writer,
+	tw *tar.Writer,
 ) error {
 	get, err := clientset.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
 	if err != nil {
@@ -341,7 +341,7 @@ func gatherCurrentNamespace(ctx context.Context,
 	}
 
 	path := clusterName + "/current-namespace.yaml"
-	if err = writeTar(&tw, b, path); err != nil {
+	if err = writeTar(tw, b, path); err != nil {
 		return err
 	}
 	return nil
@@ -351,7 +351,7 @@ func gatherClusterSpec(ctx context.Context,
 	client dynamic.Interface,
 	namespace string,
 	clusterName string,
-	tw tar.Writer,
+	tw *tar.Writer,
 ) error {
 	gvr := schema.GroupVersionResource{
 		Group:    "postgres-operator.crunchydata.com",
@@ -380,7 +380,7 @@ func gatherClusterSpec(ctx context.Context,
 	}
 
 	path := clusterName + "/postgrescluster.yaml"
-	if err := writeTar(&tw, b, path); err != nil {
+	if err := writeTar(tw, b, path); err != nil {
 		return err
 	}
 	return nil
@@ -394,7 +394,7 @@ func gatherNamespacedAPIResources(ctx context.Context,
 	client dynamic.Interface,
 	namespace string,
 	clusterName string,
-	tw tar.Writer,
+	tw *tar.Writer,
 ) error {
 	for _, gvr := range namespacedResources {
 		list, err := client.Resource(gvr).Namespace(namespace).
@@ -426,7 +426,7 @@ func gatherNamespacedAPIResources(ctx context.Context,
 		// Define the file name/path where the list file will be created and
 		// write to the tar
 		path := clusterName + "/" + gvr.Resource + "/list"
-		if err := writeTar(&tw, buf.Bytes(), path); err != nil {
+		if err := writeTar(tw, buf.Bytes(), path); err != nil {
 			return err
 		}
 
@@ -451,7 +451,7 @@ func gatherNamespacedAPIResources(ctx context.Context,
 			}
 
 			path := clusterName + "/" + gvr.Resource + "/" + obj.GetName() + ".yaml"
-			if err := writeTar(&tw, b, path); err != nil {
+			if err := writeTar(tw, b, path); err != nil {
 				return err
 			}
 		}
@@ -465,7 +465,7 @@ func gatherEvents(ctx context.Context,
 	clientset *kubernetes.Clientset,
 	namespace string,
 	clusterName string,
-	tw tar.Writer,
+	tw *tar.Writer,
 ) error {
 	// TODO (jmckulk): do we need to order events?
 	list, err := clientset.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{})
@@ -524,7 +524,7 @@ func gatherEvents(ctx context.Context,
 	}
 
 	path := clusterName + "/events"
-	if err := writeTar(&tw, buf.Bytes(), path); err != nil {
+	if err := writeTar(tw, buf.Bytes(), path); err != nil {
 		return err
 	}
 
@@ -538,7 +538,7 @@ func gatherPostgresqlLogs(ctx context.Context,
 	namespace string,
 	clusterName string,
 	numLogs string,
-	tw tar.Writer,
+	tw *tar.Writer,
 ) error {
 	// Get the primary instance Pod by its labels
 	pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
@@ -601,7 +601,7 @@ func gatherPostgresqlLogs(ctx context.Context,
 		}
 
 		path := clusterName + "/logs/postgresql/" + logFile
-		if err := writeTar(&tw, buf.Bytes(), path); err != nil {
+		if err := writeTar(tw, buf.Bytes(), path); err != nil {
 			return err
 		}
 	}
@@ -615,7 +615,7 @@ func gatherPodLogs(ctx context.Context,
 	clientset *kubernetes.Clientset,
 	namespace string,
 	clusterName string,
-	tw tar.Writer,
+	tw *tar.Writer,
 ) error {
 	// TODO: update to use specific client after SSA change
 	// Get the primary instance Pod by its labels
@@ -656,7 +656,7 @@ func gatherPodLogs(ctx context.Context,
 			}
 
 			path := clusterName + "/logs/" + pod.GetName() + "/" + container.Name
-			if err := writeTar(&tw, b, path); err != nil {
+			if err := writeTar(tw, b, path); err != nil {
 				return err
 			}
 		}
@@ -672,7 +672,7 @@ func gatherPatroniInfo(ctx context.Context,
 	config *rest.Config,
 	namespace string,
 	clusterName string,
-	tw tar.Writer,
+	tw *tar.Writer,
 ) error {
 	// TODO: update to use specific client after SSA change
 	// Get the primary instance Pod by its labels
@@ -734,7 +734,7 @@ func gatherPatroniInfo(ctx context.Context,
 	}
 
 	path := clusterName + "/patroni-info"
-	if err := writeTar(&tw, buf.Bytes(), path); err != nil {
+	if err := writeTar(tw, buf.Bytes(), path); err != nil {
 		return err
 	}
 
