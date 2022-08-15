@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -160,6 +159,12 @@ kubectl pgo support export daisy -o . -l 2
 kubectl pgo support export daisy --output . --pg-logs-count 2
 	`)
 
+	cliOutput := new(bytes.Buffer)
+	// cmd.SetOut(cliOutput)
+
+	// config.Out = cliOutput
+	config.IOStreams.Out = cliOutput
+
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 
@@ -226,33 +231,33 @@ kubectl pgo support export daisy --output . --pg-logs-count 2
 			}
 		}()
 
-		// Configure MultiWriter logging so that logs go both to stdout/stderr
-		// and to a buffer which gets written to the tar
-		var cliOutput bytes.Buffer
-		mw := io.MultiWriter(os.Stdout, &cliOutput)
+		// // Configure MultiWriter logging so that logs go both to stdout/stderr
+		// // and to a buffer which gets written to the tar
+		// var cliOutput bytes.Buffer
+		// mw := io.MultiWriter(os.Stdout, &cliOutput)
 
-		// Replace stdout/stderr with pipe
-		r, w, _ := os.Pipe()
-		os.Stdout = w
-		os.Stderr = w
+		// // Replace stdout/stderr with pipe
+		// r, w, _ := os.Pipe()
+		// os.Stdout = w
+		// os.Stderr = w
 
-		// Set logging to multiwriter
-		log.SetOutput(mw)
+		// // Set logging to multiwriter
+		// log.SetOutput(mw)
 
-		// Create channel to block until io.Copy finishes reading from `r`,
-		// the pipe reader
-		exit := make(chan bool)
+		// // Create channel to block until io.Copy finishes reading from `r`,
+		// // the pipe reader
+		// exit := make(chan bool)
 
-		go func() {
-			_, _ = io.Copy(mw, r)
-			exit <- true
-		}()
+		// go func() {
+		// 	_, _ = io.Copy(mw, r)
+		// 	exit <- true
+		// }()
 
-		defer func() {
-			// Close writer, block on `exit` channel until recieve
-			_ = w.Close()
-			<-exit
-		}()
+		// defer func() {
+		// 	// Close writer, block on `exit` channel until receive
+		// 	_ = w.Close()
+		// 	<-exit
+		// }()
 
 		// TODO (jmckulk): collect context info
 		// TODO (jmckulk): collect client version, after pgo version command is implemented
@@ -263,6 +268,7 @@ kubectl pgo support export daisy --output . --pg-logs-count 2
 		}
 
 		if err := gatherNodes(ctx, clientset, clusterName, *tw); err != nil {
+			// if err := gatherNodes(ctx, clientset, clusterName, *tw, *cmd); err != nil {
 			return err
 		}
 
@@ -334,11 +340,13 @@ func gatherNodes(ctx context.Context,
 	clientset *kubernetes.Clientset,
 	clusterName string,
 	tw tar.Writer,
+	// cmd cobra.Command,
 ) error {
 	list, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		if apierrors.IsForbidden(err) {
 			fmt.Println(err.Error())
+			// fmt.Fprint(cmd.OutOrStdout(), err.Error())
 			return nil
 		}
 		return err
