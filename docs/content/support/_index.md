@@ -2,7 +2,6 @@
 title: "Support"
 date:
 draft: false
-weight: 110
 ---
 
 There are a few options available for community support of the [`pgo` CLI for the Postgres Operator](https://github.com/CrunchyData/postgres-operator-client):
