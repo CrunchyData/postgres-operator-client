@@ -9,10 +9,10 @@ Restore cluster
 
 Restore the data of a PostgreSQL cluster from a backup
 
-RBAC Requirements
-Resources                                           Verbs
----------                                           -----
-postgresclusters.postgres-operator.crunchydata.com  [get patch]
+#### RBAC Requirements
+    Resources                                           Verbs
+    ---------                                           -----
+    postgresclusters.postgres-operator.crunchydata.com  [get patch]
 
 ```
 pgo restore CLUSTER_NAME [flags]

@@ -9,10 +9,10 @@ Backup cluster
 
 Backup allows you to take a backup of a PostgreSQL cluster
 
-RBAC Requirements
-Resources                                           Verbs
----------                                           -----
-postgresclusters.postgres-operator.crunchydata.com  [get patch]
+#### RBAC Requirements
+    Resources                                           Verbs
+    ---------                                           -----
+    postgresclusters.postgres-operator.crunchydata.com  [get patch]
 
 ```
 pgo backup CLUSTER_NAME [flags]

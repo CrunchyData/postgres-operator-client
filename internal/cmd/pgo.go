@@ -18,6 +18,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -79,6 +80,12 @@ func NewPGOCommand(stdin io.Reader, stdout, stderr io.Writer) *cobra.Command {
 		// on the root command
 		SilenceErrors: true,
 	}
+
+	cobra.AddTemplateFunc("replaceAll", strings.ReplaceAll)
+
+	root.SetHelpTemplate(`{{with .Long}}{{ replaceAll . "#### " "" | trimTrailingWhitespaces }}
+
+{{end}}{{if or .Runnable .HasSubCommands}}{{.UsageString}}{{end}}`)
 
 	// Add flags for kubeconfig, authentication, namespace, and timeout to
 	// every subcommand.

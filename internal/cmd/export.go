@@ -106,35 +106,32 @@ func newSupportExportCommand(config *internal.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "export CLUSTER_NAME",
 		Short: "Export a snapshot of a PostgresCluster",
-		Long: fmt.Sprintf(`
-The support export tool will collect information that is commonly necessary for troubleshooting a
+		Long: `The support export tool will collect information that is commonly necessary for troubleshooting a
 PostgresCluster.
 
-Collected Resources: %v
+#### RBAC Requirements
+    Resources                                           Verbs
+    ---------                                           -----
+    configmaps                                          [get list]
+    cronjobs.batch                                      [get list]
+    deployments.apps                                    [get list]
+    endpoints                                           [get list]
+    events                                              [get list]
+    jobs.batch                                          [get list]
+    namespaces                                          [get]
+    nodes                                               [list]
+    persistentvolumeclaims                              [get list]
+    poddisruptionbudgets.policy                         [get list]
+    pods                                                [get list]
+    pods/exec                                           [create]
+    pods/log                                            [get]
+    postgresclusters.postgres-operator.crunchydata.com  [get]
+    replicasets.apps                                    [get list]
+    serviceaccounts                                     [get list]
+    services                                            [get list]
+    statefulsets.apps                                   [get list]
 
-RBAC Requirements
-Resources                                           Verbs
----------                                           -----
-configmaps                                          [get list]
-cronjobs.batch                                      [get list]
-deployments.apps                                    [get list]
-endpoints                                           [get list]
-events                                              [get list]
-jobs.batch                                          [get list]
-namespaces                                          [get]
-nodes                                               [list]
-persistentvolumeclaims                              [get list]
-poddisruptionbudgets.policy                         [get list]
-pods                                                [get list]
-pods/exec                                           [create]
-pods/log                                            [get]
-postgresclusters.postgres-operator.crunchydata.com  [get]
-replicasets.apps                                    [get list]
-serviceaccounts                                     [get list]
-services                                            [get list]
-statefulsets.apps                                   [get list]
-
-Note: This RBAC needs to be cluster-scoped to retrieve information on nodes.`, collectedResources),
+    Note: This RBAC needs to be cluster-scoped to retrieve information on nodes.`,
 	}
 
 	var outputDir string

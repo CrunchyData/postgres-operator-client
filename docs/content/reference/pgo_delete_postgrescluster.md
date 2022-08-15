@@ -9,10 +9,10 @@ Delete a PostgresCluster
 
 Delete a PostgresCluster with a given name.
 
-RBAC Requirements
-Resources                                           Verbs
----------                                           -----
-postgresclusters.postgres-operator.crunchydata.com  [delete]
+#### RBAC Requirements
+    Resources                                           Verbs
+    ---------                                           -----
+    postgresclusters.postgres-operator.crunchydata.com  [delete]
 
 ```
 pgo delete postgrescluster CLUSTER_NAME [flags]
