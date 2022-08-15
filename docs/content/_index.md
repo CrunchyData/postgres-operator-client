@@ -10,7 +10,7 @@ draft: false
 
 Latest Release: {{< param clientVersion >}}
 
-# Install `pgo`, the Postgres Operator for Kubernetes Client
+# Install `pgo`
 
 The following steps will allow you to download and install the `pgo` [kubectl plugin][] in your
 local environment.
