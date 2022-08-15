@@ -62,8 +62,8 @@ cli-docs: ## generate cli documenation
 	rm -rf docs/content/reference && mkdir docs/content/reference
 	cd docs/content/reference && $(GO) run -exec 'env HOME=$$HOME' ../../../cmd/pgo/generatedocs.go
 	NL=$$'\n'; sed -e "1,/---/ { /^title:/ { \
-			a \\$${NL}aliases:\\$${NL}- /reference/pgo$${NL}; \
-			c \\$${NL}title: PGO Client Reference$${NL}; \
+			a \\$${NL}aliases:\\$${NL}- /reference/pgo\\$${NL}weight: 100$${NL}; \
+			c \\$${NL}title: Command Reference$${NL}; \
 		}; }" \
 		docs/content/reference/pgo.md > \
 		docs/content/reference/_index.md

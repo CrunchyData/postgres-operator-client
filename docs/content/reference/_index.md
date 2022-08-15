@@ -1,7 +1,8 @@
 ---
-title: PGO Client Reference
+title: Command Reference
 aliases:
 - /reference/pgo
+weight: 100
 ---
 ## pgo
 
