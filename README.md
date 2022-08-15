@@ -7,10 +7,10 @@ Welcome to the repository for `pgo`, the Command Line Interface (CLI) for
 the [Crunchy Postgres Operator](https://github.com/CrunchyData/postgres-operator)!
 Built as a `kubectl` plugin, the `pgo` CLI facilitates the creation and management of PostgreSQL
 clusters created using the Crunchy Postgres Operator. For more information about using the CLI and
-the various commands available, please see the PGO CLI
-[documentation](https://access.crunchydata.com/documentation/postgres-operator-client/latest).
+the various commands available, please see the
+[`pgo` CLI documentation](https://access.crunchydata.com/documentation/postgres-operator-client/latest).
 
-## Install `pgo`, the Postgres Operator for Kubernetes Client
+## Install `pgo`
 
 The following steps will allow you to download and install the `pgo`
 [kubectl plugin](https://kubernetes.io/docs/tasks/extend-kubectl/kubectl-plugins/)
