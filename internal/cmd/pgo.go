@@ -83,7 +83,7 @@ func NewPGOCommand(stdin io.Reader, stdout, stderr io.Writer) *cobra.Command {
 
 	cobra.AddTemplateFunc("replaceAll", strings.ReplaceAll)
 
-	root.SetHelpTemplate(`{{with .Long}}{{ replaceAll . "#### " "" | trimTrailingWhitespaces }}
+	root.SetHelpTemplate(`{{with .Long}}{{ replaceAll . "#### RBAC Requirements" "RBAC Requirements:" | trimTrailingWhitespaces }}
 
 {{end}}{{if or .Runnable .HasSubCommands}}{{.UsageString}}{{end}}`)
 
