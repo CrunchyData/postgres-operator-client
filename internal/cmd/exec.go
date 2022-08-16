@@ -39,13 +39,11 @@ func (exec Executor) pgBackRestInfo(output, repoNum string) (string, string, err
 	return stdout.String(), stderr.String(), err
 }
 
-// postgresqlListLogFiles takes a postgresql version and numLogs var to define
-// how many log files to grab. With these two values we return the full path
-// to numLogs log files
-func (exec Executor) listPGLogFiles(numLogs string) (string, string, error) {
+// postgresqlListLogFiles returns the full path of numLogs log files.
+func (exec Executor) listPGLogFiles(numLogs int) (string, string, error) {
 	var stdout, stderr bytes.Buffer
 
-	command := fmt.Sprintf("ls -1dt pgdata/pg[0-9][0-9]/log/* | head -%s", numLogs)
+	command := fmt.Sprintf("ls -1dt pgdata/pg[0-9][0-9]/log/* | head -%d", numLogs)
 	err := exec(nil, &stdout, &stderr, "bash", "-ceu", "--", command)
 
 	return stdout.String(), stderr.String(), err

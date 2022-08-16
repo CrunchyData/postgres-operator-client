@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -141,11 +140,8 @@ Note: This RBAC needs to be cluster-scoped to retrieve information on nodes.`, c
 	cmd.Flags().StringVarP(&outputDir, "output", "o", "", "Path to save export tarball")
 	cobra.CheckErr(cmd.MarkFlagRequired("output"))
 
-	// Create the num logs flag as an int then convert to string.
-	// This allows us to use the built in int validation
-	var numLogsInt int
-	cmd.Flags().IntVarP(&numLogsInt, "pg-logs-count", "l", 2, "Number of pg_log files to save")
-	numLogs := strconv.Itoa(numLogsInt)
+	var numLogs int
+	cmd.Flags().IntVarP(&numLogs, "pg-logs-count", "l", 2, "Number of pg_log files to save")
 
 	cmd.Args = cobra.ExactArgs(1)
 
@@ -251,8 +247,10 @@ kubectl pgo support export daisy --output . --pg-logs-count 2
 		}
 
 		// Logs
-		if err := gatherPostgresqlLogs(ctx, clientset, restConfig, namespace, clusterName, numLogs, tw); err != nil {
-			return err
+		if numLogs > 0 {
+			if err := gatherPostgresqlLogs(ctx, clientset, restConfig, namespace, clusterName, numLogs, tw); err != nil {
+				return err
+			}
 		}
 
 		if err := gatherPodLogs(ctx, clientset, namespace, clusterName, tw); err != nil {
@@ -537,7 +535,7 @@ func gatherPostgresqlLogs(ctx context.Context,
 	config *rest.Config,
 	namespace string,
 	clusterName string,
-	numLogs string,
+	numLogs int,
 	tw *tar.Writer,
 ) error {
 	// Get the primary instance Pod by its labels
