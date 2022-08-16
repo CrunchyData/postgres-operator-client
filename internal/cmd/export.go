@@ -97,12 +97,6 @@ var namespacedResources = []schema.GroupVersionResource{{
 
 // newSupportCommand returns the support subcommand of the PGO plugin.
 func newSupportExportCommand(config *internal.Config) *cobra.Command {
-
-	var collectedResources []string
-	for _, resource := range namespacedResources {
-		collectedResources = append(collectedResources, resource.Resource)
-	}
-
 	cmd := &cobra.Command{
 		Use:   "export CLUSTER_NAME",
 		Short: "Export a snapshot of a PostgresCluster",
