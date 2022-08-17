@@ -2,7 +2,7 @@ baseURL= ""
 
 languageCode = "en-us"
 DefaultContentLanguage = "en"
-title = "PGO, the Postgres Operator Client from Crunchy Data"
+title = "The Postgres Operator Client from Crunchy Data"
 theme = "crunchy-hugo-theme"
 pygmentsCodeFences = true
 pygmentsStyle = "monokailight"
@@ -15,7 +15,7 @@ defaultContentLanguageInSubdir= false
 enableMissingTranslationPlaceholders = false
 
 [params]
-clientVersion = "0.1"
+clientVersion = "0.1.0"
 
 # crunchy-hugo-theme params
 editURL = "https://github.com/CrunchyData/postgres-operator/edit/master/docs/content/"

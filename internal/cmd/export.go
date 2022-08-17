@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -154,11 +153,8 @@ Note: This RBAC needs to be cluster-scoped to retrieve information on nodes.`, c
 	cmd.Flags().StringVarP(&outputDir, "output", "o", "", "Path to save export tarball")
 	cobra.CheckErr(cmd.MarkFlagRequired("output"))
 
-	// Create the num logs flag as an int then convert to string.
-	// This allows us to use the built in int validation
-	var numLogsInt int
-	cmd.Flags().IntVarP(&numLogsInt, "pg-logs-count", "l", 2, "Number of pg_log files to save")
-	numLogs := strconv.Itoa(numLogsInt)
+	var numLogs int
+	cmd.Flags().IntVarP(&numLogs, "pg-logs-count", "l", 2, "Number of pg_log files to save")
 
 	cmd.Args = cobra.ExactArgs(1)
 
@@ -242,42 +238,44 @@ kubectl pgo support export daisy --output . --pg-logs-count 2
 		// TODO (jmckulk): collect client version, after pgo version command is implemented
 
 		// Gather cluster wide resources
-		err = gatherKubeServerVersion(ctx, discoveryClient, clusterName, *tw, cmd)
+		err = gatherKubeServerVersion(ctx, discoveryClient, clusterName, tw, cmd)
 
 		if err == nil {
-			err = gatherNodes(ctx, clientset, clusterName, *tw, cmd)
+			err = gatherNodes(ctx, clientset, clusterName, tw, cmd)
 		}
 
 		if err == nil {
-			err = gatherCurrentNamespace(ctx, clientset, namespace, clusterName, *tw, cmd)
+			err = gatherCurrentNamespace(ctx, clientset, namespace, clusterName, tw, cmd)
 		}
 
 		// Namespaced resources
 		if err == nil {
-			err = gatherClusterSpec(ctx, get, clusterName, *tw, cmd)
+			err = gatherClusterSpec(ctx, get, clusterName, tw, cmd)
 		}
 
 		// TODO (jmckulk): pod describe output
 		if err == nil {
-			err = gatherNamespacedAPIResources(ctx, dynamicClient, namespace, clusterName, *tw, cmd)
+			err = gatherNamespacedAPIResources(ctx, dynamicClient, namespace, clusterName, tw, cmd)
 		}
 
 		if err == nil {
-			err = gatherEvents(ctx, clientset, namespace, clusterName, *tw, cmd)
+			err = gatherEvents(ctx, clientset, namespace, clusterName, tw, cmd)
 		}
 
 		// Logs
-		if err == nil {
-			err = gatherPostgresqlLogs(ctx, clientset, restConfig, namespace, clusterName, numLogs, *tw, cmd)
+    if numLogs > 0 {
+		  if err == nil {
+			  err = gatherPostgresqlLogs(ctx, clientset, restConfig, namespace, clusterName, numLogs, tw, cmd)
+      }
 		}
 
 		if err == nil {
-			err = gatherPodLogs(ctx, clientset, namespace, clusterName, *tw, cmd)
+			err = gatherPodLogs(ctx, clientset, namespace, clusterName, tw, cmd)
 		}
 
 		// Exec resources
 		if err == nil {
-			err = gatherPatroniInfo(ctx, clientset, restConfig, namespace, clusterName, *tw, cmd)
+			err = gatherPatroniInfo(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
 		}
 
 		// Print cli output
@@ -296,7 +294,7 @@ kubectl pgo support export daisy --output . --pg-logs-count 2
 func gatherKubeServerVersion(_ context.Context,
 	client *discovery.DiscoveryClient,
 	clusterName string,
-	tw tar.Writer,
+	tw *tar.Writer,
 	cmd *cobra.Command,
 ) error {
 	ver, err := client.ServerVersion()
@@ -305,7 +303,7 @@ func gatherKubeServerVersion(_ context.Context,
 	}
 
 	path := clusterName + "/server-version"
-	if err := writeTar(&tw, []byte(ver.String()), path, cmd); err != nil {
+	if err := writeTar(tw, []byte(ver.String()), path, cmd); err != nil {
 		return err
 	}
 	return nil
@@ -316,7 +314,7 @@ func gatherKubeServerVersion(_ context.Context,
 func gatherNodes(ctx context.Context,
 	clientset *kubernetes.Clientset,
 	clusterName string,
-	tw tar.Writer,
+	tw *tar.Writer,
 	cmd *cobra.Command,
 ) error {
 	list, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
@@ -336,7 +334,7 @@ func gatherNodes(ctx context.Context,
 	}
 
 	path := clusterName + "/nodes/list"
-	if err := writeTar(&tw, buf.Bytes(), path, cmd); err != nil {
+	if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
 		return err
 	}
 
@@ -348,7 +346,7 @@ func gatherCurrentNamespace(ctx context.Context,
 	clientset *kubernetes.Clientset,
 	namespace string,
 	clusterName string,
-	tw tar.Writer,
+	tw *tar.Writer,
 	cmd *cobra.Command,
 ) error {
 	get, err := clientset.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
@@ -366,7 +364,7 @@ func gatherCurrentNamespace(ctx context.Context,
 	}
 
 	path := clusterName + "/current-namespace.yaml"
-	if err = writeTar(&tw, b, path, cmd); err != nil {
+	if err = writeTar(tw, b, path, cmd); err != nil {
 		return err
 	}
 	return nil
@@ -375,7 +373,7 @@ func gatherCurrentNamespace(ctx context.Context,
 func gatherClusterSpec(ctx context.Context,
 	postgresCluster *unstructured.Unstructured,
 	clusterName string,
-	tw tar.Writer,
+	tw *tar.Writer,
 	cmd *cobra.Command,
 ) error {
 	b, err := yaml.Marshal(postgresCluster)
@@ -384,7 +382,7 @@ func gatherClusterSpec(ctx context.Context,
 	}
 
 	path := clusterName + "/postgrescluster.yaml"
-	if err := writeTar(&tw, b, path, cmd); err != nil {
+	if err := writeTar(tw, b, path, cmd); err != nil {
 		return err
 	}
 	return nil
@@ -398,7 +396,7 @@ func gatherNamespacedAPIResources(ctx context.Context,
 	client dynamic.Interface,
 	namespace string,
 	clusterName string,
-	tw tar.Writer,
+	tw *tar.Writer,
 	cmd *cobra.Command,
 ) error {
 	for _, gvr := range namespacedResources {
@@ -431,7 +429,7 @@ func gatherNamespacedAPIResources(ctx context.Context,
 		// Define the file name/path where the list file will be created and
 		// write to the tar
 		path := clusterName + "/" + gvr.Resource + "/list"
-		if err := writeTar(&tw, buf.Bytes(), path, cmd); err != nil {
+		if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
 			return err
 		}
 
@@ -456,7 +454,7 @@ func gatherNamespacedAPIResources(ctx context.Context,
 			}
 
 			path := clusterName + "/" + gvr.Resource + "/" + obj.GetName() + ".yaml"
-			if err := writeTar(&tw, b, path, cmd); err != nil {
+			if err := writeTar(tw, b, path, cmd); err != nil {
 				return err
 			}
 		}
@@ -470,7 +468,7 @@ func gatherEvents(ctx context.Context,
 	clientset *kubernetes.Clientset,
 	namespace string,
 	clusterName string,
-	tw tar.Writer,
+	tw *tar.Writer,
 	cmd *cobra.Command,
 ) error {
 	// TODO (jmckulk): do we need to order events?
@@ -530,7 +528,7 @@ func gatherEvents(ctx context.Context,
 	}
 
 	path := clusterName + "/events"
-	if err := writeTar(&tw, buf.Bytes(), path, cmd); err != nil {
+	if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
 		return err
 	}
 
@@ -543,8 +541,8 @@ func gatherPostgresqlLogs(ctx context.Context,
 	config *rest.Config,
 	namespace string,
 	clusterName string,
-	numLogs string,
-	tw tar.Writer,
+	numLogs int,
+	tw *tar.Writer,
 	cmd *cobra.Command,
 ) error {
 	// Get the primary instance Pod by its labels
@@ -610,7 +608,7 @@ func gatherPostgresqlLogs(ctx context.Context,
 		}
 
 		path := clusterName + "/logs/postgresql/" + logFile
-		if err := writeTar(&tw, buf.Bytes(), path, cmd); err != nil {
+		if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
 			return err
 		}
 	}
@@ -624,7 +622,7 @@ func gatherPodLogs(ctx context.Context,
 	clientset *kubernetes.Clientset,
 	namespace string,
 	clusterName string,
-	tw tar.Writer,
+	tw *tar.Writer,
 	cmd *cobra.Command,
 ) error {
 	// TODO: update to use specific client after SSA change
@@ -666,7 +664,7 @@ func gatherPodLogs(ctx context.Context,
 			}
 
 			path := clusterName + "/logs/" + pod.GetName() + "/" + container.Name
-			if err := writeTar(&tw, b, path, cmd); err != nil {
+			if err := writeTar(tw, b, path, cmd); err != nil {
 				return err
 			}
 		}
@@ -682,7 +680,7 @@ func gatherPatroniInfo(ctx context.Context,
 	config *rest.Config,
 	namespace string,
 	clusterName string,
-	tw tar.Writer,
+	tw *tar.Writer,
 	cmd *cobra.Command,
 ) error {
 	// TODO: update to use specific client after SSA change
@@ -747,7 +745,7 @@ func gatherPatroniInfo(ctx context.Context,
 	}
 
 	path := clusterName + "/patroni-info"
-	if err := writeTar(&tw, buf.Bytes(), path, cmd); err != nil {
+	if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
 		return err
 	}
 

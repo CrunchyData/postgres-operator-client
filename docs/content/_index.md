@@ -1,16 +1,16 @@
 ---
-title: "PGO, the Postgres Operator Client from Crunchy Data"
+title: "pgo, the Postgres Operator Client from Crunchy Data"
 date:
 draft: false
 ---
 
-# PGO, the Postgres Operator Client from Crunchy Data
+# `pgo`, the Postgres Operator Client from Crunchy Data
 
- <img width="25%" src="logos/pgo.svg" alt="PGO: The Postgres Operator Client from Crunchy Data" />
+ <img width="25%" src="logos/pgo.svg" alt="pgo: The Postgres Operator Client from Crunchy Data" />
 
 Latest Release: {{< param clientVersion >}}
 
-# Install `pgo`, the Postgres Operator for Kubernetes Client
+# Install `pgo`
 
 The following steps will allow you to download and install the `pgo` [kubectl plugin][] in your
 local environment.

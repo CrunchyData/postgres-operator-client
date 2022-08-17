@@ -82,7 +82,7 @@ func TestListPGLogFiles(t *testing.T) {
 			assert.Assert(t, stderr != nil, "should capture stderr")
 			return expected
 		}
-		_, _, err := Executor(exec).listPGLogFiles("1")
+		_, _, err := Executor(exec).listPGLogFiles(1)
 		assert.ErrorContains(t, err, "pass-through")
 
 	})
