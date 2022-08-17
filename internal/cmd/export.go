@@ -250,7 +250,7 @@ kubectl pgo support export daisy --output . --pg-logs-count 2
 
 		// Namespaced resources
 		if err == nil {
-			err = gatherClusterSpec(ctx, get, clusterName, tw, cmd)
+			err = gatherClusterSpec(get, clusterName, tw, cmd)
 		}
 
 		// TODO (jmckulk): pod describe output
@@ -263,10 +263,10 @@ kubectl pgo support export daisy --output . --pg-logs-count 2
 		}
 
 		// Logs
-    if numLogs > 0 {
-		  if err == nil {
-			  err = gatherPostgresqlLogs(ctx, clientset, restConfig, namespace, clusterName, numLogs, tw, cmd)
-      }
+		if numLogs > 0 {
+			if err == nil {
+				err = gatherPostgresqlLogs(ctx, clientset, restConfig, namespace, clusterName, numLogs, tw, cmd)
+			}
 		}
 
 		if err == nil {
@@ -370,8 +370,7 @@ func gatherCurrentNamespace(ctx context.Context,
 	return nil
 }
 
-func gatherClusterSpec(ctx context.Context,
-	postgresCluster *unstructured.Unstructured,
+func gatherClusterSpec(postgresCluster *unstructured.Unstructured,
 	clusterName string,
 	tw *tar.Writer,
 	cmd *cobra.Command,
