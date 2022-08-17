@@ -13,7 +13,8 @@ commands:
             --selector '
               postgres-operator.crunchydata.com/cluster=backup-cluster,
               postgres-operator.crunchydata.com/pgbackrest-backup=manual,
-              postgres-operator.crunchydata.com/pgbackrest-repo=repo1'
+              postgres-operator.crunchydata.com/pgbackrest-repo=repo1' \
+            --field-selector 'status.phase=Succeeded'
       )
 
       echo "BACKUP_COMMAND found ${BACKUP_COMMAND}"
