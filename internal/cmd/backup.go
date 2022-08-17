@@ -37,10 +37,10 @@ func newBackupCommand(config *internal.Config) *cobra.Command {
 		Short: "Backup cluster",
 		Long: `Backup allows you to take a backup of a PostgreSQL cluster
 
-RBAC Requirements
-Resources                                           Verbs
----------                                           -----
-postgresclusters.postgres-operator.crunchydata.com  [get patch]`,
+#### RBAC Requirements
+    Resources                                           Verbs
+    ---------                                           -----
+    postgresclusters.postgres-operator.crunchydata.com  [get patch]`,
 	}
 
 	cmdBackup.Example = internal.FormatExample(`
