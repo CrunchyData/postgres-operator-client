@@ -32,6 +32,7 @@ import (
 	policyv1 "k8s.io/api/policy/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/duration"
 	"k8s.io/cli-runtime/pkg/printers"
@@ -42,6 +43,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/crunchydata/postgres-operator-client/internal"
+	"github.com/crunchydata/postgres-operator-client/internal/apis/postgres-operator.crunchydata.com/v1beta1"
 	"github.com/crunchydata/postgres-operator-client/internal/util"
 )
 
@@ -127,6 +129,17 @@ PostgresCluster.
     Note: This RBAC needs to be cluster-scoped to retrieve information on nodes.`,
 	}
 
+	// Set output to log and write to buffer for writing to file
+	var cliOutput bytes.Buffer
+	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
+		outMW := io.MultiWriter(os.Stdout, &cliOutput)
+		errMW := io.MultiWriter(os.Stderr, &cliOutput)
+		cmd.SetOut(outMW)
+		cmd.SetErr(errMW)
+
+		return nil
+	}
+
 	var outputDir string
 	cmd.Flags().StringVarP(&outputDir, "output", "o", "", "Path to save export tarball")
 	cobra.CheckErr(cmd.MarkFlagRequired("output"))
@@ -173,17 +186,22 @@ kubectl pgo support export daisy --output . --pg-logs-count 2
 		if err != nil {
 			return err
 		}
+
 		// Ensure cluster exists in the namespace before we create a file or gather
-		// any information
-		gvr := schema.GroupVersionResource{
-			Group:    "postgres-operator.crunchydata.com",
-			Version:  "v1beta1",
-			Resource: "postgresclusters",
+		// any information.
+		// Since we check for the cluster before creating the file, these logs only
+		// appear in stdout/stderr
+		_, postgresClient, err := v1beta1.NewPostgresClusterClient(config)
+		if err != nil {
+			return err
 		}
-		get, err := dynamicClient.Resource(gvr).Namespace(namespace).
-			Get(ctx, clusterName, metav1.GetOptions{})
+		get, err := postgresClient.Namespace(namespace).Get(ctx,
+			clusterName, metav1.GetOptions{})
 		if err != nil || get == nil {
-			return fmt.Errorf("Could not find cluster %s in namespace %s: %w", clusterName, namespace, err)
+			if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
+				return err
+			}
+			return fmt.Errorf("could not find cluster %s in namespace %s: %w", clusterName, namespace, err)
 		}
 
 		// Name file with year-month-day-HrMinSecTimezone suffix
@@ -211,49 +229,53 @@ kubectl pgo support export daisy --output . --pg-logs-count 2
 		// TODO (jmckulk): collect client version, after pgo version command is implemented
 
 		// Gather cluster wide resources
-		if err := gatherKubeServerVersion(ctx, discoveryClient, clusterName, tw); err != nil {
-			return err
+		err = gatherKubeServerVersion(ctx, discoveryClient, clusterName, tw, cmd)
+
+		if err == nil {
+			err = gatherNodes(ctx, clientset, clusterName, tw, cmd)
 		}
 
-		if err := gatherNodes(ctx, clientset, clusterName, tw); err != nil {
-			return err
-		}
-
-		if err := gatherCurrentNamespace(ctx, clientset, namespace, clusterName, tw); err != nil {
-			return err
+		if err == nil {
+			err = gatherCurrentNamespace(ctx, clientset, namespace, clusterName, tw, cmd)
 		}
 
 		// Namespaced resources
-		if err := gatherClusterSpec(ctx, dynamicClient, namespace, clusterName, tw); err != nil {
-			return err
+		if err == nil {
+			err = gatherClusterSpec(get, clusterName, tw, cmd)
 		}
 
 		// TODO (jmckulk): pod describe output
-		if err := gatherNamespacedAPIResources(ctx, dynamicClient, namespace, clusterName, tw); err != nil {
-			return err
+		if err == nil {
+			err = gatherNamespacedAPIResources(ctx, dynamicClient, namespace, clusterName, tw, cmd)
 		}
 
-		if err := gatherEvents(ctx, clientset, namespace, clusterName, tw); err != nil {
-			return err
+		if err == nil {
+			err = gatherEvents(ctx, clientset, namespace, clusterName, tw, cmd)
 		}
 
 		// Logs
 		if numLogs > 0 {
-			if err := gatherPostgresqlLogs(ctx, clientset, restConfig, namespace, clusterName, numLogs, tw); err != nil {
-				return err
+			if err == nil {
+				err = gatherPostgresqlLogs(ctx, clientset, restConfig, namespace, clusterName, numLogs, tw, cmd)
 			}
 		}
 
-		if err := gatherPodLogs(ctx, clientset, namespace, clusterName, tw); err != nil {
-			return err
+		if err == nil {
+			err = gatherPodLogs(ctx, clientset, namespace, clusterName, tw, cmd)
 		}
 
 		// Exec resources
-		if err := gatherPatroniInfo(ctx, clientset, restConfig, namespace, clusterName, tw); err != nil {
-			return err
+		if err == nil {
+			err = gatherPatroniInfo(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
 		}
 
-		return nil
+		// Print cli output
+		path := clusterName + "/logs/cli"
+		if logErr := writeTar(tw, cliOutput.Bytes(), path, cmd); logErr != nil {
+			return logErr
+		}
+
+		return err
 	}
 
 	return cmd
@@ -264,6 +286,7 @@ func gatherKubeServerVersion(_ context.Context,
 	client *discovery.DiscoveryClient,
 	clusterName string,
 	tw *tar.Writer,
+	cmd *cobra.Command,
 ) error {
 	ver, err := client.ServerVersion()
 	if err != nil {
@@ -271,7 +294,7 @@ func gatherKubeServerVersion(_ context.Context,
 	}
 
 	path := clusterName + "/server-version"
-	if err := writeTar(tw, []byte(ver.String()), path); err != nil {
+	if err := writeTar(tw, []byte(ver.String()), path, cmd); err != nil {
 		return err
 	}
 	return nil
@@ -283,11 +306,12 @@ func gatherNodes(ctx context.Context,
 	clientset *kubernetes.Clientset,
 	clusterName string,
 	tw *tar.Writer,
+	cmd *cobra.Command,
 ) error {
 	list, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		if apierrors.IsForbidden(err) {
-			fmt.Println(err.Error())
+			cmd.Println(err.Error())
 			return nil
 		}
 		return err
@@ -301,7 +325,7 @@ func gatherNodes(ctx context.Context,
 	}
 
 	path := clusterName + "/nodes/list"
-	if err := writeTar(tw, buf.Bytes(), path); err != nil {
+	if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
 		return err
 	}
 
@@ -314,11 +338,12 @@ func gatherCurrentNamespace(ctx context.Context,
 	namespace string,
 	clusterName string,
 	tw *tar.Writer,
+	cmd *cobra.Command,
 ) error {
 	get, err := clientset.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
-			fmt.Println(err.Error())
+			cmd.Println(err.Error())
 			return nil
 		}
 		return err
@@ -330,46 +355,24 @@ func gatherCurrentNamespace(ctx context.Context,
 	}
 
 	path := clusterName + "/current-namespace.yaml"
-	if err = writeTar(tw, b, path); err != nil {
+	if err = writeTar(tw, b, path, cmd); err != nil {
 		return err
 	}
 	return nil
 }
 
-func gatherClusterSpec(ctx context.Context,
-	client dynamic.Interface,
-	namespace string,
+func gatherClusterSpec(postgresCluster *unstructured.Unstructured,
 	clusterName string,
 	tw *tar.Writer,
+	cmd *cobra.Command,
 ) error {
-	gvr := schema.GroupVersionResource{
-		Group:    "postgres-operator.crunchydata.com",
-		Version:  "v1beta1",
-		Resource: "postgresclusters",
-	}
-	get, err := client.Resource(gvr).Namespace(namespace).
-		Get(ctx, clusterName, metav1.GetOptions{})
-	if err != nil {
-		// We have already run this get call so we should have the proper RBAC
-		// and the cluster should exist, but check anyway
-		if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
-			fmt.Println(err.Error())
-			return nil
-		}
-		return err
-	}
-	if get == nil {
-		fmt.Printf("Could not find cluster %s in namespace %s", clusterName, namespace)
-		return nil
-	}
-
-	b, err := yaml.Marshal(get)
+	b, err := yaml.Marshal(postgresCluster)
 	if err != nil {
 		return err
 	}
 
 	path := clusterName + "/postgrescluster.yaml"
-	if err := writeTar(tw, b, path); err != nil {
+	if err := writeTar(tw, b, path, cmd); err != nil {
 		return err
 	}
 	return nil
@@ -384,6 +387,7 @@ func gatherNamespacedAPIResources(ctx context.Context,
 	namespace string,
 	clusterName string,
 	tw *tar.Writer,
+	cmd *cobra.Command,
 ) error {
 	for _, gvr := range namespacedResources {
 		list, err := client.Resource(gvr).Namespace(namespace).
@@ -392,7 +396,7 @@ func gatherNamespacedAPIResources(ctx context.Context,
 			})
 		if err != nil {
 			if apierrors.IsForbidden(err) {
-				fmt.Println(err.Error())
+				cmd.Println(err.Error())
 				// Continue and output errors for each resource type
 				// Allow the user to see and address all issues at once
 				continue
@@ -401,7 +405,7 @@ func gatherNamespacedAPIResources(ctx context.Context,
 		}
 		if len(list.Items) == 0 {
 			// If we didn't find any resources, skip
-			fmt.Printf("Resource %s not found, skipping\n", gvr.Resource)
+			cmd.Printf("Resource %s not found, skipping\n", gvr.Resource)
 			continue
 		}
 
@@ -415,7 +419,7 @@ func gatherNamespacedAPIResources(ctx context.Context,
 		// Define the file name/path where the list file will be created and
 		// write to the tar
 		path := clusterName + "/" + gvr.Resource + "/list"
-		if err := writeTar(tw, buf.Bytes(), path); err != nil {
+		if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
 			return err
 		}
 
@@ -426,7 +430,7 @@ func gatherNamespacedAPIResources(ctx context.Context,
 				Get(ctx, obj.GetName(), metav1.GetOptions{})
 			if err != nil {
 				if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
-					fmt.Println(err.Error())
+					cmd.Println(err.Error())
 					// Continue and output errors for each resource type
 					// Allow the user to see and address all issues at once
 					continue
@@ -440,7 +444,7 @@ func gatherNamespacedAPIResources(ctx context.Context,
 			}
 
 			path := clusterName + "/" + gvr.Resource + "/" + obj.GetName() + ".yaml"
-			if err := writeTar(tw, b, path); err != nil {
+			if err := writeTar(tw, b, path, cmd); err != nil {
 				return err
 			}
 		}
@@ -455,12 +459,13 @@ func gatherEvents(ctx context.Context,
 	namespace string,
 	clusterName string,
 	tw *tar.Writer,
+	cmd *cobra.Command,
 ) error {
 	// TODO (jmckulk): do we need to order events?
 	list, err := clientset.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		if apierrors.IsForbidden(err) {
-			fmt.Println(err.Error())
+			cmd.Println(err.Error())
 			return nil
 		}
 		return err
@@ -513,7 +518,7 @@ func gatherEvents(ctx context.Context,
 	}
 
 	path := clusterName + "/events"
-	if err := writeTar(tw, buf.Bytes(), path); err != nil {
+	if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
 		return err
 	}
 
@@ -528,6 +533,7 @@ func gatherPostgresqlLogs(ctx context.Context,
 	clusterName string,
 	numLogs int,
 	tw *tar.Writer,
+	cmd *cobra.Command,
 ) error {
 	// Get the primary instance Pod by its labels
 	pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
@@ -536,13 +542,14 @@ func gatherPostgresqlLogs(ctx context.Context,
 	})
 	if err != nil {
 		if apierrors.IsForbidden(err) {
-			fmt.Println(err.Error())
+			cmd.Println(err.Error())
 			return nil
 		}
 		return err
 	}
 	if len(pods.Items) != 1 {
-		return fmt.Errorf("Expect one primary instance pod")
+		cmd.Println("No primary instance pod found for gathering logs")
+		return nil
 	}
 
 	podExec, err := util.NewPodExecutor(config)
@@ -559,13 +566,13 @@ func gatherPostgresqlLogs(ctx context.Context,
 	stdout, stderr, err := Executor(exec).listPGLogFiles(numLogs)
 	if err != nil {
 		if apierrors.IsForbidden(err) {
-			fmt.Println(err.Error())
+			cmd.Println(err.Error())
 			return nil
 		}
 		return err
 	}
 	if stderr != "" {
-		fmt.Println(stderr)
+		cmd.Println(stderr)
 	}
 
 	logFiles := strings.Split(strings.TrimSpace(stdout), "\n")
@@ -575,7 +582,7 @@ func gatherPostgresqlLogs(ctx context.Context,
 		stdout, stderr, err := Executor(exec).catFile(logFile)
 		if err != nil {
 			if apierrors.IsForbidden(err) {
-				fmt.Println(err.Error())
+				cmd.Println(err.Error())
 				// Continue and output errors for each log file
 				// Allow the user to see and address all issues at once
 				continue
@@ -590,7 +597,7 @@ func gatherPostgresqlLogs(ctx context.Context,
 		}
 
 		path := clusterName + "/logs/postgresql/" + logFile
-		if err := writeTar(tw, buf.Bytes(), path); err != nil {
+		if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
 			return err
 		}
 	}
@@ -605,6 +612,7 @@ func gatherPodLogs(ctx context.Context,
 	namespace string,
 	clusterName string,
 	tw *tar.Writer,
+	cmd *cobra.Command,
 ) error {
 	// TODO: update to use specific client after SSA change
 	// Get the primary instance Pod by its labels
@@ -613,7 +621,7 @@ func gatherPodLogs(ctx context.Context,
 	})
 	if err != nil {
 		if apierrors.IsForbidden(err) {
-			fmt.Println(err.Error())
+			cmd.Println(err.Error())
 			return nil
 		}
 		return err
@@ -631,7 +639,7 @@ func gatherPodLogs(ctx context.Context,
 
 			if result.Error() != nil {
 				if apierrors.IsForbidden(result.Error()) {
-					fmt.Println(result.Error().Error())
+					cmd.Println(result.Error().Error())
 					// Continue and output errors for each pod log
 					// Allow the user to see and address all issues at once
 					continue
@@ -645,7 +653,7 @@ func gatherPodLogs(ctx context.Context,
 			}
 
 			path := clusterName + "/logs/" + pod.GetName() + "/" + container.Name
-			if err := writeTar(tw, b, path); err != nil {
+			if err := writeTar(tw, b, path, cmd); err != nil {
 				return err
 			}
 		}
@@ -662,6 +670,7 @@ func gatherPatroniInfo(ctx context.Context,
 	namespace string,
 	clusterName string,
 	tw *tar.Writer,
+	cmd *cobra.Command,
 ) error {
 	// TODO: update to use specific client after SSA change
 	// Get the primary instance Pod by its labels
@@ -670,13 +679,14 @@ func gatherPatroniInfo(ctx context.Context,
 	})
 	if err != nil {
 		if apierrors.IsForbidden(err) {
-			fmt.Println(err.Error())
+			cmd.Println(err.Error())
 			return nil
 		}
 		return err
 	}
 	if len(pods.Items) < 1 {
-		return fmt.Errorf("Expect at least one pod")
+		cmd.Println("No pod found for patroni info")
+		return nil
 	}
 
 	podExec, err := util.NewPodExecutor(config)
@@ -696,7 +706,7 @@ func gatherPatroniInfo(ctx context.Context,
 	stdout, stderr, err := Executor(exec).patronictl("list")
 	if err != nil {
 		if apierrors.IsForbidden(err) {
-			fmt.Println(err.Error())
+			cmd.Println(err.Error())
 			return nil
 		}
 		return err
@@ -711,7 +721,7 @@ func gatherPatroniInfo(ctx context.Context,
 	stdout, stderr, err = Executor(exec).patronictl("history")
 	if err != nil {
 		if apierrors.IsForbidden(err) {
-			fmt.Println(err.Error())
+			cmd.Println(err.Error())
 			return nil
 		}
 		return err
@@ -723,7 +733,7 @@ func gatherPatroniInfo(ctx context.Context,
 	}
 
 	path := clusterName + "/patroni-info"
-	if err := writeTar(tw, buf.Bytes(), path); err != nil {
+	if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
 		return err
 	}
 
@@ -731,7 +741,7 @@ func gatherPatroniInfo(ctx context.Context,
 }
 
 // writeTar takes content as a byte slice and writes the content to a tar writer
-func writeTar(tw *tar.Writer, content []byte, name string) error {
+func writeTar(tw *tar.Writer, content []byte, name string, cmd *cobra.Command) error {
 	hdr := &tar.Header{
 		Name: name,
 		Mode: 0600,
@@ -740,7 +750,7 @@ func writeTar(tw *tar.Writer, content []byte, name string) error {
 
 	// TODO (jmckulk): figure out what support tool output looks like and make
 	// this match
-	fmt.Printf("File: %s Size: %d\n", name, hdr.Size)
+	cmd.Printf("File: %s Size: %d\n", name, hdr.Size)
 	if err := tw.WriteHeader(hdr); err != nil {
 		return err
 	}
