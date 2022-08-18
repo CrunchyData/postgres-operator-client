@@ -208,7 +208,7 @@ kubectl pgo support export daisy --output . --pg-logs-count 2
 			clusterName, metav1.GetOptions{})
 		if err != nil || get == nil {
 			if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
-				return fmt.Errorf(err.Error())
+				return err
 			}
 			return fmt.Errorf("could not find cluster %s in namespace %s: %w", clusterName, namespace, err)
 		}
@@ -557,9 +557,8 @@ func gatherPostgresqlLogs(ctx context.Context,
 		return err
 	}
 	if len(pods.Items) != 1 {
-		msg := "expect one primary instance pod for gathering logs"
-		cmd.PrintErr(msg + "\n")
-		return fmt.Errorf(msg)
+		cmd.Println("No primary instance pod found for gathering logs")
+		return nil
 	}
 
 	podExec, err := util.NewPodExecutor(config)
@@ -695,9 +694,8 @@ func gatherPatroniInfo(ctx context.Context,
 		return err
 	}
 	if len(pods.Items) < 1 {
-		msg := "expect at least one pod for patroni info"
-		cmd.PrintErr(msg + "\n")
-		return fmt.Errorf(msg)
+		cmd.Println("No pod found for patroni info")
+		return nil
 	}
 
 	podExec, err := util.NewPodExecutor(config)
