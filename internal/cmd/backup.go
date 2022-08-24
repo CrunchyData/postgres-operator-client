@@ -55,10 +55,9 @@ pgo backup hippo --repoName="repo1" --options="--type=full"
 	// Limit the number of args, that is, only one cluster name
 	cmdBackup.Args = cobra.ExactArgs(1)
 
-	// `backup` command accepts `repoName` and `options` flags with the following notes:
-	// 1) multiple options flags can be used, with each becoming a new line
+	// `backup` command accepts `repoName` and `options` flags;
+	// multiple options flags can be used, with each becoming a new line
 	// in the options array on the spec
-	// 2) the `repoName` and `options` flags must be used together
 	backup := pgBackRestBackup{}
 	cmdBackup.Flags().StringVar(&backup.RepoName, "repoName", "", "repoName to backup to")
 	cmdBackup.Flags().StringArrayVar(&backup.Options, "options", []string{},
