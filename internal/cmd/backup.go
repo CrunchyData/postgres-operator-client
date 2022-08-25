@@ -35,7 +35,9 @@ func newBackupCommand(config *internal.Config) *cobra.Command {
 	cmdBackup := &cobra.Command{
 		Use:   "backup CLUSTER_NAME",
 		Short: "Backup cluster",
-		Long: `Backup allows you to take a backup of a PostgreSQL cluster
+		Long: `Backup allows you to take a backup of a PostgreSQL cluster, either using
+the current "spec.backups.pgbackrest.manual" settings on the PostgreSQL cluster
+or by overwriting those settings using the flags
 
 #### RBAC Requirements
     Resources                                           Verbs
@@ -45,6 +47,7 @@ func newBackupCommand(config *internal.Config) *cobra.Command {
 
 	cmdBackup.Example = internal.FormatExample(`
 # Trigger a backup on the 'hippo' postgrescluster using the current spec options
+# Note: "spec.backups.pgbackrest.manual.repoName" has to exist for the backup to begin
 pgo backup hippo
 
 # Update the 'backups.pgbackrest.manual.repoName' and 'backups.pgbackrest.manual.options' fields

@@ -7,7 +7,9 @@ Backup cluster
 
 ### Synopsis
 
-Backup allows you to take a backup of a PostgreSQL cluster
+Backup allows you to take a backup of a PostgreSQL cluster, either using
+the current "spec.backups.pgbackrest.manual" settings on the PostgreSQL cluster
+or by overwriting those settings using the flags
 
 #### RBAC Requirements
     Resources                                           Verbs
@@ -22,6 +24,7 @@ pgo backup CLUSTER_NAME [flags]
 
 ```
   # Trigger a backup on the 'hippo' postgrescluster using the current spec options
+  # Note: "spec.backups.pgbackrest.manual.repoName" has to exist for the backup to begin
   pgo backup hippo
   
   # Update the 'backups.pgbackrest.manual.repoName' and 'backups.pgbackrest.manual.options' fields
