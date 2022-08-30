@@ -35,7 +35,9 @@ func newBackupCommand(config *internal.Config) *cobra.Command {
 	cmdBackup := &cobra.Command{
 		Use:   "backup CLUSTER_NAME",
 		Short: "Backup cluster",
-		Long: `Backup allows you to take a backup of a PostgreSQL cluster
+		Long: `Backup allows you to take a backup of a PostgreSQL cluster, either using
+the current "spec.backups.pgbackrest.manual" settings on the PostgreSQL cluster
+or by overwriting those settings using the flags
 
 #### RBAC Requirements
     Resources                                           Verbs
@@ -45,6 +47,7 @@ func newBackupCommand(config *internal.Config) *cobra.Command {
 
 	cmdBackup.Example = internal.FormatExample(`
 # Trigger a backup on the 'hippo' postgrescluster using the current spec options
+# Note: "spec.backups.pgbackrest.manual.repoName" has to exist for the backup to begin
 pgo backup hippo
 
 # Update the 'backups.pgbackrest.manual.repoName' and 'backups.pgbackrest.manual.options' fields
@@ -55,10 +58,9 @@ pgo backup hippo --repoName="repo1" --options="--type=full"
 	// Limit the number of args, that is, only one cluster name
 	cmdBackup.Args = cobra.ExactArgs(1)
 
-	// `backup` command accepts `repoName` and `options` flags with the following notes:
-	// 1) multiple options flags can be used, with each becoming a new line
+	// `backup` command accepts `repoName` and `options` flags;
+	// multiple options flags can be used, with each becoming a new line
 	// in the options array on the spec
-	// 2) the `repoName` and `options` flags must be used together
 	backup := pgBackRestBackup{}
 	cmdBackup.Flags().StringVar(&backup.RepoName, "repoName", "", "repoName to backup to")
 	cmdBackup.Flags().StringArrayVar(&backup.Options, "options", []string{},
