@@ -5,8 +5,8 @@ kind: TestStep
 commands:
 - script: |
     # Retry getting a successful pod from the most recent backup job.
-    # If that pod doesn't have the expected command, sleep and retry for five times
-    for i in {1..5}; do
+    # If that pod doesn't have the expected command, sleep and retry
+    for i in {1..10}; do
       BACKUP_COMMAND=$(
           kubectl get pod --namespace "${NAMESPACE}" \
             --output jsonpath="{.items[*].spec.containers[*].env[?(@.name=='COMMAND_OPTS')].value}" \
@@ -22,7 +22,7 @@ commands:
       if [[ -n $BACKUP_COMMAND && "$BACKUP_COMMAND" == "--stanza=db --repo=1 --type=full" ]]; then
           exit 0
       fi
-      sleep 3
+      sleep 4
     done
     
     exit 1
