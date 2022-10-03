@@ -27,7 +27,6 @@ import (
 	"github.com/spf13/cobra"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
-	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -64,17 +63,12 @@ var namespacedResources = []schema.GroupVersionResource{{
 	Version:  batchv1.SchemeGroupVersion.Version,
 	Resource: "jobs",
 }, {
-	Group:    batchv1beta1.SchemeGroupVersion.Group,
-	Version:  batchv1beta1.SchemeGroupVersion.Version,
+	Group:    batchv1.SchemeGroupVersion.Group,
+	Version:  batchv1.SchemeGroupVersion.Version,
 	Resource: "cronjobs",
 }, {
-	Group: policyv1.SchemeGroupVersion.Group,
-	// As of PGO 5.2.x, we use `v1beta1` as the version for poddisruptionbudgets;
-	// this works from k8s 1.19 to 1.24, which is our current k8s
-	// supported range.
-	// If/when we start supporting k8s 1.25, we may need to revisit this decision for
-	// both pdb and cronjobs.
-	Version:  "v1beta1",
+	Group:    policyv1.SchemeGroupVersion.Group,
+	Version:  policyv1.SchemeGroupVersion.Version,
 	Resource: "poddisruptionbudgets",
 }, {
 	Version:  "v1",
