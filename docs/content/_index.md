@@ -30,7 +30,7 @@ The `kubectl-pgo` binary is available either through the Crunchy Data [Access Po
 
 ### Linux or Mac
 
-If you downloaded the Linux binary rename the binary from `kubectl-pgo-linux-amd64` to `kubectl-pgo` or if you download the Mac binary rename the binary from `kubectl-pgo-darwin-amd64` to `kubectl-pgo` then move the `kubectl-pgo` binary to `/usr/local/bin` and make it executable by running the following commands:
+If you downloaded the Linux binary, rename the binary from `kubectl-pgo-linux-amd64` to `kubectl-pgo`. If you downloaded the Mac binary, rename the binary from `kubectl-pgo-darwin-amd64` to `kubectl-pgo`. Once renamed, move the `kubectl-pgo` binary to `/usr/local/bin`, and make it executable by running the following commands:
 
 ```
 sudo mv /PATH/TO/kubectl-pgo /usr/local/bin/kubectl-pgo
