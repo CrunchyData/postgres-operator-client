@@ -28,13 +28,18 @@ The `kubectl-pgo` binary is available either through the Crunchy Data [Access Po
 
 ## Installing the Client
 
-Once downloaded, move the `kubectl-pgo` binary to `/usr/local/bin` and make it executable by running
-the following commands:
+### Linux or Mac
+
+If you downloaded the Linux binary rename the binary from `kubectl-pgo-linux-amd64` to `kubectl-pgo` or if you download the Mac binary rename the binary from `kubectl-pgo-darwin-amd64` to `kubectl-pgo` then move the `kubectl-pgo` binary to `/usr/local/bin` and make it executable by running the following commands:
 
 ```
 sudo mv /PATH/TO/kubectl-pgo /usr/local/bin/kubectl-pgo
 sudo chmod +x /usr/local/bin/kubectl-pgo
 ```
+
+### Windows
+
+If you downloaded the Windows binary rename `kubectl-pgo-windows-386` to `kubectl-pgo.exe` this allows Windows to recognize the file as an executable.  From there open a power shell terminal in the same directory to execute the binary.
 
 ## Checking the plugin install
 
