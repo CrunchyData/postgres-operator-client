@@ -39,7 +39,7 @@ sudo chmod +x /usr/local/bin/kubectl-pgo
 
 ### Windows
 
-If you downloaded the Windows binary rename `kubectl-pgo-windows-386` to `kubectl-pgo.exe` this allows Windows to recognize the file as an executable.  From there open a power shell terminal in the same directory to execute the binary.
+If you downloaded the Windows binary, rename `kubectl-pgo-windows-386` to `kubectl-pgo.exe`. This allows Windows to recognize the file as an executable.  From there, open a power shell terminal in the same directory to execute the binary.
 
 ## Checking the plugin install
 
