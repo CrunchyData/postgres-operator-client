@@ -27,8 +27,10 @@ import (
 	"github.com/spf13/cobra"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
+	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
+	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -88,6 +90,17 @@ var namespacedResources = []schema.GroupVersionResource{{
 }, {
 	Version:  "v1",
 	Resource: "serviceaccounts",
+}}
+
+// These "removed" GVRs are for making our CLI backwards compatible with older PGO versions.
+var removedNamespacedResources = []schema.GroupVersionResource{{
+	Group:    batchv1beta1.SchemeGroupVersion.Group,
+	Version:  batchv1beta1.SchemeGroupVersion.Version,
+	Resource: "cronjobs",
+}, {
+	Group:    policyv1beta1.SchemeGroupVersion.Group,
+	Version:  policyv1beta1.SchemeGroupVersion.Version,
+	Resource: "poddisruptionbudgets",
 }}
 
 // newSupportCommand returns the support subcommand of the PGO plugin.
@@ -388,6 +401,22 @@ func gatherNamespacedAPIResources(ctx context.Context,
 			List(ctx, metav1.ListOptions{
 				LabelSelector: "postgres-operator.crunchydata.com/cluster=" + clusterName,
 			})
+		// If the API returns an IsNotFound error, it is likely because the kube version in use
+		// doesn't support the version of the resource we are attempting to use and there is an
+		// earlier version we can use. This block will check the "removed" resources for a match
+		// and use it if it exists.
+		if apierrors.IsNotFound(err) {
+			for _, bgvr := range removedNamespacedResources {
+				if bgvr.Resource == gvr.Resource {
+					gvr = bgvr
+					list, err = client.Resource(gvr).Namespace(namespace).
+						List(ctx, metav1.ListOptions{
+							LabelSelector: "postgres-operator.crunchydata.com/cluster=" + clusterName,
+						})
+					break
+				}
+			}
+		}
 		if err != nil {
 			if apierrors.IsForbidden(err) {
 				cmd.Println(err.Error())
