@@ -12,10 +12,7 @@ commands:
       exit 1
     fi
 
-    # FIXME(cbandy): why does the output start with a blank line?
-    ERROR=$(echo "${RESULT}" | head -n2)
-
-    if [[ "${ERROR,,}" != *conflict* || "${ERROR}" != *repoName* ]]; then
-      printf 'Expected conflict on repoName, got %q' "${ERROR}"
+    if [[ "${RESULT,,}" != *conflict* || "${RESULT}" != *repoName* ]]; then
+      printf 'Expected conflict on repoName, got %q' "${RESULT}"
       exit 1
     fi
