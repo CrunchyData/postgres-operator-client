@@ -33,7 +33,7 @@ commands:
     }
 
     [[
-        "${RESULT}" == 'Error: Apply failed'*'2 conflicts'* &&
+        "${RESULT}" == *'Error: Apply failed'*'2 conflicts'* &&
         "${RESULT}" == *'.metadata.annotations.'*'/pgbackrest-restore'* &&
         "${RESULT}" == *'.spec.backups.pgbackrest.restore.enabled'
     ]] || {

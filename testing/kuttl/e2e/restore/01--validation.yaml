@@ -14,7 +14,7 @@ commands:
       exit 1
     }
 
-    [[ "${RESULT}" == 'Error:'*'repoName: Required value' ]] || {
+    [[ "${RESULT}" == *'Error:'*'repoName: Required value' ]] || {
       echo "Expected an error message, got:"
       echo "${RESULT}"
       exit 1
