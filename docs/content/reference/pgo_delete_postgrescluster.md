@@ -1,5 +1,5 @@
 ---
-title: "pgo delete postgrescluster"
+title: pgo delete postgrescluster
 ---
 ## pgo delete postgrescluster
 

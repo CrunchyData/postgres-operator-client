@@ -1,5 +1,5 @@
 ---
-title: "pgo create postgrescluster"
+title: pgo create postgrescluster
 ---
 ## pgo create postgrescluster
 

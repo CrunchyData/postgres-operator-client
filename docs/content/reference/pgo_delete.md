@@ -1,5 +1,5 @@
 ---
-title: "pgo delete"
+title: pgo delete
 ---
 ## pgo delete
 
