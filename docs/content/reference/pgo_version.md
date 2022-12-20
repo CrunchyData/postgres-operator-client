@@ -1,5 +1,5 @@
 ---
-title: "pgo version"
+title: pgo version
 ---
 ## pgo version
 

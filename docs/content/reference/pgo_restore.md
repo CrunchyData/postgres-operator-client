@@ -1,5 +1,5 @@
 ---
-title: "pgo restore"
+title: pgo restore
 ---
 ## pgo restore
 

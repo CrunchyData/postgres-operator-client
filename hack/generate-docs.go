@@ -17,7 +17,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path"
@@ -25,24 +24,22 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra/doc"
+	"sigs.k8s.io/yaml"
 
 	"github.com/crunchydata/postgres-operator-client/internal/cmd"
 )
 
-const fmTemplate = `---
-title: "%s"
----
-`
-
 func main() {
-
-	fmt.Println("generate CLI markdown")
-
 	filePrepender := func(filename string) string {
 		name := filepath.Base(filename)
-		base := strings.TrimSuffix(name, path.Ext(name))
-		fmt.Println(base)
-		return fmt.Sprintf(fmTemplate, strings.ReplaceAll(base, "_", " "))
+		base := strings.TrimSuffix(name, filepath.Ext(name))
+		command := strings.ReplaceAll(base, "_", " ")
+
+		// https://gohugo.io/content-management/front-matter/
+		front, _ := yaml.Marshal(map[string]any{
+			"title": command,
+		})
+		return "---\n" + string(front) + "---\n"
 	}
 
 	linkHandler := func(name string) string {
