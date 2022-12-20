@@ -19,7 +19,6 @@ package main
 import (
 	"log"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -43,7 +42,10 @@ func main() {
 	}
 
 	linkHandler := func(name string) string {
-		base := strings.TrimSuffix(name, path.Ext(name))
+		base := strings.TrimSuffix(name, filepath.Ext(name))
+		if base == "pgo" {
+			return "/reference/"
+		}
 		return "/reference/" + strings.ToLower(base) + "/"
 	}
 

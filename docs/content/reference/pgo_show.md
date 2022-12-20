@@ -39,6 +39,6 @@ Show allows you to display particular details related to the PostgresCluster
 
 ### SEE ALSO
 
-* [pgo](/reference/pgo/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
+* [pgo](/reference/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
 * [pgo show backup](/reference/pgo_show_backup/)	 - Show backup information for a PostgresCluster
 
