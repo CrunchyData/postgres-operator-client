@@ -50,5 +50,5 @@ pgo version [flags]
 
 ### SEE ALSO
 
-* [pgo](/reference/pgo/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
+* [pgo](/reference/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
 

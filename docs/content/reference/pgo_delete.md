@@ -39,6 +39,6 @@ Delete a resource
 
 ### SEE ALSO
 
-* [pgo](/reference/pgo/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
+* [pgo](/reference/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
 * [pgo delete postgrescluster](/reference/pgo_delete_postgrescluster/)	 - Delete a PostgresCluster
 

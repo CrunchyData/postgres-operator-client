@@ -35,6 +35,6 @@ Crunchy Support commands for PGO
 
 ### SEE ALSO
 
-* [pgo](/reference/pgo/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
+* [pgo](/reference/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
 * [pgo support export](/reference/pgo_support_export/)	 - Export a snapshot of a PostgresCluster
 

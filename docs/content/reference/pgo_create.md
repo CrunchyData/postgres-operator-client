@@ -39,6 +39,6 @@ Create a resource
 
 ### SEE ALSO
 
-* [pgo](/reference/pgo/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
+* [pgo](/reference/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
 * [pgo create postgrescluster](/reference/pgo_create_postgrescluster/)	 - Create PostgresCluster with a given name
 

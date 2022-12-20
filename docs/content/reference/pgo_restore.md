@@ -60,6 +60,6 @@ pgo restore CLUSTER_NAME [flags]
 
 ### SEE ALSO
 
-* [pgo](/reference/pgo/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
+* [pgo](/reference/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
 * [pgo restore disable](/reference/pgo_restore_disable/)	 - Disable restores for a PostgresCluster
 
