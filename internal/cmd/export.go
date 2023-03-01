@@ -766,9 +766,10 @@ func gatherPatroniInfo(ctx context.Context,
 // writeTar takes content as a byte slice and writes the content to a tar writer
 func writeTar(tw *tar.Writer, content []byte, name string, cmd *cobra.Command) error {
 	hdr := &tar.Header{
-		Name: name,
-		Mode: 0600,
-		Size: int64(len(content)),
+		Name:    name,
+		Mode:    0600,
+		ModTime: time.Now(),
+		Size:    int64(len(content)),
 	}
 
 	// TODO (jmckulk): figure out what support tool output looks like and make
