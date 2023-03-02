@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/dynamic"
 	"os"
 	"strings"
@@ -56,38 +57,41 @@ pgo shutdown --all
 			cmdShutdown.Printf("If you define no cluster, you should set the --all flag. Nothing to shutdown.\n")
 			os.Exit(1)
 		}
-		_, client, err := v1beta1.NewPostgresClusterClient(config)
+
+		// configure client
+		_, clientCrunchy, err := v1beta1.NewPostgresClusterClient(config)
 		if err != nil {
 			return err
 		}
 
-		// Get the namespace. This will either be from the Kubernetes configuration
-		// or from the --namespace (-n) flag.
-		ns := ""
-		if *config.ConfigFlags.Namespace != "" {
-			ns = *config.ConfigFlags.Namespace
-		}
-		if err != nil {
-			return err
-		}
+		configFlags := genericclioptions.NewConfigFlags(false)
+		ns := configFlags.Namespace
 
-		pgclusters, err := client.Namespace(ns).List(context.TODO(), metav1.ListOptions{})
+		clusters, err := clientCrunchy.Namespace(*ns).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			fmt.Printf("failed to list postgresclusters due to %+v\n", err)
+			fmt.Printf("Failed to list postgresql clusters: %+v\n", err)
 			os.Exit(1)
 		}
-
 		maxCharCounts := 0
-		for _, item := range pgclusters.Items {
+		for _, item := range clusters.Items {
 			nameForPresentation := getPresentationNameForCluster(item)
 			if len(nameForPresentation) > maxCharCounts {
 				maxCharCounts = len(nameForPresentation)
 			}
 		}
-
-		for _, c := range pgclusters.Items {
-			_ = shutdownCluster(client, c)
+		for _, unstructuredPgCluster := range clusters.Items {
+			err = shutdownCluster(clientCrunchy, unstructuredPgCluster)
+			if err != nil {
+				if _, ok := err.(AlreadyShutdown); ok {
+					reportAlreadyShutdown(unstructuredPgCluster)
+					continue
+				}
+				reportUpdateFailed(unstructuredPgCluster, err)
+				continue
+			}
+			reportUpdateSucceeded(unstructuredPgCluster)
 		}
+
 		return nil
 	}
 
@@ -103,16 +107,23 @@ func getPresentationNameForCluster(cluster unstructured.Unstructured) string {
 func shutdownCluster(client dynamic.NamespaceableResourceInterface, item unstructured.Unstructured) error {
 	updatedCluster := item
 	spec := updatedCluster.Object["spec"].(map[string]interface{})
+	if spec["shutdown"] == true {
+		return AlreadyShutdown{}
+	}
 	spec["shutdown"] = true
 	updatedCluster.Object["spec"] = spec
 
-	_, err := client.Update(context.TODO(), &updatedCluster, metav1.UpdateOptions{})
+	_, err := client.Namespace(updatedCluster.GetNamespace()).Update(context.TODO(), &updatedCluster, metav1.UpdateOptions{})
 	if err != nil {
-		reportUpdateFailed(item, err)
 		return err
 	}
-	reportUpdateSucceeded(item)
 	return nil
+}
+
+type AlreadyShutdown struct{}
+
+func (e AlreadyShutdown) Error() string {
+	return "cluster is already shutdown"
 }
 
 type UpdateStatus int
@@ -120,10 +131,15 @@ type UpdateStatus int
 const (
 	SUCCESS UpdateStatus = iota
 	FAILED
+	ALREADY_SHUTDOWN
 )
 
 func reportUpdateFailed(item unstructured.Unstructured, err error) {
 	reportUpdateStatus(item, FAILED, err.Error())
+}
+
+func reportAlreadyShutdown(item unstructured.Unstructured) {
+	reportUpdateStatus(item, ALREADY_SHUTDOWN, "")
 }
 
 func reportUpdateSucceeded(item unstructured.Unstructured) {
@@ -134,6 +150,7 @@ func reportUpdateStatus(item unstructured.Unstructured, status UpdateStatus, add
 	green := color.New(color.FgGreen)
 	white := color.New(color.FgWhite)
 	red := color.New(color.FgRed)
+	yellow := color.New(color.FgHiYellow)
 	clName := getPresentationNameForCluster(item)
 	_, _ = green.Printf("%s", clName)
 	_, _ = white.Printf(" %s [", strings.Repeat(".", 60-len(clName)+20))
@@ -142,6 +159,8 @@ func reportUpdateStatus(item unstructured.Unstructured, status UpdateStatus, add
 		_, _ = green.Printf("OK")
 	case status == FAILED:
 		_, _ = red.Printf("KO")
+	case status == ALREADY_SHUTDOWN:
+		_, _ = yellow.Printf("Already Shutdown")
 	}
 	_, _ = white.Printf("]")
 	if additionalMsg != "" {
