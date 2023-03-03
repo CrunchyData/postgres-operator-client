@@ -15,6 +15,8 @@ import (
 	"strings"
 )
 
+var flagAllCluster bool
+
 // newPowerCommand allows to power on/off a cluster, a list of clusters or
 // all the crunchy clusters in this kubernetes cluster. This would happen in
 // case of maintenance of a kubernetes cluster where the storage might be
@@ -69,35 +71,29 @@ pgo power on --all -n foo
 pgo power on --all
 	`)
 
+	powerOnCmd.Flags().BoolVarP(&flagAllCluster, "all", "", false, "Apply to all clusters in the namespace if supplied or in the clusters if none")
+
 	// Define the 'power on' command
 	powerOnCmd.RunE = func(cmd *cobra.Command, args []string) error {
 
-		// configure client
+		configFlags := genericclioptions.NewConfigFlags(false)
 		_, clientCrunchy, err := v1beta1.NewPostgresClusterClient(config)
 		if err != nil {
 			return err
 		}
 
-		configFlags := genericclioptions.NewConfigFlags(false)
-		ns := configFlags.Namespace
+		var clusterNames []string
+		if len(args) == 1 {
+			clusterNames = strings.Split(args[0], ",")
+		}
 
-		clusters, err := clientCrunchy.Namespace(*ns).List(context.TODO(), metav1.ListOptions{})
+		clusters, err := collectClusters(clientCrunchy,
+			ClustersToCollect{Namespace: *configFlags.Namespace, Clusters: clusterNames, All: flagAllCluster})
 		if err != nil {
 			fmt.Printf("Failed to list postgresql clusters: %+v\n", err)
 			os.Exit(1)
 		}
-		for _, cluster := range clusters.Items {
-			err = powerOn(clientCrunchy, cluster)
-			if err != nil {
-				if _, ok := err.(AlreadyRunning); ok {
-					reportAlreadyRunning(cluster)
-					continue
-				}
-				reportUpdateFailed(cluster, err)
-				continue
-			}
-			reportUpdateSucceeded(cluster)
-		}
+		powerOnClusters(clientCrunchy, clusters)
 
 		return nil
 	}
@@ -134,6 +130,8 @@ pgo power off --all -n foo
 pgo power off --all
 	`)
 
+	powerOffCmd.Flags().BoolVarP(&flagAllCluster, "all", "", false, "Apply to all clusters in the namespace if supplied or in the clusters if none")
+
 	powerOffCmd.RunE = func(cmd *cobra.Command, args []string) error {
 
 		// configure client
@@ -141,32 +139,77 @@ pgo power off --all
 		if err != nil {
 			return err
 		}
+		var clusterNames []string
+		if len(args) == 1 {
+			clusterNames = strings.Split(args[0], ",")
+		}
 
 		configFlags := genericclioptions.NewConfigFlags(false)
-		ns := configFlags.Namespace
-
-		clusters, err := clientCrunchy.Namespace(*ns).List(context.TODO(), metav1.ListOptions{})
+		clusters, err := collectClusters(clientCrunchy,
+			ClustersToCollect{Namespace: *configFlags.Namespace, Clusters: clusterNames, All: flagAllCluster})
 		if err != nil {
 			fmt.Printf("Failed to list postgresql clusters: %+v\n", err)
 			os.Exit(1)
 		}
-		for _, cluster := range clusters.Items {
-			err = powerOff(clientCrunchy, cluster)
-			if err != nil {
-				if _, ok := err.(AlreadyShutdown); ok {
-					reportAlreadyShutdown(cluster)
-					continue
-				}
-				reportUpdateFailed(cluster, err)
-				continue
-			}
-			reportUpdateSucceeded(cluster)
-		}
+		powerOffClusters(clientCrunchy, clusters)
 
 		return nil
 	}
 
 	return powerOffCmd
+}
+
+func collectClusters(clientCrunchy dynamic.NamespaceableResourceInterface, toCollect ClustersToCollect) ([]unstructured.Unstructured, error) {
+	if toCollect.All {
+		allClusters, err := clientCrunchy.Namespace(toCollect.Namespace).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			fmt.Printf("Failed to list postgresql clusters: %+v\n", err)
+			return []unstructured.Unstructured{}, err
+		}
+		return allClusters.Items, nil
+	}
+	var clusters []unstructured.Unstructured
+	for _, cluster := range toCollect.Clusters {
+		retrieved, err := clientCrunchy.Namespace(toCollect.Namespace).Get(context.TODO(), cluster, metav1.GetOptions{})
+		if err != nil {
+			fmt.Printf("Failed to get postgresql cluster %q in namespace %q : %+v\n", cluster, toCollect.Namespace, err)
+			return []unstructured.Unstructured{}, err
+		}
+		clusters = append(clusters, *retrieved)
+	}
+	return clusters, nil
+}
+
+func powerOffClusters(clientCrunchy dynamic.NamespaceableResourceInterface,
+	clusters []unstructured.Unstructured) {
+	for _, cluster := range clusters {
+		err := powerOff(clientCrunchy, cluster)
+		if err != nil {
+			if _, ok := err.(AlreadyShutdown); ok {
+				reportAlreadyShutdown(cluster)
+				continue
+			}
+			reportUpdateFailed(cluster, err)
+			continue
+		}
+		reportUpdateSucceeded(cluster)
+	}
+}
+
+func powerOnClusters(clientCrunchy dynamic.NamespaceableResourceInterface,
+	clusters []unstructured.Unstructured) {
+	for _, cluster := range clusters {
+		err := powerOn(clientCrunchy, cluster)
+		if err != nil {
+			if _, ok := err.(AlreadyRunning); ok {
+				reportAlreadyRunning(cluster)
+				continue
+			}
+			reportUpdateFailed(cluster, err)
+			continue
+		}
+		reportUpdateSucceeded(cluster)
+	}
 }
 
 func getPresentationNameForCluster(cluster unstructured.Unstructured) string {
@@ -205,6 +248,12 @@ func changePowerOnCluster(client dynamic.NamespaceableResourceInterface, item un
 		return err
 	}
 	return nil
+}
+
+type ClustersToCollect struct {
+	All       bool
+	Namespace string
+	Clusters  []string
 }
 
 type AlreadyShutdown struct{}
