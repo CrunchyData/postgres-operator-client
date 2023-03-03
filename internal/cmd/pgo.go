@@ -102,7 +102,8 @@ func NewPGOCommand(stdin io.Reader, stdout, stderr io.Writer) *cobra.Command {
 	root.AddCommand(newDeleteCommand(config))
 	root.AddCommand(newRestoreCommand(config))
 	root.AddCommand(newShowCommand(config))
-	root.AddCommand(newShutdownCommand(config))
+	root.AddCommand(newPowerCommand(config))
+	root.AddCommand(newPowerOnCommand(config))
 	root.AddCommand(newSupportCommand(config))
 	root.AddCommand(newVersionCommand(config))
 
