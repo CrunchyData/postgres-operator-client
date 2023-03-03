@@ -9,7 +9,6 @@ import (
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/dynamic"
 	"os"
 	"strings"
@@ -76,7 +75,6 @@ pgo power on --all
 	// Define the 'power on' command
 	powerOnCmd.RunE = func(cmd *cobra.Command, args []string) error {
 
-		configFlags := genericclioptions.NewConfigFlags(false)
 		_, clientCrunchy, err := v1beta1.NewPostgresClusterClient(config)
 		if err != nil {
 			return err
@@ -86,9 +84,13 @@ pgo power on --all
 		if len(args) == 1 {
 			clusterNames = strings.Split(args[0], ",")
 		}
+		ns := ""
+		if *config.ConfigFlags.Namespace != "" {
+			ns = *config.ConfigFlags.Namespace
+		}
 
 		clusters, err := collectClusters(clientCrunchy,
-			ClustersToCollect{Namespace: *configFlags.Namespace, Clusters: clusterNames, All: flagAllCluster})
+			ClustersToCollect{Namespace: ns, Clusters: clusterNames, All: flagAllCluster})
 		if err != nil {
 			fmt.Printf("Failed to list postgresql clusters: %+v\n", err)
 			os.Exit(1)
@@ -144,9 +146,13 @@ pgo power off --all
 			clusterNames = strings.Split(args[0], ",")
 		}
 
-		configFlags := genericclioptions.NewConfigFlags(false)
+		ns := ""
+		if *config.ConfigFlags.Namespace != "" {
+			ns = *config.ConfigFlags.Namespace
+		}
+
 		clusters, err := collectClusters(clientCrunchy,
-			ClustersToCollect{Namespace: *configFlags.Namespace, Clusters: clusterNames, All: flagAllCluster})
+			ClustersToCollect{Namespace: ns, Clusters: clusterNames, All: flagAllCluster})
 		if err != nil {
 			fmt.Printf("Failed to list postgresql clusters: %+v\n", err)
 			os.Exit(1)
