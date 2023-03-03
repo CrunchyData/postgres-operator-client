@@ -17,7 +17,12 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/crunchydata/postgres-operator-client/internal/apis/postgres-operator.crunchydata.com/v1beta1"
+	"github.com/fatih/color"
 	"io"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -40,6 +45,7 @@ func newShowCommand(config *internal.Config) *cobra.Command {
 
 	cmdShow.AddCommand(
 		newShowBackupCommand(config),
+		newShowStatusCommand(config),
 	)
 
 	// No arguments for 'show', but there are arguments for the subcommands, e.g.
@@ -160,4 +166,76 @@ pgo show backup hippo --repoName=repo1
 	}
 
 	return cmdShowBackup
+}
+
+// newShowStatusCommand returns the status subcommand of the show command. The
+// 'status' reports if a cluster or a set of clusters are up and running.
+func newShowStatusCommand(config *internal.Config) *cobra.Command {
+
+	cmdShowStatus := &cobra.Command{
+		Use:   "status CLUSTER_NAME",
+		Short: "Show status for a PostgresCluster. If none specified, returns status for all clusters.",
+		Long: `Show status information (shutdown/running) for a PostgresCluster.
+
+#### RBAC Requirements
+    Resources          Verbs
+    ---------          -----
+    postgrescluster    [list]
+`,
+	}
+
+	cmdShowStatus.Example = internal.FormatExample(`
+# Show status of the 'hippo' postgrescluster
+pgo show status hippo -n flamingo
+
+# Show status of all postgresclusters
+pgo show status
+
+# Show status of all postgresclusters in a given namespace
+pgo show status -n flamingo
+	`)
+
+	// Define the 'show backup' command
+	cmdShowStatus.RunE = func(cmd *cobra.Command, args []string) error {
+
+		// configure client
+		_, clientCrunchy, err := v1beta1.NewPostgresClusterClient(config)
+		if err != nil {
+			return err
+		}
+
+		configFlags := genericclioptions.NewConfigFlags(false)
+		ns := configFlags.Namespace
+
+		clusters, err := clientCrunchy.Namespace(*ns).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			fmt.Printf("Failed to list postgresql clusters: %+v\n", err)
+			os.Exit(1)
+		}
+		for _, cluster := range clusters.Items {
+			displayStatusOf(cluster)
+		}
+
+		return nil
+	}
+
+	return cmdShowStatus
+}
+
+func displayStatusOf(pgCluster unstructured.Unstructured) {
+	green := color.New(color.FgGreen)
+	white := color.New(color.FgWhite)
+	red := color.New(color.FgRed)
+	clName := getPresentationNameForCluster(pgCluster)
+	_, _ = green.Printf("%s", clName)
+	_, _ = white.Printf(" %s [", strings.Repeat(".", 60-len(clName)+20))
+	spec := pgCluster.Object["spec"].(map[string]interface{})
+	switch spec["shutdown"] {
+	case false:
+		_, _ = green.Printf("Running")
+	default:
+		_, _ = red.Printf("Shutdown")
+	}
+	_, _ = white.Printf("]")
+	fmt.Println("")
 }
