@@ -4,4 +4,32 @@ kind: TestStep
 commands:
 - script: kubectl-pgo --namespace $NAMESPACE support export kuttl-support-cluster -o .
 - script: tar -xf ./crunchy_k8s_support_export_*.tar
+- script: |
+    #!/bin/bash
+
+    DIR="./kuttl-support-cluster/nodes/"
+    LIST="${DIR}list"
+
+    CLEANUP="rm -r ./kuttl-support-cluster ./crunchy_k8s_support_export_*.tar"
+
+    # check for expected table header in the list file
+    KV=$(awk 'NR==1 {print $9}' $LIST)
+    [[ "${KV}" == '|KERNEL-VERSION' ]] || {
+      echo "Expected KERNEL-VERSION header, got:"
+      echo "${KV}"
+      eval "$CLEANUP"
+      exit 1
+    }
+
+    # check for a .yaml file with the name of the first Node in the list file
+    NODE="$(awk 'NR==2 {print $1}' $LIST).yaml"
+
+    if [ ! -f "${DIR}${NODE}" ]
+    then
+      echo "Expected directory with file ${NODE}, got:"
+      ls ${DIR}
+      eval "$CLEANUP"
+      exit 1
+    fi
+
 - script: rm -r ./kuttl-support-cluster ./crunchy_k8s_support_export_*.tar
