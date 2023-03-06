@@ -22,6 +22,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -325,9 +326,79 @@ func gatherNodes(ctx context.Context,
 	}
 
 	var buf bytes.Buffer
-	if err := printers.NewTablePrinter(printers.PrintOptions{
-		Wide: true,
-	}).PrintObj(list, &buf); err != nil {
+	w := tabwriter.NewWriter(&buf, 10, 1, 1, ' ', tabwriter.Debug)
+	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t\n", "NAME",
+		"STATUS", "ROLES", "AGE", "VERSION", "INTERNAL-IP", "EXTERNAL-IP",
+		"OS-IMAGE", "KERNEL-VERSION", "CONTAINER-RUNTIME")
+
+	for _, item := range list.Items {
+
+		b, err := yaml.Marshal(item)
+		if err != nil {
+			return err
+		}
+
+		path := clusterName + "/nodes/" + item.GetName() + ".yaml"
+		if err := writeTar(tw, b, path, cmd); err != nil {
+			return err
+		}
+
+		// NAME
+		fmt.Fprintf(w, "%s\t", item.GetName())
+
+		// STATUS
+		for _, c := range item.Status.Conditions {
+			if c.Type == "Ready" {
+				if c.Status == "True" {
+					fmt.Fprintf(w, "%s\t", "Ready")
+				} else {
+					fmt.Fprintf(w, "%s\t", "Not Ready")
+				}
+			}
+		}
+
+		// ROLES
+		rolePrefix := "node-role.kubernetes.io/"
+		for k := range item.Labels {
+			if strings.Contains(k, rolePrefix) {
+				sa := strings.Split(k, rolePrefix)
+				if len(sa) > 1 {
+					fmt.Fprintf(w, "%s\t", sa[1])
+				}
+			}
+		}
+
+		// AGE
+		fmt.Fprintf(w, "%s\t", translateTimestampSince(item.CreationTimestamp))
+
+		// VERSION
+		fmt.Fprintf(w, "%s\t", item.Status.NodeInfo.KubeletVersion)
+
+		// INTERNAL-IP and EXTERNAL-IP
+		var internalIP = "<none>"
+		var externalIP = "<none>"
+		for _, a := range item.Status.Addresses {
+			if a.Type == corev1.NodeInternalIP {
+				internalIP = a.Address
+			}
+			if a.Type == corev1.NodeExternalIP {
+				externalIP = a.Address
+			}
+		}
+		fmt.Fprintf(w, "%s\t", internalIP)
+		fmt.Fprintf(w, "%s\t", externalIP)
+
+		// OS-IMAGE
+		fmt.Fprintf(w, "%s\t", item.Status.NodeInfo.OSImage)
+
+		// KERNEL-VERSION
+		fmt.Fprintf(w, "%s\t", item.Status.NodeInfo.KernelVersion)
+
+		// CONTAINER-RUNTIME
+		fmt.Fprintf(w, "%s\t\n", item.Status.NodeInfo.ContainerRuntimeVersion)
+
+	}
+	if err := w.Flush(); err != nil {
 		return err
 	}
 
@@ -497,16 +568,6 @@ func gatherEvents(ctx context.Context,
 	// translateMicroTimestampSince returns the elapsed time since timestamp in
 	// human-readable approximation.
 	translateMicroTimestampSince := func(timestamp metav1.MicroTime) string {
-		if timestamp.IsZero() {
-			return "<unknown>"
-		}
-
-		return duration.HumanDuration(time.Since(timestamp.Time))
-	}
-
-	// translateTimestampSince returns the elapsed time since timestamp in
-	// human-readable approximation.
-	translateTimestampSince := func(timestamp metav1.Time) string {
 		if timestamp.IsZero() {
 			return "<unknown>"
 		}
@@ -761,6 +822,16 @@ func gatherPatroniInfo(ctx context.Context,
 	}
 
 	return nil
+}
+
+// translateTimestampSince returns the elapsed time since timestamp in
+// human-readable approximation.
+func translateTimestampSince(timestamp metav1.Time) string {
+	if timestamp.IsZero() {
+		return "<unknown>"
+	}
+
+	return duration.HumanDuration(time.Since(timestamp.Time))
 }
 
 // writeTar takes content as a byte slice and writes the content to a tar writer
