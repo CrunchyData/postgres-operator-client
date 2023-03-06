@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"github.com/crunchydata/postgres-operator-client/internal"
@@ -149,6 +150,25 @@ pgo power off --all
 		ns := ""
 		if *config.ConfigFlags.Namespace != "" {
 			ns = *config.ConfigFlags.Namespace
+		}
+
+		if ns == "" && flagAllCluster {
+			yellow := color.New(color.FgHiYellow)
+			_, _ = yellow.Printf("[WARNING] You request to stop all PG clusters of this k8s cluster. Do you want to proceed ?(Y/N)\n")
+			userInput := bufio.NewScanner(os.Stdin)
+			for userInput.Scan() {
+				answer := userInput.Text()
+				switch answer {
+				case "N":
+					os.Exit(1)
+				case "Y":
+					goto answerYes
+				default:
+					fmt.Println("Please answer Y or N")
+				}
+			}
+		answerYes:
+			fmt.Println("You have answered Y")
 		}
 
 		clusters, err := collectClusters(clientCrunchy,
