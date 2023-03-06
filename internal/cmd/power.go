@@ -168,7 +168,7 @@ pgo power off --all
 				}
 			}
 		answerYes:
-			fmt.Println("You have answered Y")
+			fmt.Println("Confirmation to shutdown all PG Clusters in the cluster.")
 		}
 
 		clusters, err := collectClusters(clientCrunchy,
