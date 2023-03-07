@@ -46,14 +46,19 @@ pgo support export CLUSTER_NAME [flags]
   
   # Long Flags
   kubectl pgo support export daisy --output . --pg-logs-count 2
+  
+  # Monitoring namespace override
+  # This is only required when monitoring is not deployed in the PostgresCluster's namespace.
+  kubectl pgo support export daisy --monitoring-namespace another-namespace --output .
 ```
 
 ### Options
 
 ```
-  -h, --help                help for export
-  -o, --output string       Path to save export tarball
-  -l, --pg-logs-count int   Number of pg_log files to save (default 2)
+  -h, --help                          help for export
+      --monitoring-namespace string   Monitoring namespace override
+  -o, --output string                 Path to save export tarball
+  -l, --pg-logs-count int             Number of pg_log files to save (default 2)
 ```
 
 ### Options inherited from parent commands

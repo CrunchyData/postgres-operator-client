@@ -28,6 +28,9 @@ const (
 
 	// LabelRole is used to identify object roles.
 	LabelRole = labelPrefix + "role"
+
+	// LabelMonitoring is used to identify monitoring Pods
+	LabelMonitoring = "app.kubernetes.io/name=postgres-operator-monitoring"
 )
 
 const (

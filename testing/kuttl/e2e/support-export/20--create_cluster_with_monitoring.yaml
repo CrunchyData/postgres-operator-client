@@ -1,0 +1,78 @@
+apiVersion: postgres-operator.crunchydata.com/v1beta1
+kind: PostgresCluster
+metadata:
+  name: kuttl-support-monitoring-cluster
+spec:
+  postgresVersion: 14
+  instances:
+    - dataVolumeClaimSpec:
+        accessModes: [ReadWriteOnce]
+        resources: { requests: { storage: 1Gi } }
+  backups:
+    pgbackrest:
+      repos:
+      - name: repo1
+        volume:
+          volumeClaimSpec:
+            accessModes: [ReadWriteOnce]
+            resources: { requests: { storage: 1Gi } }
+  monitoring:
+    pgmonitor:
+      exporter: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crunchy-prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres-operator-monitoring
+      name: crunchy-prometheus
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres-operator-monitoring
+        name: crunchy-prometheus
+    spec:
+      containers:
+      - image: prom/prometheus:v2.33.5
+        name: prometheus
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crunchy-grafana
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres-operator-monitoring
+      name: crunchy-grafana
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres-operator-monitoring
+        name: crunchy-grafana
+    spec:
+      containers:
+      - image: grafana/grafana:8.5.10
+        name: grafana
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crunchy-alertmanager
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres-operator-monitoring
+      name: crunchy-alertmanager
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres-operator-monitoring
+        name: crunchy-alertmanager
+    spec:
+      containers:
+      - image: prom/alertmanager:v0.22.2
+        name: alertmanager

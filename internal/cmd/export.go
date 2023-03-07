@@ -155,6 +155,9 @@ PostgresCluster.
 	var numLogs int
 	cmd.Flags().IntVarP(&numLogs, "pg-logs-count", "l", 2, "Number of pg_log files to save")
 
+	var monitoringNamespace string
+	cmd.Flags().StringVarP(&monitoringNamespace, "monitoring-namespace", "", "", "Monitoring namespace override")
+
 	cmd.Args = cobra.ExactArgs(1)
 
 	cmd.Example = internal.FormatExample(`
@@ -163,6 +166,10 @@ kubectl pgo support export daisy -o . -l 2
 
 # Long Flags
 kubectl pgo support export daisy --output . --pg-logs-count 2
+
+# Monitoring namespace override
+# This is only required when monitoring is not deployed in the PostgresCluster's namespace.
+kubectl pgo support export daisy --monitoring-namespace another-namespace --output .
 	`)
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
@@ -268,8 +275,17 @@ kubectl pgo support export daisy --output . --pg-logs-count 2
 			}
 		}
 
+		// get PostgresCluster Pod logs
 		if err == nil {
-			err = gatherPodLogs(ctx, clientset, namespace, clusterName, tw, cmd)
+			err = gatherPodLogs(ctx, clientset, namespace, fmt.Sprintf("%s=%s", util.LabelCluster, clusterName), clusterName, tw, cmd)
+		}
+
+		// get monitoring Pod logs
+		if monitoringNamespace == "" {
+			monitoringNamespace = namespace
+		}
+		if err == nil {
+			err = gatherPodLogs(ctx, clientset, monitoringNamespace, util.LabelMonitoring, "monitoring", tw, cmd)
 		}
 
 		// Exec resources
@@ -694,14 +710,15 @@ func gatherPostgresqlLogs(ctx context.Context,
 func gatherPodLogs(ctx context.Context,
 	clientset *kubernetes.Clientset,
 	namespace string,
-	clusterName string,
+	labelSelector string,
+	rootDir string,
 	tw *tar.Writer,
 	cmd *cobra.Command,
 ) error {
 	// TODO: update to use specific client after SSA change
-	// Get the primary instance Pod by its labels
+	// Get all Pods that match the given Label
 	pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: "postgres-operator.crunchydata.com/cluster=" + clusterName,
+		LabelSelector: labelSelector,
 	})
 	if err != nil {
 		if apierrors.IsForbidden(err) {
@@ -736,7 +753,7 @@ func gatherPodLogs(ctx context.Context,
 				return err
 			}
 
-			path := clusterName + "/logs/" + pod.GetName() + "/" + container.Name
+			path := rootDir + "/logs/" + pod.GetName() + "/" + container.Name
 			if err := writeTar(tw, b, path, cmd); err != nil {
 				return err
 			}
