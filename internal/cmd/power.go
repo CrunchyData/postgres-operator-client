@@ -252,24 +252,31 @@ func powerOff(client dynamic.NamespaceableResourceInterface, item unstructured.U
 	return changePowerOnCluster(client, item, SHUTDOWN)
 }
 
-func changePowerOnCluster(client dynamic.NamespaceableResourceInterface, item unstructured.Unstructured, status ClusterStatus) error {
+func changePowerOnUnstructured(item unstructured.Unstructured, status ClusterStatus) (unstructured.Unstructured, error) {
 	updatedCluster := item
 	spec := updatedCluster.Object["spec"].(map[string]interface{})
 	switch status {
 	case RUNNING:
 		if spec["shutdown"] == false {
-			return AlreadyRunning{}
+			return unstructured.Unstructured{}, AlreadyRunning{}
 		}
 		spec["shutdown"] = false
 	case SHUTDOWN:
 		if spec["shutdown"] == true {
-			return AlreadyShutdown{}
+			return unstructured.Unstructured{}, AlreadyShutdown{}
 		}
 		spec["shutdown"] = true
 	}
 	updatedCluster.Object["spec"] = spec
+	return updatedCluster, nil
+}
 
-	_, err := client.Namespace(updatedCluster.GetNamespace()).Update(context.TODO(), &updatedCluster, metav1.UpdateOptions{})
+func changePowerOnCluster(client dynamic.NamespaceableResourceInterface, item unstructured.Unstructured, status ClusterStatus) error {
+	updatedCluster, err := changePowerOnUnstructured(item, status)
+	if err != nil {
+		return err
+	}
+	_, err = client.Namespace(updatedCluster.GetNamespace()).Update(context.TODO(), &updatedCluster, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
