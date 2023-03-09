@@ -38,6 +38,9 @@ spec:
       containers:
       - image: prom/prometheus:v2.33.5
         name: prometheus
+        # Override default command to avoid 'permission denied' error in some
+        # environments (e.g. Openshift). Echo 'hello' so the Pod log is not empty.
+        command: ["sh", "-c", "while true; do echo hello; sleep 10;done"]
 ---
 apiVersion: apps/v1
 kind: Deployment
