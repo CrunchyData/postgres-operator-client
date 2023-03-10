@@ -1,0 +1,31 @@
+name: k3d
+description: Start k3s using k3d
+inputs:
+  k3d-tag:
+    default: latest
+    required: true
+    description: >
+      Git tag from https://github.com/k3d-io/k3d/releases or "latest"
+  k3s-channel:
+    default: latest
+    required: true
+    description: >
+      https://docs.k3s.io/upgrades/manual#release-channels
+
+runs:
+  using: composite
+  steps:
+    - id: k3d
+      name: Install k3d
+      shell: bash
+      env:
+        K3D_TAG: ${{ inputs.k3d-tag }}
+      run: |
+        curl --fail --silent https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh |
+          TAG="${K3D_TAG#latest}" bash
+
+    - id: k3s
+      name: Start k3s
+      shell: bash
+      run: |
+        k3d cluster create --image '+${{ inputs.k3s-channel }}' --no-lb --timeout=2m --wait
