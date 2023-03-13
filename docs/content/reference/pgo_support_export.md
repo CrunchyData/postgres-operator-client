@@ -34,6 +34,12 @@ PostgresCluster.
 
     Note: This RBAC needs to be cluster-scoped to retrieve information on nodes.
 
+#### Event Capture
+    Support export captures all Events in the PostgresCluster's Namespace.
+    Event duration is determined by the '--event-ttl' setting of the Kubernetes
+    API server. Default is 1 hour.
+    - https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
+
 ```
 pgo support export CLUSTER_NAME [flags]
 ```

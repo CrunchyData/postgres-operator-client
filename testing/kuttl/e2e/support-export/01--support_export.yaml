@@ -32,4 +32,22 @@ commands:
       exit 1
     fi
 
+    # check that the events file exist and is not empty
+    EVENTS="./kuttl-support-cluster/events"
+
+    if [[ ! -s $EVENTS ]]
+    then
+      echo "Expected Events file to not be empty"
+      eval "$CLEANUP"
+      exit 1
+    fi
+
+    # check that the events file contains the expected string
+    if ! grep -Fq "Created container postgres-startup" $EVENTS
+    then
+      echo "Events file does not contain expected string"
+      eval "$CLEANUP"
+      exit 1
+    fi
+
 - script: rm -r ./kuttl-support-cluster ./crunchy_k8s_support_export_*.tar
