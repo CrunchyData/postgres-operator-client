@@ -18,7 +18,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
+	"regexp"
 
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -82,9 +82,9 @@ func NewPGOCommand(stdin io.Reader, stdout, stderr io.Writer) *cobra.Command {
 		SilenceErrors: true,
 	}
 
-	cobra.AddTemplateFunc("replaceAll", strings.ReplaceAll)
+	cobra.AddTemplateFunc("formatHeader", formatHeader)
 
-	root.SetHelpTemplate(`{{with .Long}}{{ replaceAll . "#### RBAC Requirements" "RBAC Requirements:" | trimTrailingWhitespaces }}
+	root.SetHelpTemplate(`{{with .Long}}{{ formatHeader . | trimTrailingWhitespaces }}
 
 {{end}}{{if or .Runnable .HasSubCommands}}{{.UsageString}}{{end}}`)
 
@@ -106,4 +106,10 @@ func NewPGOCommand(stdin io.Reader, stdout, stderr io.Writer) *cobra.Command {
 	root.AddCommand(newVersionCommand(config))
 
 	return root
+}
+
+// formatHeader removes markdown header syntax for CLI help output
+func formatHeader(s string) string {
+	re := regexp.MustCompile(`#### (.*)\n`)
+	return re.ReplaceAllString(s, "$1:\n")
 }
