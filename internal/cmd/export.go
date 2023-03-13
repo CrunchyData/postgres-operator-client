@@ -134,7 +134,13 @@ PostgresCluster.
     services                                            [get list]
     statefulsets.apps                                   [get list]
 
-    Note: This RBAC needs to be cluster-scoped to retrieve information on nodes.`,
+    Note: This RBAC needs to be cluster-scoped to retrieve information on nodes.
+
+#### Event Capture
+    Support export captures all Events in the PostgresCluster's Namespace.
+    Event duration is determined by the '--event-ttl' setting of the Kubernetes
+    API server. Default is 1 hour.
+    - https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/`,
 	}
 
 	// Set output to log and write to buffer for writing to file
@@ -615,6 +621,9 @@ func gatherEvents(ctx context.Context,
 			event.InvolvedObject.Kind, event.InvolvedObject.Name,
 			strings.TrimSpace(event.Message),
 		)
+	}
+	if err := p.Flush(); err != nil {
+		return err
 	}
 
 	path := clusterName + "/events"
