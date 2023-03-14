@@ -17,6 +17,7 @@ package cmd
 import (
 	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
@@ -226,18 +227,25 @@ kubectl pgo support export daisy --monitoring-namespace another-namespace --outp
 		}
 
 		// Name file with year-month-day-HrMinSecTimezone suffix
-		// Example: crunchy_k8s_support_export_2022-08-08-115726-0400.tar
-		outputFile := "crunchy_k8s_support_export_" + time.Now().Format("2006-01-02-150405-0700") + ".tar"
+		// Example: crunchy_k8s_support_export_2022-08-08-115726-0400.tar.gz
+		outputFile := "crunchy_k8s_support_export_" + time.Now().Format("2006-01-02-150405-0700") + ".tar.gz"
 		// #nosec G304 -- We intentionally write to the directory supplied by the user.
 		tarFile, err := os.Create(outputDir + "/" + outputFile)
 		if err != nil {
 			return err
 		}
 
-		tw := tar.NewWriter(tarFile)
+		gw, err := gzip.NewWriterLevel(tarFile, gzip.BestCompression)
+		if err != nil {
+			return err
+		}
+		tw := tar.NewWriter(gw)
 		defer func() {
 			// ignore any errors from Close functions, the writers will be
 			// closed when the program exits
+			if gw != nil {
+				_ = gw.Close()
+			}
 			if tw != nil {
 				_ = tw.Close()
 			}
