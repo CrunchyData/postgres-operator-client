@@ -3,14 +3,23 @@ apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
 - script: kubectl-pgo --namespace $NAMESPACE support export kuttl-support-cluster -o .
-- script: tar -xf ./crunchy_k8s_support_export_*.tar
+- script: tar -xf ./crunchy_k8s_support_export_*.tar.gz
 - script: |
     #!/bin/bash
 
     DIR="./kuttl-support-cluster/nodes/"
     LIST="${DIR}list"
 
-    CLEANUP="rm -r ./kuttl-support-cluster ./crunchy_k8s_support_export_*.tar"
+    CLEANUP="rm -r ./kuttl-support-cluster ./crunchy_k8s_support_export_*.tar.gz"
+
+    # check for expected gzip compression level
+    FILE_INFO=$(file ./crunchy_k8s_support_export_*.tar.gz)
+    [[ "${FILE_INFO}" == *'gzip compressed data, max compression'* ]] || {
+      echo "Expected gzip max compression message, got:"
+      echo "${FILE_INFO}"
+      eval "$CLEANUP"
+      exit 1
+    }
 
     # check for expected table header in the list file
     KV=$(awk 'NR==1 {print $9}' $LIST)
@@ -50,4 +59,4 @@ commands:
       exit 1
     fi
 
-- script: rm -r ./kuttl-support-cluster ./crunchy_k8s_support_export_*.tar
+- script: rm -r ./kuttl-support-cluster ./crunchy_k8s_support_export_*.tar.gz

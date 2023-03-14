@@ -3,11 +3,11 @@ apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
 - script: kubectl-pgo --namespace $NAMESPACE support export kuttl-support-monitoring-cluster -o .
-- script: tar -xf ./crunchy_k8s_support_export_*.tar
+- script: tar -xf ./crunchy_k8s_support_export_*.tar.gz
 - script: |
     #!/bin/bash
 
-    CLEANUP="rm -r ./kuttl-support-monitoring-cluster ./monitoring ./crunchy_k8s_support_export_*.tar"
+    CLEANUP="rm -r ./kuttl-support-monitoring-cluster ./monitoring ./crunchy_k8s_support_export_*.tar.gz"
     CLUSTER_DIR="./kuttl-support-monitoring-cluster/logs/"
     MONITORING_DIR="./monitoring/logs/"
 
@@ -40,4 +40,4 @@ commands:
       exit 1
     fi
 
-- script: rm -r ./kuttl-support-monitoring-cluster ./monitoring ./crunchy_k8s_support_export_*.tar
+- script: rm -r ./kuttl-support-monitoring-cluster ./monitoring ./crunchy_k8s_support_export_*.tar.gz
