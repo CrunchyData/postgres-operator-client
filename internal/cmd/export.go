@@ -270,10 +270,14 @@ kubectl pgo support export daisy --monitoring-namespace another-namespace --outp
 		}()
 
 		// TODO (jmckulk): collect context info
-		// TODO (jmckulk): collect client version, after pgo version command is implemented
+
+		// PGO CLI version
+		err = gatherPGOCLIVersion(ctx, clusterName, tw, cmd)
 
 		// Gather cluster wide resources
-		err = gatherKubeServerVersion(ctx, discoveryClient, clusterName, tw, cmd)
+		if err == nil {
+			err = gatherKubeServerVersion(ctx, discoveryClient, clusterName, tw, cmd)
+		}
 
 		if err == nil {
 			err = gatherNodes(ctx, clientset, clusterName, tw, cmd)
@@ -355,6 +359,20 @@ func exportSizeReport(size float64) string {
 	}
 
 	return finalMsg
+}
+
+// gatherPGOCLIVersion collects the PGO CLI version
+func gatherPGOCLIVersion(_ context.Context,
+	clusterName string,
+	tw *tar.Writer,
+	cmd *cobra.Command,
+) error {
+
+	path := clusterName + "/pgo-cli-version"
+	if err := writeTar(tw, []byte(clientVersion), path, cmd); err != nil {
+		return err
+	}
+	return nil
 }
 
 // gatherKubeServerVersion collects the server version from the Kubernetes cluster

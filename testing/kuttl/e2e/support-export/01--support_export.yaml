@@ -7,10 +7,16 @@ commands:
 - script: |
     #!/bin/bash
 
-    DIR="./kuttl-support-cluster/nodes/"
-    LIST="${DIR}list"
-
     CLEANUP="rm -r ./kuttl-support-cluster ./crunchy_k8s_support_export_*.tar.gz"
+
+    # check that the PGO CLI version is recorded
+    VER=$(cat ./kuttl-support-cluster/pgo-cli-version)
+    [[ "$VER" =~ v[0-9]+.[0-9]+.[0-9]+$ ]] || {
+      echo "Expected PGO CLI version, got:"
+      echo "${VER}"
+      eval "$CLEANUP"
+      exit 1
+    }
 
     # check for expected gzip compression level
     FILE_INFO=$(file ./crunchy_k8s_support_export_*.tar.gz)
@@ -20,6 +26,10 @@ commands:
       eval "$CLEANUP"
       exit 1
     }
+
+    # Node directory and list file path
+    DIR="./kuttl-support-cluster/nodes/"
+    LIST="${DIR}list"
 
     # check for expected table header in the list file
     KV=$(awk 'NR==1 {print $9}' $LIST)
