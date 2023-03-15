@@ -50,6 +50,21 @@ import (
 	"github.com/crunchydata/postgres-operator-client/internal/util"
 )
 
+const (
+	// define one mebibyte in float64
+	// - https://mathworld.wolfram.com/Mebibyte.html
+	mebibyte float64 = (1 << 20)
+
+	// Default support export message
+	msg1 = "\n" + `Archive file size: %.2f MiB
+Email the support export archive to support@crunchydata.com
+or attach as a email reply to your existing Support Ticket` + "\n"
+
+	// Additional support export message. Shown when size is greater than 25 MiB.
+	msg2 = `Archive file (%.2f MiB) may be too big to email.
+Please request file share link by emailing support@crunchydata.com` + "\n"
+)
+
 var namespacedResources = []schema.GroupVersionResource{{
 	Group:    appsv1.SchemeGroupVersion.Group,
 	Version:  appsv1.SchemeGroupVersion.Version,
@@ -313,10 +328,33 @@ kubectl pgo support export daisy --monitoring-namespace another-namespace --outp
 			return logErr
 		}
 
+		// Print final message
+		if err == nil {
+			info, err := os.Stat(outputDir + "/" + outputFile)
+
+			if err == nil {
+				fmt.Print(exportSizeReport(float64(info.Size())))
+			}
+		}
+
 		return err
 	}
 
 	return cmd
+}
+
+// exportSizeReport defines the message displayed when a support export archive
+// is created. If the size of the archive file is greater than 25MiB, an additional
+// message is displayed.
+func exportSizeReport(size float64) string {
+	finalMsg := fmt.Sprintf(msg1, size/mebibyte)
+
+	// if file size is > 25 MiB, print additional message
+	if size > mebibyte*25 {
+		finalMsg = finalMsg + fmt.Sprintf(msg2, size/mebibyte)
+	}
+
+	return finalMsg
 }
 
 // gatherKubeServerVersion collects the server version from the Kubernetes cluster
