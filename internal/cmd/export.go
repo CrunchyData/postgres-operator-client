@@ -137,24 +137,24 @@ PostgresCluster.
 #### RBAC Requirements
     Resources                                           Verbs
     ---------                                           -----
-    configmaps                                          [get list]
-    cronjobs.batch                                      [get list]
-    deployments.apps                                    [get list]
-    endpoints                                           [get list]
+    configmaps                                          [list]
+    cronjobs.batch                                      [list]
+    deployments.apps                                    [list]
+    endpoints                                           [list]
     events                                              [get list]
-    jobs.batch                                          [get list]
+    jobs.batch                                          [list]
     namespaces                                          [get]
     nodes                                               [list]
-    persistentvolumeclaims                              [get list]
-    poddisruptionbudgets.policy                         [get list]
-    pods                                                [get list]
+    persistentvolumeclaims                              [list]
+    poddisruptionbudgets.policy                         [list]
+    pods                                                [list]
     pods/exec                                           [create]
     pods/log                                            [get]
     postgresclusters.postgres-operator.crunchydata.com  [get]
-    replicasets.apps                                    [get list]
-    serviceaccounts                                     [get list]
-    services                                            [get list]
-    statefulsets.apps                                   [get list]
+    replicasets.apps                                    [list]
+    serviceaccounts                                     [list]
+    services                                            [list]
+    statefulsets.apps                                   [list]
 
     Note: This RBAC needs to be cluster-scoped to retrieve information on nodes.
 
@@ -610,21 +610,7 @@ func gatherNamespacedAPIResources(ctx context.Context,
 		}
 
 		for _, obj := range list.Items {
-			// Get each object defined in list, marshal the object and print
-			// to a file
-			get, err := client.Resource(gvr).Namespace(namespace).
-				Get(ctx, obj.GetName(), metav1.GetOptions{})
-			if err != nil {
-				if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
-					cmd.Println(err.Error())
-					// Continue and output errors for each resource type
-					// Allow the user to see and address all issues at once
-					continue
-				}
-				return err
-			}
-
-			b, err := yaml.Marshal(get)
+			b, err := yaml.Marshal(obj)
 			if err != nil {
 				return err
 			}

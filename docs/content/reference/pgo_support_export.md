@@ -13,24 +13,24 @@ PostgresCluster.
 #### RBAC Requirements
     Resources                                           Verbs
     ---------                                           -----
-    configmaps                                          [get list]
-    cronjobs.batch                                      [get list]
-    deployments.apps                                    [get list]
-    endpoints                                           [get list]
+    configmaps                                          [list]
+    cronjobs.batch                                      [list]
+    deployments.apps                                    [list]
+    endpoints                                           [list]
     events                                              [get list]
-    jobs.batch                                          [get list]
+    jobs.batch                                          [list]
     namespaces                                          [get]
     nodes                                               [list]
-    persistentvolumeclaims                              [get list]
-    poddisruptionbudgets.policy                         [get list]
-    pods                                                [get list]
+    persistentvolumeclaims                              [list]
+    poddisruptionbudgets.policy                         [list]
+    pods                                                [list]
     pods/exec                                           [create]
     pods/log                                            [get]
     postgresclusters.postgres-operator.crunchydata.com  [get]
-    replicasets.apps                                    [get list]
-    serviceaccounts                                     [get list]
-    services                                            [get list]
-    statefulsets.apps                                   [get list]
+    replicasets.apps                                    [list]
+    serviceaccounts                                     [list]
+    services                                            [list]
+    statefulsets.apps                                   [list]
 
     Note: This RBAC needs to be cluster-scoped to retrieve information on nodes.
 
