@@ -90,22 +90,28 @@ var namespacedResources = []schema.GroupVersionResource{{
 	Version:  policyv1.SchemeGroupVersion.Version,
 	Resource: "poddisruptionbudgets",
 }, {
-	Version:  "v1",
+	Group:    corev1.SchemeGroupVersion.Group,
+	Version:  corev1.SchemeGroupVersion.Version,
 	Resource: "pods",
 }, {
-	Version:  "v1",
+	Group:    corev1.SchemeGroupVersion.Group,
+	Version:  corev1.SchemeGroupVersion.Version,
 	Resource: "persistentvolumeclaims",
 }, {
-	Version:  "v1",
+	Group:    corev1.SchemeGroupVersion.Group,
+	Version:  corev1.SchemeGroupVersion.Version,
 	Resource: "configmaps",
 }, {
-	Version:  "v1",
+	Group:    corev1.SchemeGroupVersion.Group,
+	Version:  corev1.SchemeGroupVersion.Version,
 	Resource: "services",
 }, {
-	Version:  "v1",
+	Group:    corev1.SchemeGroupVersion.Group,
+	Version:  corev1.SchemeGroupVersion.Version,
 	Resource: "endpoints",
 }, {
-	Version:  "v1",
+	Group:    corev1.SchemeGroupVersion.Group,
+	Version:  corev1.SchemeGroupVersion.Version,
 	Resource: "serviceaccounts",
 }}
 
