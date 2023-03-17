@@ -31,6 +31,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -65,7 +66,8 @@ or attach as a email reply to your existing Support Ticket` + "\n"
 Please request file share link by emailing support@crunchydata.com` + "\n"
 )
 
-var namespacedResources = []schema.GroupVersionResource{{
+// namespaced resources that have a cluster Label
+var clusterNamespacedResources = []schema.GroupVersionResource{{
 	Group:    appsv1.SchemeGroupVersion.Group,
 	Version:  appsv1.SchemeGroupVersion.Version,
 	Resource: "statefulsets",
@@ -126,6 +128,17 @@ var removedNamespacedResources = []schema.GroupVersionResource{{
 	Resource: "poddisruptionbudgets",
 }}
 
+// namespaced resources that impact PGO created objects in the namespace
+var otherNamespacedResources = []schema.GroupVersionResource{{
+	Group:    networkingv1.SchemeGroupVersion.Group,
+	Version:  networkingv1.SchemeGroupVersion.Version,
+	Resource: "ingresses",
+}, {
+	Group:    corev1.SchemeGroupVersion.Group,
+	Version:  corev1.SchemeGroupVersion.Version,
+	Resource: "limitranges",
+}}
+
 // newSupportCommand returns the support subcommand of the PGO plugin.
 func newSupportExportCommand(config *internal.Config) *cobra.Command {
 	cmd := &cobra.Command{
@@ -142,7 +155,9 @@ PostgresCluster.
     deployments.apps                                    [list]
     endpoints                                           [list]
     events                                              [get list]
+    ingresses.networking.k8s.io                         [list]
     jobs.batch                                          [list]
+    limitranges                                         [list]
     namespaces                                          [get]
     nodes                                               [list]
     persistentvolumeclaims                              [list]
@@ -300,7 +315,20 @@ kubectl pgo support export daisy --monitoring-namespace another-namespace --outp
 
 		// TODO (jmckulk): pod describe output
 		if err == nil {
-			err = gatherNamespacedAPIResources(ctx, dynamicClient, namespace, clusterName, tw, cmd)
+			// get Namespaced resources that have cluster label
+			nsListOpts := metav1.ListOptions{
+				LabelSelector: "postgres-operator.crunchydata.com/cluster=" + clusterName,
+			}
+			err = gatherNamespacedAPIResources(ctx, dynamicClient, namespace,
+				clusterName, clusterNamespacedResources, nsListOpts, tw, cmd)
+		}
+
+		if err == nil {
+			// get other Namespaced resources that do not have the cluster label
+			// but may otherwise impact the PostgresCluster's operation
+			otherListOpts := metav1.ListOptions{}
+			err = gatherNamespacedAPIResources(ctx, dynamicClient, namespace,
+				clusterName, otherNamespacedResources, otherListOpts, tw, cmd)
 		}
 
 		if err == nil {
@@ -556,14 +584,13 @@ func gatherNamespacedAPIResources(ctx context.Context,
 	client dynamic.Interface,
 	namespace string,
 	clusterName string,
+	namespacedResources []schema.GroupVersionResource,
+	listOpts metav1.ListOptions,
 	tw *tar.Writer,
 	cmd *cobra.Command,
 ) error {
 	for _, gvr := range namespacedResources {
-		list, err := client.Resource(gvr).Namespace(namespace).
-			List(ctx, metav1.ListOptions{
-				LabelSelector: "postgres-operator.crunchydata.com/cluster=" + clusterName,
-			})
+		list, err := client.Resource(gvr).Namespace(namespace).List(ctx, listOpts)
 		// If the API returns an IsNotFound error, it is likely because the kube version in use
 		// doesn't support the version of the resource we are attempting to use and there is an
 		// earlier version we can use. This block will check the "removed" resources for a match
@@ -573,9 +600,7 @@ func gatherNamespacedAPIResources(ctx context.Context,
 				if bgvr.Resource == gvr.Resource {
 					gvr = bgvr
 					list, err = client.Resource(gvr).Namespace(namespace).
-						List(ctx, metav1.ListOptions{
-							LabelSelector: "postgres-operator.crunchydata.com/cluster=" + clusterName,
-						})
+						List(ctx, listOpts)
 					break
 				}
 			}
