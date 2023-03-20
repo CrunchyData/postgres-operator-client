@@ -4,15 +4,9 @@ delete:
 - apiVersion: postgres-operator.crunchydata.com/v1beta1
   kind: PostgresCluster
   name: kuttl-support-cluster
-- apiVersion: postgres-operator.crunchydata.com/v1beta1
-  kind: PostgresCluster
-  name: kuttl-support-monitoring-cluster
-- apiVersion: apps/v1
-  kind: Deployment
-  name: crunchy-prometheus
-- apiVersion: apps/v1
-  kind: Deployment
-  name: crunchy-grafana
-- apiVersion: apps/v1
-  kind: Deployment
-  name: crunchy-alertmanager
+- apiVersion: v1
+  kind: LimitRange
+  name: kuttl-test-limitrange
+- apiVersion: networking.k8s.io/v1
+  kind: Ingress
+  name: kuttl-test-ingress

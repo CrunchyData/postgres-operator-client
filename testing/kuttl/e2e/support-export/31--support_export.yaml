@@ -2,57 +2,42 @@
 apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
-- script: kubectl-pgo --namespace $NAMESPACE support export kuttl-support-cluster-other -o .
+- script: kubectl-pgo --namespace $NAMESPACE support export kuttl-support-monitoring-cluster -o .
 - script: tar -xf ./crunchy_k8s_support_export_*.tar.gz
 - script: |
-    #! /bin/bash
+    #!/bin/bash
 
-    CLEANUP="rm -r ./kuttl-support-cluster-other ./crunchy_k8s_support_export_*.tar.gz"
+    CLEANUP="rm -r ./kuttl-support-monitoring-cluster ./monitoring ./crunchy_k8s_support_export_*.tar.gz"
+    CLUSTER_DIR="./kuttl-support-monitoring-cluster/logs/"
+    MONITORING_DIR="./monitoring/logs/"
 
-    # LimitRange directory and list file path
-    LR_DIR="./kuttl-support-cluster-other/limitranges/"
-    LR_LIST="${LR_DIR}list"
-
-    # check for limitrange object name
-    LRO=$(awk 'NR==2 {print $1}' "${LR_LIST}")
-    [[ "${LRO}" == 'storagelimits' ]] || {
-      echo "Expected 'storagelimits' limitrange, got:"
-      echo "${LRO}"
-      eval "$CLEANUP"
-      exit 1
-    }
-
-    # check for a .yaml file for the limitrange object
-    LR_FILE="${LR_DIR}storagelimits.yaml"
-    if [ ! -f ${LR_FILE} ]
-    then
-      echo "Expected directory with file, ${LR_FILE}, got:"
-      ls ${LR_DIR}
+    # check for exporter, prometheus, grafana and alertmanager logs
+    found=$(find ${CLUSTER_DIR} -name "exporter" | wc -l)
+    if [ "${found}" -eq 0 ]; then
+      echo "exporter not found"
       eval "$CLEANUP"
       exit 1
     fi
 
-    # Ingress directory and list file path
-    I_DIR="./kuttl-support-cluster-other/ingresses/"
-    I_LIST="${I_DIR}list"
-
-    # check for ingress object name
-    IO=$(awk 'NR==2 {print $1}' ${I_LIST})
-    [[ "${IO}" == 'minimal-test-ingress' ]] || {
-      echo "Expected 'minimal-test-ingress' ingress, got:"
-      echo "${IO}"
-      eval "$CLEANUP"
-      exit 1
-    }
-
-    # check for a .yaml file for the ingress object
-    I_FILE="${I_DIR}minimal-test-ingress.yaml"
-    if [ ! -f ${I_FILE} ]
-    then
-      echo "Expected directory with file, ${I_FILE}, got:"
-      ls ${I_DIR}
+    found=$(find ${MONITORING_DIR} -name "prometheus" | wc -l)
+    if [ "${found}" -eq 0 ]; then
+      echo "prometheus not found"
       eval "$CLEANUP"
       exit 1
     fi
 
-- script: rm -r ./kuttl-support-cluster-other ./crunchy_k8s_support_export_*.tar.gz
+    found=$(find ${MONITORING_DIR} -name "grafana" | wc -l)
+    if [ "${found}" -eq 0 ]; then
+      echo "grafana not found"
+      eval "$CLEANUP"
+      exit 1
+    fi
+
+    found=$(find ${MONITORING_DIR} -name "alertmanager" | wc -l)
+    if [ "${found}" -eq 0 ]; then
+      echo "alertmanager not found"
+      eval "$CLEANUP"
+      exit 1
+    fi
+
+- script: rm -r ./kuttl-support-monitoring-cluster ./monitoring ./crunchy_k8s_support_export_*.tar.gz

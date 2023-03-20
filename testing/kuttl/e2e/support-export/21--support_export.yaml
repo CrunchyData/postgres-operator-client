@@ -2,42 +2,57 @@
 apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
-- script: kubectl-pgo --namespace $NAMESPACE support export kuttl-support-monitoring-cluster -o .
+- script: kubectl-pgo --namespace $NAMESPACE support export kuttl-support-cluster -o .
 - script: tar -xf ./crunchy_k8s_support_export_*.tar.gz
 - script: |
     #!/bin/bash
 
-    CLEANUP="rm -r ./kuttl-support-monitoring-cluster ./monitoring ./crunchy_k8s_support_export_*.tar.gz"
-    CLUSTER_DIR="./kuttl-support-monitoring-cluster/logs/"
-    MONITORING_DIR="./monitoring/logs/"
+    CLEANUP="rm -r ./kuttl-support-cluster ./crunchy_k8s_support_export_*.tar.gz"
 
-    # check for exporter, prometheus, grafana and alertmanager logs
-    found=$(find ${CLUSTER_DIR} -name "exporter" | wc -l)
-    if [ "${found}" -eq 0 ]; then
-      echo "exporter not found"
+    # LimitRange directory and list file path
+    LR_DIR="./kuttl-support-cluster/limitranges/"
+    LR_LIST="${LR_DIR}list"
+
+    # check for limitrange object name
+    LRO=$(awk 'NR==2 {print $1}' "${LR_LIST}")
+    [[ "${LRO}" == 'kuttl-test-limitrange' ]] || {
+      echo "Expected 'kuttl-test-limitrange' limitrange, got:"
+      echo "${LRO}"
+      eval "$CLEANUP"
+      exit 1
+    }
+
+    # check for a .yaml file for the limitrange object
+    LR_FILE="${LR_DIR}kuttl-test-limitrange.yaml"
+    if [ ! -f ${LR_FILE} ]
+    then
+      echo "Expected directory with file, ${LR_FILE}, got:"
+      ls ${LR_DIR}
       eval "$CLEANUP"
       exit 1
     fi
 
-    found=$(find ${MONITORING_DIR} -name "prometheus" | wc -l)
-    if [ "${found}" -eq 0 ]; then
-      echo "prometheus not found"
+    # Ingress directory and list file path
+    I_DIR="./kuttl-support-cluster/ingresses/"
+    I_LIST="${I_DIR}list"
+
+    # check for ingress object name
+    IO=$(awk 'NR==2 {print $1}' ${I_LIST})
+    [[ "${IO}" == 'kuttl-test-ingress' ]] || {
+      echo "Expected 'kuttl-test-ingress' ingress, got:"
+      echo "${IO}"
+      eval "$CLEANUP"
+      exit 1
+    }
+
+    # check for a .yaml file for the ingress object
+    I_FILE="${I_DIR}kuttl-test-ingress.yaml"
+    if [ ! -f ${I_FILE} ]
+    then
+      echo "Expected directory with file, ${I_FILE}, got:"
+      ls ${I_DIR}
       eval "$CLEANUP"
       exit 1
     fi
 
-    found=$(find ${MONITORING_DIR} -name "grafana" | wc -l)
-    if [ "${found}" -eq 0 ]; then
-      echo "grafana not found"
-      eval "$CLEANUP"
-      exit 1
-    fi
-
-    found=$(find ${MONITORING_DIR} -name "alertmanager" | wc -l)
-    if [ "${found}" -eq 0 ]; then
-      echo "alertmanager not found"
-      eval "$CLEANUP"
-      exit 1
-    fi
-
-- script: rm -r ./kuttl-support-monitoring-cluster ./monitoring ./crunchy_k8s_support_export_*.tar.gz
+- script: rm -r ./kuttl-support-cluster ./crunchy_k8s_support_export_*.tar.gz
