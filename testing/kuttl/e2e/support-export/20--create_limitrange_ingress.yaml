@@ -1,0 +1,33 @@
+# create a LimitRange
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: kuttl-test-limitrange
+spec:
+  limits:
+  - type: PersistentVolumeClaim
+    max:
+      storage: 2Gi
+    min:
+      storage: 500Mi
+
+---
+# create an Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kuttl-test-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: simple-example
+  rules:
+  - http:
+      paths:
+      - path: /testpath
+        pathType: Prefix
+        backend:
+          service:
+            name: test
+            port:
+              number: 80

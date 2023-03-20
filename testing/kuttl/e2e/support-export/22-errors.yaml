@@ -1,25 +1,14 @@
----
 apiVersion: postgres-operator.crunchydata.com/v1beta1
 kind: PostgresCluster
 metadata:
   name: kuttl-support-cluster
 ---
-apiVersion: postgres-operator.crunchydata.com/v1beta1
-kind: PostgresCluster
-metadata:  
-  name: kuttl-support-monitoring-cluster
----
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: v1
+kind: LimitRange
 metadata:
-  name: crunchy-prometheus
+  name: kuttl-test-limitrange
 ---
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: networking.k8s.io/v1
+kind: Ingress
 metadata:
-  name: crunchy-grafana
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: crunchy-alertmanager
+  name: kuttl-test-ingress

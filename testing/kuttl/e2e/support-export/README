@@ -1,0 +1,79 @@
+### Support Export Kuttl Test
+
+The `support-export` Kuttl test verifies the creation and content of the
+`kubectl pgo support export` command. A brief summary of each file is included
+below:
+
+TODO(tjmoore4): At this time, only a subset of the captured files are included
+in this test. Over time, we should build on these tests to improve coverage.
+
+#### Basic Cluster
+
+- 00--create_cluster.yaml
+    Create PostgresCluster `kuttl-support-cluster` using the PGO CLI.
+
+- 00-assert.yaml
+    Assert `kuttl-support-cluster` deploys successfully.
+
+- 01--support_export.yaml
+    Create and verify the support export archive. Current checks are made for
+    the following:
+    - PGO CLI version
+    - compression level
+    - Node "list" and YAML files
+    - Event file
+    The support export archive is deleted.
+
+#### Invalid Cluster
+
+- 10--invalid_cluster.yaml
+    Check command fails if PostgresCluster does not exist
+
+#### LimitRange and Ingress
+
+- 20--create_limitrange_ingress.yaml
+    Create a LimitRange and Ingress
+
+- 20-assert.yaml
+    Assert LimitRange and Ingress exist
+
+- 21--support_export.yaml
+    Create and verify support export archive. Current checks are made for
+    the following:
+    - LimitRange "list" and YAML files
+    - Ingress "list" and YAML files
+    The support export archive is deleted.
+
+#### Cleanup
+
+- 22--cleanup.yaml
+    Delete `kuttl-support-cluster`, LimitRange and Ingress.
+
+- 22-errors.yaml
+    Verify `kuttl-support-cluster`, LimitRange and Ingress are gone.
+
+#### Monitoring
+
+- 30--create_cluster_with_monitoring.yaml
+    Create PostgresCluster `kuttl-support-monitoring-cluster` with Exporter
+    sidecar and a dummy Monitoring stack, i.e. fake `crunchy-prometheus`,
+    `crunchy-grafana` and `crunchy-alertmanager` Deployments.
+
+- 30-assert.yaml
+    Assert `kuttl-support-monitoring-cluster` and fake monitoring Deployments
+    deploy successfully.
+
+- 31--support_export.yaml
+    Create and verify the support export archive. Verify log files are created
+    for the 4 monitoring related Containers, i.e.
+    `exporter`, `prometheus`, `grafana` and `alertmanager`.
+
+#### Cleanup
+
+- 32--cleanup.yaml
+    Delete `kuttl-support-monitoring-cluster` and the dummy Monitoring stack
+
+- 32-errors.yaml
+    Verify `kuttl-support-monitoring-cluster` and the dummy Monitoring stack are
+    gone
+
