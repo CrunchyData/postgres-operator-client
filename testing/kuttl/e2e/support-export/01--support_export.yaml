@@ -69,4 +69,28 @@ commands:
       exit 1
     fi
 
+    PROCESSES_DIR="./kuttl-support-cluster/processes/"
+
+    # Check for the files that contain an expected pgBackRest server process.
+    # Expected to be found in the Postgres instance Pod's 'database',
+    # 'replication-cert-copy', 'pgbackrest', and 'pgbackrest-config' containers
+    # and the pgBackRest repo Pod's 'pgbackrest' and 'pgbackrest-config'
+    # containers, i.e. 6 files total.
+    found=$(grep -lR "pgbackrest server" ${PROCESSES_DIR} | wc -l)
+    if [ "${found}" -ne 6 ]; then
+      echo "Expected to find 6 pgBackRest processes, got ${found}"
+      eval "$CLEANUP"
+      exit 1
+    fi
+
+    # Check for the files that contain an expected Postgres process. Expected
+    # to be found in the Postgres instance Pod's 'database', 'replication-cert-copy',
+    # 'pgbackrest', and 'pgbackrest-config' containers, i.e. 4 files total.
+    found=$(grep -lR "postgres -D /pgdata/pg" ${PROCESSES_DIR} | wc -l)
+    if [ "${found}" -ne 4 ]; then
+      echo "Expected to find 4 Postgres processes, got ${found}"
+      eval "$CLEANUP"
+      exit 1
+    fi
+
 - script: rm -r ./kuttl-support-cluster ./crunchy_k8s_support_export_*.tar.gz

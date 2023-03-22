@@ -360,6 +360,11 @@ kubectl pgo support export daisy --monitoring-namespace another-namespace --outp
 			err = gatherPatroniInfo(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
 		}
 
+		// Exec to get Container processes
+		if err == nil {
+			err = gatherProcessInfo(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
+		}
+
 		// Print cli output
 		path := clusterName + "/logs/cli"
 		if logErr := writeTar(tw, cliOutput.Bytes(), path, cmd); logErr != nil {
@@ -805,7 +810,6 @@ func gatherPodLogs(ctx context.Context,
 	tw *tar.Writer,
 	cmd *cobra.Command,
 ) error {
-	// TODO: update to use specific client after SSA change
 	// Get all Pods that match the given Label
 	pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labelSelector,
@@ -863,7 +867,6 @@ func gatherPatroniInfo(ctx context.Context,
 	tw *tar.Writer,
 	cmd *cobra.Command,
 ) error {
-	// TODO: update to use specific client after SSA change
 	// Get the primary instance Pod by its labels
 	pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: util.PrimaryInstanceLabels(clusterName),
@@ -926,6 +929,79 @@ func gatherPatroniInfo(ctx context.Context,
 	path := clusterName + "/patroni-info"
 	if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// gatherProcessInfo takes a client and buffer execs into relevant pods to grab
+// running process information for each Pod.
+func gatherProcessInfo(ctx context.Context,
+	clientset *kubernetes.Clientset,
+	config *rest.Config,
+	namespace string,
+	clusterName string,
+	tw *tar.Writer,
+	cmd *cobra.Command,
+) error {
+	// Get the cluster Pods by label
+	pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: "postgres-operator.crunchydata.com/cluster=" + clusterName,
+	})
+	if err != nil {
+		if apierrors.IsForbidden(err) {
+			cmd.Println(err.Error())
+			return nil
+		}
+		return err
+	}
+
+	if len(pods.Items) == 0 {
+		// If we didn't find any resources, skip
+		cmd.Println("PostgresCluster Pods not found when gathering process information, skipping")
+		return nil
+	}
+
+	podExec, err := util.NewPodExecutor(config)
+	if err != nil {
+		return err
+	}
+
+	for _, pod := range pods.Items {
+		for _, container := range pod.Spec.Containers {
+			// Attempt to exec in and run 'ps' command in all available containers,
+			// regardless of state, etc. Many of the resulting process lists will
+			// be nearly identical because certain Pods use a shared process
+			// namespace, but this function aims to gather as much detail as possible.
+			// - https://kubernetes.io/docs/tasks/configure-pod-container/share-process-namespace/
+			exec := func(stdin io.Reader, stdout, stderr io.Writer, command ...string,
+			) error {
+				return podExec(namespace, pod.GetName(), container.Name,
+					stdin, stdout, stderr, command...)
+			}
+
+			stdout, stderr, err := Executor(exec).processes()
+			if err != nil {
+				// If we get an RBAC error, let the user know. Otherwise, just
+				// try the next container.
+				if apierrors.IsForbidden(err) {
+					cmd.Printf("Failed to get processes for Container \"%s\" in Pod \"%s\". Error: \"%s\"\n",
+						container.Name, pod.GetName(), err.Error())
+				}
+				continue
+			}
+
+			var buf bytes.Buffer
+			buf.Write([]byte(stdout))
+			if stderr != "" {
+				buf.Write([]byte(stderr))
+			}
+
+			path := clusterName + "/" + "processes" + "/" + pod.GetName() + "/" + container.Name
+			if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil

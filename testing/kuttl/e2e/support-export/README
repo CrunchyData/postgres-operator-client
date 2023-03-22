@@ -22,6 +22,7 @@ in this test. Over time, we should build on these tests to improve coverage.
     - compression level
     - Node "list" and YAML files
     - Event file
+    - Pod Processes
     The support export archive is deleted.
 
 #### Invalid Cluster
