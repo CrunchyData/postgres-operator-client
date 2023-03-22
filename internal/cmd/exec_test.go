@@ -126,3 +126,22 @@ func TestPatronictl(t *testing.T) {
 	})
 
 }
+
+func TestProcesses(t *testing.T) {
+
+	t.Run("default", func(t *testing.T) {
+		expected := errors.New("pass-through")
+		exec := func(
+			stdin io.Reader, stdout, stderr io.Writer, command ...string,
+		) error {
+			assert.DeepEqual(t, command, []string{"bash", "-ceu", "--", "ps aux --width 500"})
+			assert.Assert(t, stdout != nil, "should capture stdout")
+			assert.Assert(t, stderr != nil, "should capture stderr")
+			return expected
+		}
+		_, _, err := Executor(exec).processes()
+		assert.ErrorContains(t, err, "pass-through")
+
+	})
+
+}

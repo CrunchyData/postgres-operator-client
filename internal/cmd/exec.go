@@ -69,3 +69,13 @@ func (exec Executor) patronictl(cmd string) (string, string, error) {
 
 	return stdout.String(), stderr.String(), err
 }
+
+// processes returns the output of a ps command
+func (exec Executor) processes() (string, string, error) {
+	var stdout, stderr bytes.Buffer
+
+	command := "ps aux --width 500"
+	err := exec(nil, &stdout, &stderr, "bash", "-ceu", "--", command)
+
+	return stdout.String(), stderr.String(), err
+}
