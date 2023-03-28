@@ -18,6 +18,15 @@ commands:
       exit 1
     }
 
+    # check that the context file exist and is not empty
+    if [[ ! -s ./kuttl-support-cluster/current-context ]]
+    then
+      echo "Expected context file to not be empty"
+      eval "$CLEANUP"
+      exit 1
+    fi
+
+
     # check for expected gzip compression level
     FILE_INFO=$(file ./crunchy_k8s_support_export_*.tar.gz)
     [[ "${FILE_INFO}" == *'gzip compressed data, max compression'* ]] || {
@@ -89,6 +98,25 @@ commands:
     found=$(grep -lR "postgres -D /pgdata/pg" ${PROCESSES_DIR} | wc -l)
     if [ "${found}" -ne 4 ]; then
       echo "Expected to find 4 Postgres processes, got ${found}"
+      eval "$CLEANUP"
+      exit 1
+    fi
+
+    # check that the PGO CLI log file contains expected messages
+    CLI_LOG="./kuttl-support-cluster/logs/cli"
+
+    # info output includes expected heading
+    if ! grep -Fq -- "- INFO - | PGO CLI Support Export Tool" $CLI_LOG
+    then
+      echo "PGO CLI log does not contain expected info message"
+      eval "$CLEANUP"
+      exit 1
+    fi
+
+    # debug output includes cluster name argument
+    if ! grep -Fq -- "- DEBUG - Arg - PostgresCluster Name: kuttl-support-cluster" $CLI_LOG
+    then
+      echo "PGO CLI log does not contain cluster name debug message"
       eval "$CLEANUP"
       exit 1
     fi

@@ -56,14 +56,22 @@ const (
 	// - https://mathworld.wolfram.com/Mebibyte.html
 	mebibyte float64 = (1 << 20)
 
+	// formatting for CLI log and stdout
+	preBox  = "┌────────────────────────────────────────────────────────────────"
+	postBox = "└────────────────────────────────────────────────────────────────"
+
 	// Default support export message
-	msg1 = "\n" + `Archive file size: %.2f MiB
-Email the support export archive to support@crunchydata.com
-or attach as a email reply to your existing Support Ticket` + "\n"
+	msg1 = "\n" + `| Archive file size: %.2f MiB
+| Email the support export archive to support@crunchydata.com
+| or attach as a email reply to your existing Support Ticket` + "\n"
 
 	// Additional support export message. Shown when size is greater than 25 MiB.
-	msg2 = `Archive file (%.2f MiB) may be too big to email.
-Please request file share link by emailing support@crunchydata.com` + "\n"
+	msg2 = "\n" + `| Archive file (%.2f MiB) may be too big to email.
+| Please request file share link by emailing
+| support@crunchydata.com` + "\n"
+
+	// time formatting for CLI logs
+	logTimeFormat = "2006-01-02 15:04:05.000 -0700 MST"
 )
 
 // namespaced resources that have a cluster Label
@@ -183,10 +191,13 @@ PostgresCluster.
 	// Set output to log and write to buffer for writing to file
 	var cliOutput bytes.Buffer
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
-		outMW := io.MultiWriter(os.Stdout, &cliOutput)
+		// error messages should go to both stderr and the CLI log file
 		errMW := io.MultiWriter(os.Stderr, &cliOutput)
-		cmd.SetOut(outMW)
 		cmd.SetErr(errMW)
+		// Messages printed with cmd.Print (those from the 'writeDebug' function)
+		// will go only to the CLI log file. To print to the CLI log file and
+		// stdout, the writeInfo function should be used.
+		cmd.SetOut(&cliOutput)
 
 		return nil
 	}
@@ -218,7 +229,18 @@ kubectl pgo support export daisy --monitoring-namespace another-namespace --outp
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 
+		writeInfo(cmd, preBox)
+		writeInfo(cmd, "| PGO CLI Support Export Tool")
+		writeInfo(cmd, "| The support export tool will collect information that is")
+		writeInfo(cmd, "| commonly necessary for troubleshooting a PostgresCluster.")
+		writeInfo(cmd, "| Note: No data or k8s secrets are collected.")
+		writeInfo(cmd, postBox)
+
 		clusterName := args[0]
+		writeDebug(cmd, fmt.Sprintf("Arg - PostgresCluster Name: %s\n", clusterName))
+		writeDebug(cmd, fmt.Sprintf("Flag - Output Directory: %s\n", outputDir))
+		writeDebug(cmd, fmt.Sprintf("Flag - Num Logs: %d\n", numLogs))
+		writeDebug(cmd, fmt.Sprintf("Flag - Monitoring Namespace: %s\n", monitoringNamespace))
 
 		namespace, err := config.Namespace()
 		if err != nil {
@@ -290,10 +312,13 @@ kubectl pgo support export daisy --monitoring-namespace another-namespace --outp
 			}
 		}()
 
-		// TODO (jmckulk): collect context info
-
 		// PGO CLI version
 		err = gatherPGOCLIVersion(ctx, clusterName, tw, cmd)
+
+		// Current Kubernetes context
+		if err == nil {
+			err = gatherKubeContext(ctx, config, clusterName, tw, cmd)
+		}
 
 		// Gather cluster wide resources
 		if err == nil {
@@ -344,6 +369,7 @@ kubectl pgo support export daisy --monitoring-namespace another-namespace --outp
 
 		// get PostgresCluster Pod logs
 		if err == nil {
+			writeInfo(cmd, "Collecting PostgresCluster pod logs...")
 			err = gatherPodLogs(ctx, clientset, namespace, fmt.Sprintf("%s=%s", util.LabelCluster, clusterName), clusterName, tw, cmd)
 		}
 
@@ -352,6 +378,7 @@ kubectl pgo support export daisy --monitoring-namespace another-namespace --outp
 			monitoringNamespace = namespace
 		}
 		if err == nil {
+			writeInfo(cmd, "Collecting monitoring pod logs...")
 			err = gatherPodLogs(ctx, clientset, monitoringNamespace, util.LabelMonitoring, "monitoring", tw, cmd)
 		}
 
@@ -366,6 +393,7 @@ kubectl pgo support export daisy --monitoring-namespace another-namespace --outp
 		}
 
 		// Print cli output
+		writeInfo(cmd, "Collecting PGO CLI logs...")
 		path := clusterName + "/logs/cli"
 		if logErr := writeTar(tw, cliOutput.Bytes(), path, cmd); logErr != nil {
 			return logErr
@@ -387,15 +415,17 @@ kubectl pgo support export daisy --monitoring-namespace another-namespace --outp
 }
 
 // exportSizeReport defines the message displayed when a support export archive
-// is created. If the size of the archive file is greater than 25MiB, an additional
+// is created. If the size of the archive file is greater than 25MiB, an alternate
 // message is displayed.
 func exportSizeReport(size float64) string {
-	finalMsg := fmt.Sprintf(msg1, size/mebibyte)
 
-	// if file size is > 25 MiB, print additional message
+	finalMsg := preBox + fmt.Sprintf(msg1, size/mebibyte)
+
+	// if file size is > 25 MiB, print alternate message
 	if size > mebibyte*25 {
-		finalMsg = finalMsg + fmt.Sprintf(msg2, size/mebibyte)
+		finalMsg = preBox + fmt.Sprintf(msg2, size/mebibyte)
 	}
+	finalMsg = finalMsg + postBox + "\n"
 
 	return finalMsg
 }
@@ -406,9 +436,30 @@ func gatherPGOCLIVersion(_ context.Context,
 	tw *tar.Writer,
 	cmd *cobra.Command,
 ) error {
-
+	writeInfo(cmd, "Collecting PGO CLI version...")
 	path := clusterName + "/pgo-cli-version"
 	if err := writeTar(tw, []byte(clientVersion), path, cmd); err != nil {
+		return err
+	}
+	return nil
+}
+
+// gatherKubeContext collects the current Kubernetes context
+func gatherKubeContext(_ context.Context,
+	config *internal.Config,
+	clusterName string,
+	tw *tar.Writer,
+	cmd *cobra.Command,
+) error {
+	writeInfo(cmd, "Collecting current Kubernetes context...")
+	path := clusterName + "/current-context"
+
+	rawConfig, err := config.ConfigFlags.ToRawKubeConfigLoader().RawConfig()
+	if err != nil {
+		return err
+	}
+
+	if err := writeTar(tw, []byte(rawConfig.CurrentContext), path, cmd); err != nil {
 		return err
 	}
 	return nil
@@ -421,6 +472,7 @@ func gatherKubeServerVersion(_ context.Context,
 	tw *tar.Writer,
 	cmd *cobra.Command,
 ) error {
+	writeInfo(cmd, "Collecting Kubernetes version...")
 	ver, err := client.ServerVersion()
 	if err != nil {
 		return err
@@ -441,10 +493,11 @@ func gatherNodes(ctx context.Context,
 	tw *tar.Writer,
 	cmd *cobra.Command,
 ) error {
+	writeInfo(cmd, "Collecting nodes...")
 	list, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		if apierrors.IsForbidden(err) {
-			cmd.Println(err.Error())
+			writeInfo(cmd, err.Error())
 			return nil
 		}
 		return err
@@ -543,10 +596,11 @@ func gatherCurrentNamespace(ctx context.Context,
 	tw *tar.Writer,
 	cmd *cobra.Command,
 ) error {
+	writeInfo(cmd, "Collecting namespace...")
 	get, err := clientset.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
-			cmd.Println(err.Error())
+			writeInfo(cmd, err.Error())
 			return nil
 		}
 		return err
@@ -569,6 +623,7 @@ func gatherClusterSpec(postgresCluster *unstructured.Unstructured,
 	tw *tar.Writer,
 	cmd *cobra.Command,
 ) error {
+	writeInfo(cmd, "Collecting PostgresCluster...")
 	b, err := yaml.Marshal(postgresCluster)
 	if err != nil {
 		return err
@@ -595,6 +650,7 @@ func gatherNamespacedAPIResources(ctx context.Context,
 	cmd *cobra.Command,
 ) error {
 	for _, gvr := range namespacedResources {
+		writeInfo(cmd, "Collecting "+gvr.Resource+"...")
 		list, err := client.Resource(gvr).Namespace(namespace).List(ctx, listOpts)
 		// If the API returns an IsNotFound error, it is likely because the kube version in use
 		// doesn't support the version of the resource we are attempting to use and there is an
@@ -612,7 +668,7 @@ func gatherNamespacedAPIResources(ctx context.Context,
 		}
 		if err != nil {
 			if apierrors.IsForbidden(err) {
-				cmd.Println(err.Error())
+				writeInfo(cmd, err.Error())
 				// Continue and output errors for each resource type
 				// Allow the user to see and address all issues at once
 				continue
@@ -621,7 +677,7 @@ func gatherNamespacedAPIResources(ctx context.Context,
 		}
 		if len(list.Items) == 0 {
 			// If we didn't find any resources, skip
-			cmd.Printf("Resource %s not found, skipping\n", gvr.Resource)
+			writeInfo(cmd, fmt.Sprintf("Resource %s not found, skipping", gvr.Resource))
 			continue
 		}
 
@@ -663,11 +719,11 @@ func gatherEvents(ctx context.Context,
 	tw *tar.Writer,
 	cmd *cobra.Command,
 ) error {
-	// TODO (jmckulk): do we need to order events?
+	writeInfo(cmd, "Collecting events...")
 	list, err := clientset.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		if apierrors.IsForbidden(err) {
-			cmd.Println(err.Error())
+			writeInfo(cmd, err.Error())
 			return nil
 		}
 		return err
@@ -730,6 +786,7 @@ func gatherPostgresqlLogs(ctx context.Context,
 	tw *tar.Writer,
 	cmd *cobra.Command,
 ) error {
+	writeInfo(cmd, "Collecting Postgres logs...")
 	// Get the primary instance Pod by its labels
 	pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		// TODO(jmckulk): should we be getting replica logs?
@@ -737,13 +794,13 @@ func gatherPostgresqlLogs(ctx context.Context,
 	})
 	if err != nil {
 		if apierrors.IsForbidden(err) {
-			cmd.Println(err.Error())
+			writeInfo(cmd, err.Error())
 			return nil
 		}
 		return err
 	}
 	if len(pods.Items) != 1 {
-		cmd.Println("No primary instance pod found for gathering logs")
+		writeInfo(cmd, "No primary instance pod found for gathering logs")
 		return nil
 	}
 
@@ -761,13 +818,13 @@ func gatherPostgresqlLogs(ctx context.Context,
 	stdout, stderr, err := Executor(exec).listPGLogFiles(numLogs)
 	if err != nil {
 		if apierrors.IsForbidden(err) {
-			cmd.Println(err.Error())
+			writeInfo(cmd, err.Error())
 			return nil
 		}
 		return err
 	}
 	if stderr != "" {
-		cmd.Println(stderr)
+		writeInfo(cmd, stderr)
 	}
 
 	logFiles := strings.Split(strings.TrimSpace(stdout), "\n")
@@ -777,7 +834,7 @@ func gatherPostgresqlLogs(ctx context.Context,
 		stdout, stderr, err := Executor(exec).catFile(logFile)
 		if err != nil {
 			if apierrors.IsForbidden(err) {
-				cmd.Println(err.Error())
+				writeInfo(cmd, err.Error())
 				// Continue and output errors for each log file
 				// Allow the user to see and address all issues at once
 				continue
@@ -816,10 +873,15 @@ func gatherPodLogs(ctx context.Context,
 	})
 	if err != nil {
 		if apierrors.IsForbidden(err) {
-			cmd.Println(err.Error())
+			writeInfo(cmd, err.Error())
 			return nil
 		}
 		return err
+	}
+
+	if len(pods.Items) == 0 {
+		// If we didn't find any Pods, skip
+		writeInfo(cmd, fmt.Sprintf("%s Pods not found, skipping", rootDir))
 	}
 
 	for _, pod := range pods.Items {
@@ -834,7 +896,7 @@ func gatherPodLogs(ctx context.Context,
 
 			if result.Error() != nil {
 				if apierrors.IsForbidden(result.Error()) {
-					cmd.Println(result.Error().Error())
+					writeInfo(cmd, result.Error().Error())
 					// Continue and output errors for each pod log
 					// Allow the user to see and address all issues at once
 					continue
@@ -867,19 +929,20 @@ func gatherPatroniInfo(ctx context.Context,
 	tw *tar.Writer,
 	cmd *cobra.Command,
 ) error {
+	writeInfo(cmd, "Collecting Patroni info...")
 	// Get the primary instance Pod by its labels
 	pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: util.PrimaryInstanceLabels(clusterName),
 	})
 	if err != nil {
 		if apierrors.IsForbidden(err) {
-			cmd.Println(err.Error())
+			writeInfo(cmd, err.Error())
 			return nil
 		}
 		return err
 	}
 	if len(pods.Items) < 1 {
-		cmd.Println("No pod found for patroni info")
+		writeInfo(cmd, "No pod found for patroni info")
 		return nil
 	}
 
@@ -900,7 +963,7 @@ func gatherPatroniInfo(ctx context.Context,
 	stdout, stderr, err := Executor(exec).patronictl("list")
 	if err != nil {
 		if apierrors.IsForbidden(err) {
-			cmd.Println(err.Error())
+			writeInfo(cmd, err.Error())
 			return nil
 		}
 		return err
@@ -915,7 +978,7 @@ func gatherPatroniInfo(ctx context.Context,
 	stdout, stderr, err = Executor(exec).patronictl("history")
 	if err != nil {
 		if apierrors.IsForbidden(err) {
-			cmd.Println(err.Error())
+			writeInfo(cmd, err.Error())
 			return nil
 		}
 		return err
@@ -944,13 +1007,14 @@ func gatherProcessInfo(ctx context.Context,
 	tw *tar.Writer,
 	cmd *cobra.Command,
 ) error {
+	writeInfo(cmd, "Collecting processes...")
 	// Get the cluster Pods by label
 	pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: "postgres-operator.crunchydata.com/cluster=" + clusterName,
 	})
 	if err != nil {
 		if apierrors.IsForbidden(err) {
-			cmd.Println(err.Error())
+			writeInfo(cmd, err.Error())
 			return nil
 		}
 		return err
@@ -958,7 +1022,7 @@ func gatherProcessInfo(ctx context.Context,
 
 	if len(pods.Items) == 0 {
 		// If we didn't find any resources, skip
-		cmd.Println("PostgresCluster Pods not found when gathering process information, skipping")
+		writeInfo(cmd, "PostgresCluster Pods not found when gathering process information, skipping")
 		return nil
 	}
 
@@ -985,8 +1049,9 @@ func gatherProcessInfo(ctx context.Context,
 				// If we get an RBAC error, let the user know. Otherwise, just
 				// try the next container.
 				if apierrors.IsForbidden(err) {
-					cmd.Printf("Failed to get processes for Container \"%s\" in Pod \"%s\". Error: \"%s\"\n",
-						container.Name, pod.GetName(), err.Error())
+					writeInfo(cmd, fmt.Sprintf(
+						"Failed to get processes for Container \"%s\" in Pod \"%s\". Error: \"%s\"",
+						container.Name, pod.GetName(), err.Error()))
 				}
 				continue
 			}
@@ -1026,9 +1091,7 @@ func writeTar(tw *tar.Writer, content []byte, name string, cmd *cobra.Command) e
 		Size:    int64(len(content)),
 	}
 
-	// TODO (jmckulk): figure out what support tool output looks like and make
-	// this match
-	cmd.Printf("File: %s Size: %d\n", name, hdr.Size)
+	writeDebug(cmd, fmt.Sprintf("File: %s Size: %d\n", name, hdr.Size))
 	if err := tw.WriteHeader(hdr); err != nil {
 		return err
 	}
@@ -1042,4 +1105,20 @@ func writeTar(tw *tar.Writer, content []byte, name string, cmd *cobra.Command) e
 		return err
 	}
 	return nil
+}
+
+// writeInfo logs to both the PGO CLI log file and stdout
+// TODO(tjmoore4): In the future, should we implement a logger instead?
+func writeInfo(cmd *cobra.Command, s string) {
+	t := time.Now()
+	// write to CLI log buffer
+	cmd.Printf("%s - INFO - %s\n", t.Format(logTimeFormat), s)
+	// write to stdout
+	fmt.Println(s)
+}
+
+// writeDebug logs to only the PGO CLI log file
+func writeDebug(cmd *cobra.Command, s string) {
+	t := time.Now()
+	cmd.Printf("%s - DEBUG - %s", t.Format(logTimeFormat), s)
 }
