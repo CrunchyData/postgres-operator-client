@@ -27,14 +27,12 @@ func TestFileSizeReport(t *testing.T) {
 		bytes  float64
 		output string
 	}{
-		{"Zero value", 0, fmt.Sprintf(msg1, 0/mebibyte)},
-		{"Less than 25 MiB", 10000, fmt.Sprintf(msg1, 10000/mebibyte)},
-		{"25 MiB", 26214400, fmt.Sprintf(msg1, 26214400/mebibyte)},
-		{"25 MiB + 1 byte", 26214401,
-			fmt.Sprintf(msg1, 26214401/mebibyte) + fmt.Sprintf(msg2, 26214400/mebibyte)},
-		{"3 GiB", 3221225472,
-			fmt.Sprintf(msg1, 3221225472/mebibyte) + fmt.Sprintf(msg2, 3221225472/mebibyte)},
-		{"Something went wrong...", -1, fmt.Sprintf(msg1, -1/mebibyte)},
+		{"Zero value", 0, preBox + fmt.Sprintf(msg1, 0/mebibyte) + postBox + "\n"},
+		{"Less than 25 MiB", 10000, preBox + fmt.Sprintf(msg1, 10000/mebibyte) + postBox + "\n"},
+		{"25 MiB", 26214400, preBox + fmt.Sprintf(msg1, 26214400/mebibyte) + postBox + "\n"},
+		{"25 MiB + 1 byte", 26214401, preBox + fmt.Sprintf(msg2, 26214400/mebibyte) + postBox + "\n"},
+		{"3 GiB", 3221225472, preBox + fmt.Sprintf(msg2, 3221225472/mebibyte) + postBox + "\n"},
+		{"Something went wrong...", -1, preBox + fmt.Sprintf(msg1, -1/mebibyte) + postBox + "\n"},
 	}
 
 	for _, tc := range testsCases {
