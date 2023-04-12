@@ -1,0 +1,81 @@
+---
+apiVersion: postgres-operator.crunchydata.com/v1beta1
+kind: PostgresCluster
+metadata:
+  name: ref-cluster
+status:
+  instances:
+    - name: instance1
+      readyReplicas: 1
+      replicas: 1
+      updatedReplicas: 1
+  pgbackrest:
+    repoHost:
+      apiVersion: apps/v1
+      kind: StatefulSet
+      ready: true
+    repos:
+      - bound: true
+        name: repo1
+        replicaCreateBackupComplete: true
+        stanzaCreated: true
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    postgres-operator.crunchydata.com/cluster: ref-cluster
+    postgres-operator.crunchydata.com/data: pgbackrest
+    postgres-operator.crunchydata.com/pgbackrest: ""
+    postgres-operator.crunchydata.com/pgbackrest-repo: repo1
+    postgres-operator.crunchydata.com/pgbackrest-volume: ""
+  name: ref-cluster-repo1
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+status:
+  phase: Bound
+---
+apiVersion: postgres-operator.crunchydata.com/v1beta1
+kind: PostgresCluster
+metadata:
+  name: ref2-cluster
+status:
+  instances:
+    - name: instance1
+      readyReplicas: 1
+      replicas: 1
+      updatedReplicas: 1
+  pgbackrest:
+    repoHost:
+      apiVersion: apps/v1
+      kind: StatefulSet
+      ready: true
+    repos:
+      - bound: true
+        name: repo1
+        replicaCreateBackupComplete: true
+        stanzaCreated: true
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    postgres-operator.crunchydata.com/cluster: ref2-cluster
+    postgres-operator.crunchydata.com/data: pgbackrest
+    postgres-operator.crunchydata.com/pgbackrest: ""
+    postgres-operator.crunchydata.com/pgbackrest-repo: repo1
+    postgres-operator.crunchydata.com/pgbackrest-volume: ""
+  name: ref2-cluster-repo1
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+status:
+  phase: Bound
+...
