@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="KubernetesSettings">
+    <specSources>
+      <SpecSource>
+        <option name="pathOrUrl" value="https://github.com/kudobuilder/kuttl/tree/main/crds" />
+      </SpecSource>
+      <SpecSource>
+        <option name="pathOrUrl" value="$PROJECT_DIR$/../../crunchydata/postgres-operator/build/crd/postgresclusters/condition.yaml" />
+      </SpecSource>
+      <SpecSource>
+        <option name="pathOrUrl" value="$PROJECT_DIR$/../../crunchydata/postgres-operator/build/crd/postgresclusters/kustomization.yaml" />
+      </SpecSource>
+      <SpecSource>
+        <option name="pathOrUrl" value="$PROJECT_DIR$/../../crunchydata/postgres-operator/build/crd/postgresclusters/status.yaml" />
+      </SpecSource>
+      <SpecSource>
+        <option name="pathOrUrl" value="$PROJECT_DIR$/../../crunchydata/postgres-operator/build/crd/postgresclusters/todos.yaml" />
+      </SpecSource>
+      <SpecSource>
+        <option name="pathOrUrl" value="$PROJECT_DIR$/../../crunchydata/postgres-operator/build/crd/postgresclusters/validation.yaml" />
+      </SpecSource>
+    </specSources>
+  </component>
+</project>
