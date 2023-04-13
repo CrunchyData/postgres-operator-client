@@ -3,10 +3,12 @@ package cmd
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"github.com/crunchydata/postgres-operator-client/internal"
 	"github.com/crunchydata/postgres-operator-client/internal/apis/postgres-operator.crunchydata.com/v1beta1"
 	"github.com/fatih/color"
+	pkgerrors "github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -17,8 +19,14 @@ import (
 
 var flagAllCluster bool
 
+// colors used to display information to end user
+var green = color.New(color.FgGreen)
+var white = color.New(color.FgWhite)
+var red = color.New(color.FgRed)
+var yellow = color.New(color.FgHiYellow)
+
 // newPowerCommand allows to power on/off a cluster, a list of clusters or
-// all the crunchy clusters in this kubernetes cluster. This would happen in
+// all the crunchy clusters in a kubernetes cluster. This would be useful in
 // case of maintenance of a kubernetes cluster where the storage might be
 // unavailable and could trigger some malfunctions. One would like to stop all
 // the clusters and then restart them.
@@ -27,7 +35,7 @@ func newPowerCommand(config *internal.Config) *cobra.Command {
 	cmdPower := &cobra.Command{
 		Use:   "power",
 		Short: "Power on/off one or more PostgresCluster",
-		Long:  `Power on/off some postgresclusters.`,
+		Long:  ``,
 	}
 
 	cmdPower.AddCommand(
@@ -35,8 +43,7 @@ func newPowerCommand(config *internal.Config) *cobra.Command {
 		newPowerOffCommand(config),
 	)
 
-	// No arguments for 'power', but there are arguments for the subcommands, e.g.
-	// 'power on'
+	// No arguments for 'power'. The command accepts subcommands on/off
 	cmdPower.Args = cobra.NoArgs
 
 	return cmdPower
@@ -47,18 +54,18 @@ func newPowerOnCommand(config *internal.Config) *cobra.Command {
 
 	powerOnCmd := &cobra.Command{
 		Use:   "on CLUSTER_NAME",
-		Short: "Start up a PostgresCluster. If none specified, starts up all clusters.",
+		Short: "Start up a PostgresCluster. If none specified, starts up all PostgresClusters in the current K8s cluster.",
 		Long: `Starts up PostgresCluster.
 
 #### RBAC Requirements
     Resources          Verbs
     ---------          -----
-    postgrescluster    [list,update]
+    postgrescluster    [get,list,update]
 `,
 	}
 
 	powerOnCmd.Example = internal.FormatExample(`
-# Power on cluster hippo
+# Power on cluster hippo in a given namespace
 pgo power on -n namespace hippo
 
 # Power on cluster hippo and flamingo in a given namespace
@@ -76,7 +83,7 @@ pgo power on --all
 	// Define the 'power on' command
 	powerOnCmd.RunE = func(cmd *cobra.Command, args []string) error {
 
-		_, clientCrunchy, err := v1beta1.NewPostgresClusterClient(config)
+		_, crunchyClient, err := v1beta1.NewPostgresClusterClient(config)
 		if err != nil {
 			return err
 		}
@@ -90,15 +97,12 @@ pgo power on --all
 			ns = *config.ConfigFlags.Namespace
 		}
 
-		clusters, err := collectClusters(clientCrunchy,
-			ClustersToCollect{Namespace: ns, Clusters: clusterNames, All: flagAllCluster})
+		clusters, err := collectClusters(crunchyClient,
+			ClustersToCollect{All: flagAllCluster, Clusters: clusterNames, Namespace: ns})
 		if err != nil {
-			fmt.Printf("Failed to list postgresql clusters: %+v\n", err)
-			os.Exit(1)
+			return pkgerrors.Wrap(err, "failed to collect postgresql clusters to start them")
 		}
-		powerOnClusters(clientCrunchy, clusters)
-
-		return nil
+		return powerOnClusters(crunchyClient, clusters)
 	}
 
 	return powerOnCmd
@@ -115,7 +119,7 @@ func newPowerOffCommand(config *internal.Config) *cobra.Command {
 #### RBAC Requirements
     Resources          Verbs
     ---------          -----
-    postgrescluster    [list,update]
+    postgrescluster    [get,list,update]
 `,
 	}
 
@@ -172,14 +176,11 @@ pgo power off --all
 		}
 
 		clusters, err := collectClusters(clientCrunchy,
-			ClustersToCollect{Namespace: ns, Clusters: clusterNames, All: flagAllCluster})
+			ClustersToCollect{All: flagAllCluster, Clusters: clusterNames, Namespace: ns})
 		if err != nil {
-			fmt.Printf("Failed to list postgresql clusters: %+v\n", err)
-			os.Exit(1)
+			return pkgerrors.Wrap(err, "failed to collect postgresql clusters to stop them")
 		}
-		powerOffClusters(clientCrunchy, clusters)
-
-		return nil
+		return powerOffClusters(clientCrunchy, clusters)
 	}
 
 	return powerOffCmd
@@ -207,7 +208,8 @@ func collectClusters(clientCrunchy dynamic.NamespaceableResourceInterface, toCol
 }
 
 func powerOffClusters(clientCrunchy dynamic.NamespaceableResourceInterface,
-	clusters []unstructured.Unstructured) {
+	clusters []unstructured.Unstructured) error {
+	var errorOccured bool
 	for _, cluster := range clusters {
 		err := powerOff(clientCrunchy, cluster)
 		if err != nil {
@@ -216,14 +218,20 @@ func powerOffClusters(clientCrunchy dynamic.NamespaceableResourceInterface,
 				continue
 			}
 			reportUpdateFailed(cluster, err)
+			errorOccured = true
 			continue
 		}
 		reportUpdateSucceeded(cluster)
 	}
+	if errorOccured {
+		return errors.New("at least on error occured (check the trace)")
+	}
+	return nil
 }
 
 func powerOnClusters(clientCrunchy dynamic.NamespaceableResourceInterface,
-	clusters []unstructured.Unstructured) {
+	clusters []unstructured.Unstructured) error {
+	var errorOccured bool
 	for _, cluster := range clusters {
 		err := powerOn(clientCrunchy, cluster)
 		if err != nil {
@@ -232,10 +240,15 @@ func powerOnClusters(clientCrunchy dynamic.NamespaceableResourceInterface,
 				continue
 			}
 			reportUpdateFailed(cluster, err)
+			errorOccured = true
 			continue
 		}
 		reportUpdateSucceeded(cluster)
 	}
+	if errorOccured {
+		return errors.New("at least on error happened (check trace)")
+	}
+	return nil
 }
 
 func getPresentationNameForCluster(cluster unstructured.Unstructured) string {
@@ -334,10 +347,6 @@ func reportUpdateSucceeded(item unstructured.Unstructured) {
 }
 
 func reportUpdateStatus(item unstructured.Unstructured, status UpdateStatus, additionalMsg string) {
-	green := color.New(color.FgGreen)
-	white := color.New(color.FgWhite)
-	red := color.New(color.FgRed)
-	yellow := color.New(color.FgHiYellow)
 	clName := getPresentationNameForCluster(item)
 	_, _ = green.Printf("%s", clName)
 	_, _ = white.Printf(" %s [", strings.Repeat(".", 60-len(clName)+20))
