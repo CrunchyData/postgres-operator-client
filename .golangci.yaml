@@ -33,7 +33,6 @@ linters-settings:
       not-tests:
         files:
           - '!$test'
-          - ! github.com/crunchydata/postgres-operator-client/internal/testing
         deny:
           - pkg: net/http/httptest
             desc: Should be used only in tests.
@@ -98,8 +97,7 @@ issues:
   exclude-use-default: false
 
   exclude-rules:
-    # These testing packages are allowed in test files. The packages are
-    # disallowed everywhere then ignored here because that is how depguard works.
+    # These testing packages are allowed in test files.
     - linters: [depguard]
-      path: ^internal/testing|_test[.]go$
-      text: \`(gotest.tools[^`]*|net/http/httptest|[^`]*testing[^`]*)`
+      path: ^internal/testing
+      text: "gotest.tools"
