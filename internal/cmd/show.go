@@ -131,7 +131,7 @@ pgo show backup hippo --repoName=repo1
 		}
 
 		if len(pods.Items) != 1 {
-			return fmt.Errorf("Primary instance Pod not found.")
+			return fmt.Errorf("primary instance Pod not found")
 		}
 
 		PodExec, err := util.NewPodExecutor(rest)
