@@ -909,7 +909,8 @@ func gatherPodLogs(ctx context.Context,
 				return err
 			}
 
-			path := rootDir + "/logs/" + pod.GetName() + "/" + container.Name
+			path := rootDir + "/logs/" +
+				pod.GetName() + "_" + container.Name + ".log"
 			if err := writeTar(tw, b, path, cmd); err != nil {
 				return err
 			}
