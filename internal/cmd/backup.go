@@ -61,10 +61,11 @@ postgresclusters/hippo backup initiated`)
 	// Limit the number of args, that is, only one cluster name
 	cmdBackup.Args = cobra.ExactArgs(1)
 
-	// `backup` command accepts `repoName` and `options` flags;
+	// `backup` command accepts `repoName`, `overwrite` and `options` flags;
 	// multiple options flags can be used, with each becoming a new line
 	// in the options array on the spec
 	backup := pgBackRestBackup{}
+	cmdBackup.Flags().BoolVar(&backup.Overwrite, "overwrite", false, "overwrite the backup annotation")
 	cmdBackup.Flags().StringVar(&backup.RepoName, "repoName", "", "repoName to backup to")
 	cmdBackup.Flags().StringArrayVar(&backup.Options, "options", []string{},
 		"options for taking a backup; can be used multiple times")
@@ -110,12 +111,16 @@ postgresclusters/hippo backup initiated`)
 
 		// Update the spec/annotate
 		// TODO(benjaminjb): Would we want to allow a dry-run option here?
-		// TODO(benjaminjb): Would we want to allow a force option here?
+		patchOptions := metav1.PatchOptions{}
+		if backup.Overwrite {
+			b := true
+			patchOptions.Force = &b
+		}
 		_, err = client.Namespace(configNamespace).Patch(ctx,
 			args[0], // the name of the cluster object, limited to one name through `ExactArgs(1)`
 			types.ApplyPatchType,
 			patch,
-			config.Patch.PatchOptions(metav1.PatchOptions{}),
+			config.Patch.PatchOptions(patchOptions),
 		)
 
 		if err != nil {
@@ -134,8 +139,9 @@ postgresclusters/hippo backup initiated`)
 }
 
 type pgBackRestBackup struct {
-	Options  []string
-	RepoName string
+	Options   []string
+	RepoName  string
+	Overwrite bool
 }
 
 func (config pgBackRestBackup) modifyIntent(
