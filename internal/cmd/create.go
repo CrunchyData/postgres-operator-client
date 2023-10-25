@@ -17,6 +17,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -61,8 +62,12 @@ func newCreateClusterCommand(config *internal.Config) *cobra.Command {
 
 	cmd.Args = cobra.ExactArgs(1)
 
-	cmd.Example = internal.FormatExample(`# Create a postgrescluster
-pgo create postgrescluster hippo
+	var pgMajorVersion int
+	cmd.Flags().IntVar(&pgMajorVersion, "pg-major-version", 0, "Set the Postgres major version")
+	cobra.CheckErr(cmd.MarkFlagRequired("pg-major-version"))
+
+	cmd.Example = internal.FormatExample(`# Create a postgrescluster with Postgres 15
+pgo create postgrescluster hippo --pg-major-version 15
 
 ### Example output	
 postgresclusters/hippo created`)
@@ -82,7 +87,7 @@ postgresclusters/hippo created`)
 			return err
 		}
 
-		cluster, err := generateUnstructuredClusterYaml(clusterName)
+		cluster, err := generateUnstructuredClusterYaml(clusterName, strconv.Itoa(pgMajorVersion))
 		if err != nil {
 			return err
 		}
@@ -104,7 +109,7 @@ postgresclusters/hippo created`)
 
 // generateUnstructuredClusterYaml takes a name and returns a PostgresCluster
 // in the unstructured format.
-func generateUnstructuredClusterYaml(name string) (*unstructured.Unstructured, error) {
+func generateUnstructuredClusterYaml(name, pgMajorVersion string) (*unstructured.Unstructured, error) {
 	var cluster unstructured.Unstructured
 	err := yaml.Unmarshal([]byte(fmt.Sprintf(`
 apiVersion: postgres-operator.crunchydata.com/v1beta1
@@ -112,7 +117,7 @@ kind: PostgresCluster
 metadata:
   name: %s
 spec:
-  postgresVersion: 14
+  postgresVersion: %s
   instances:
   - dataVolumeClaimSpec:
       accessModes:
@@ -131,7 +136,7 @@ spec:
             resources:
               requests:
                 storage: 1Gi
-`, name)), &cluster)
+`, name, pgMajorVersion)), &cluster)
 
 	if err != nil {
 		return nil, err

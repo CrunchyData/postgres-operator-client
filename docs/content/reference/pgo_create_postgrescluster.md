@@ -23,8 +23,8 @@ pgo create postgrescluster CLUSTER_NAME [flags]
 ### Examples
 
 ```
-# Create a postgrescluster
-pgo create postgrescluster hippo
+# Create a postgrescluster with Postgres 15
+pgo create postgrescluster hippo --pg-major-version 15
 
 ```
 ### Example output
@@ -35,7 +35,8 @@ postgresclusters/hippo created
 ### Options
 
 ```
-  -h, --help   help for postgrescluster
+  -h, --help                   help for postgrescluster
+      --pg-major-version int   Set the Postgres major version
 ```
 
 ### Options inherited from parent commands
