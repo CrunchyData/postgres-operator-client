@@ -8,11 +8,11 @@ commands:
     echo "RESULT from taking backup: ${RESULT}"
 
     if [ "${STATUS-0}" -eq 0 ]; then
-      printf 'Expected error, got none'
+      printf 'Expected error, got none\n'
       exit 1
     fi
 
     if [[ "${RESULT,,}" != *conflict* || "${RESULT}" != *repoName* ]]; then
-      printf 'Expected conflict on repoName, got %q' "${RESULT}"
+      printf 'Expected conflict on repoName, got %q\n' "${RESULT}"
       exit 1
     fi

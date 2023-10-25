@@ -1,18 +1,20 @@
 apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
-- script: |
+- script: |    
     pgbackrest_backup_annotation() {
       kubectl get --namespace "${NAMESPACE}" postgrescluster/backup-cluster \
         --output 'go-template={{ index .metadata.annotations "postgres-operator.crunchydata.com/pgbackrest-backup" }}'
     }
 
     PRIOR=$(pgbackrest_backup_annotation)
+    # ensure annotation timestamp will be different
+    sleep 1
     RESULT=$(kubectl-pgo --namespace "${NAMESPACE}" backup backup-cluster)
     CURRENT=$(pgbackrest_backup_annotation)
 
     if [ "${CURRENT}" = "${PRIOR}" ]; then
-      printf 'Expected annotation to change, got %q' "${CURRENT}"
+      printf 'Expected annotation to change, got %q\n' "${CURRENT}"
       exit 1
     fi
 
