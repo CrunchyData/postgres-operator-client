@@ -1,7 +1,0 @@
-apiVersion: kuttl.dev/v1beta1
-kind: TestStep
-commands:
-- script: |
-    kubectl annotate -n "${NAMESPACE}" postgrescluster backup-cluster postgres-operator.crunchydata.com/pgbackrest-backup="$(date)" --overwrite
-    # The --overwrite flag ensures that ownership of the annotation passes back to kubectl-pgo.
-    kubectl-pgo --namespace "${NAMESPACE}" backup backup-cluster --overwrite

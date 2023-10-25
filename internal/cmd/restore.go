@@ -54,7 +54,10 @@ WARNING: You are about to restore from pgBackRest with {options:[] repoName:repo
 WARNING: This action is destructive and PostgreSQL will be unavailable while its data is restored.
 
 Do you want to continue? (yes/no): yes
-postgresclusters/hippo patched`)
+
+# Resolve ownership conflict
+pgo restore hippo --force-conflicts
+`)
 
 	restore := pgBackRestRestore{Config: config}
 
@@ -63,6 +66,8 @@ postgresclusters/hippo patched`)
 
 	cmd.Flags().StringVar(&restore.RepoName, "repoName", "",
 		"repository to restore from")
+
+	cmd.Flags().BoolVar(&restore.ForceConflicts, "force-conflicts", false, "take ownership and overwrite the restore annotation")
 
 	// Only one positional argument: the PostgresCluster name.
 	cmd.Args = cobra.ExactArgs(1)
@@ -119,8 +124,9 @@ postgresclusters/hippo patched`)
 type pgBackRestRestore struct {
 	*internal.Config
 
-	Options  []string
-	RepoName string
+	Options        []string
+	RepoName       string
+	ForceConflicts bool
 
 	PostgresCluster string
 }
@@ -168,14 +174,20 @@ func (config pgBackRestRestore) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	patchOptions := metav1.PatchOptions{
+		DryRun: []string{metav1.DryRunAll},
+	}
+
+	if config.ForceConflicts {
+		b := true
+		patchOptions.Force = &b
+	}
 
 	// Perform a dry-run patch to understand what settings will be used should
 	// the restore proceed.
 	cluster, err = client.Namespace(namespace).Patch(ctx,
 		config.PostgresCluster, types.ApplyPatchType, patch,
-		config.Patch.PatchOptions(metav1.PatchOptions{
-			DryRun: []string{metav1.DryRunAll},
-		}))
+		config.Patch.PatchOptions(patchOptions))
 	if err != nil {
 		return err
 	}
@@ -191,10 +203,16 @@ func (config pgBackRestRestore) Run(ctx context.Context) error {
 		return nil
 	}
 
+	patchOptions = metav1.PatchOptions{}
+	if config.ForceConflicts {
+		b := true
+		patchOptions.Force = &b
+	}
+
 	// They agreed to continue. Send the patch again without dry-run.
 	_, err = client.Namespace(namespace).Patch(ctx,
 		config.PostgresCluster, types.ApplyPatchType, patch,
-		config.Patch.PatchOptions(metav1.PatchOptions{}))
+		config.Patch.PatchOptions(patchOptions))
 
 	if err == nil {
 		fmt.Fprintf(config.Out, "%s/%s patched\n",

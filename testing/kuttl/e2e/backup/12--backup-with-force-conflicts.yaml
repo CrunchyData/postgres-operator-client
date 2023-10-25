@@ -1,0 +1,43 @@
+---
+# The cluster should not have changed.
+apiVersion: postgres-operator.crunchydata.com/v1beta1
+kind: PostgresCluster
+metadata:
+  name: backup-cluster
+spec:
+  backups:
+    pgbackrest:
+      manual:
+        options:
+        - --type=full
+        repoName: repo4
+
+---
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    pgbackrest_backup_annotation() {
+      kubectl get --namespace "${NAMESPACE}" postgrescluster/backup-cluster \
+        --output 'go-template={{ index .metadata.annotations "postgres-operator.crunchydata.com/pgbackrest-backup" }}'
+    }
+
+    kubectl --namespace "${NAMESPACE}" annotate postgrescluster/backup-cluster \
+      postgres-operator.crunchydata.com/pgbackrest-backup="$(date)" --overwrite || exit
+
+    PRIOR=$(pgbackrest_backup_annotation)
+    RESULT=$(kubectl-pgo --namespace "${NAMESPACE}" backup backup-cluster --force-conflicts)
+    CURRENT=$(pgbackrest_backup_annotation)
+
+    if [ "${CURRENT}" = "${PRIOR}" ]; then
+      printf 'Expected annotation to change, got %q' "${CURRENT}"
+      exit 1
+    fi
+
+    echo "RESULT from taking backup: ${RESULT}"
+
+    if [[ -n $RESULT && "$RESULT" == "postgresclusters/backup-cluster backup initiated" ]]; then
+        exit 0
+    fi
+
+    exit 1

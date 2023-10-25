@@ -1,0 +1,53 @@
+---
+apiVersion: postgres-operator.crunchydata.com/v1beta1
+kind: PostgresCluster
+metadata:
+  name: restore-cluster
+spec:
+  postgresVersion: 14
+  instances:
+    - name: instance1
+      dataVolumeClaimSpec:
+        accessModes: [ReadWriteOnce]
+        resources: { requests: { storage: 1Gi } }
+  backups:
+    pgbackrest:
+      repos:
+      - name: repo2
+        volume:
+          volumeClaimSpec:
+            accessModes: [ReadWriteOnce]
+            resources: { requests: { storage: 1Gi } }
+      restore:
+        enabled: true
+        repoName: repo2
+        options:
+        - --db-include=restore-cluster
+
+---
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    pgbackrest_restore_annotation() {
+      kubectl --namespace "${NAMESPACE}" get postgrescluster/restore-cluster \
+        --output "jsonpath-as-json={.metadata.annotations['postgres-operator\.crunchydata\.com/pgbackrest-restore']}"
+    }
+
+    kubectl --namespace "${NAMESPACE}" annotate postgrescluster/restore-cluster \
+      postgres-operator.crunchydata.com/pgbackrest-restore="$(date)" --overwrite || exit
+
+
+    PRIOR=$(pgbackrest_restore_annotation)
+    # Running restore will update the annotation.
+    echo yes | kubectl-pgo --namespace="${NAMESPACE}" restore restore-cluster --options="--db-include=restore-cluster" --repoName="repo2" --force-conflicts
+    CURRENT=$(pgbackrest_restore_annotation)
+
+    if [ "${CURRENT}" != "${PRIOR}" ]; then
+      exit 0
+    fi
+
+    printf 'Expected annotation to change, got PRIOR %q CURRENT %q' "${PRIOR}" "${CURRENT}"
+    echo "RESULT from taking restore: ${RESULT}"
+
+    exit 1

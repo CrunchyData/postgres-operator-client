@@ -35,9 +35,10 @@ func newBackupCommand(config *internal.Config) *cobra.Command {
 	cmdBackup := &cobra.Command{
 		Use:   "backup CLUSTER_NAME",
 		Short: "Backup cluster",
-		Long: `Backup allows you to take a backup of a PostgreSQL cluster, either using
+		Long: `Backup allows you to backup a PostgreSQL cluster either by using
 the current "spec.backups.pgbackrest.manual" settings on the PostgreSQL cluster
-or by overwriting those settings using the flags
+or by using flags to write your settings. Overwriting those settings requires
+the --force-conflicts flag.
 
 ### RBAC Requirements
     Resources                                           Verbs
@@ -55,17 +56,21 @@ pgo backup hippo
 # on the 'hippo' postgrescluster and trigger a backup
 pgo backup hippo --repoName="repo1" --options="--type=full"
 
+# Resolve ownership conflict
+pgo backup hippo --force-conflicts
+`)
+
 ### Example output
 postgresclusters/hippo backup initiated`)
 
 	// Limit the number of args, that is, only one cluster name
 	cmdBackup.Args = cobra.ExactArgs(1)
 
-	// `backup` command accepts `repoName`, `overwrite` and `options` flags;
+	// `backup` command accepts `repoName`, `force-conflicts` and `options` flags;
 	// multiple options flags can be used, with each becoming a new line
 	// in the options array on the spec
 	backup := pgBackRestBackup{}
-	cmdBackup.Flags().BoolVar(&backup.Overwrite, "overwrite", false, "overwrite the backup annotation")
+	cmdBackup.Flags().BoolVar(&backup.ForceConflicts, "force-conflicts", false, "take ownership and overwrite the backup settings")
 	cmdBackup.Flags().StringVar(&backup.RepoName, "repoName", "", "repoName to backup to")
 	cmdBackup.Flags().StringArrayVar(&backup.Options, "options", []string{},
 		"options for taking a backup; can be used multiple times")
@@ -112,7 +117,7 @@ postgresclusters/hippo backup initiated`)
 		// Update the spec/annotate
 		// TODO(benjaminjb): Would we want to allow a dry-run option here?
 		patchOptions := metav1.PatchOptions{}
-		if backup.Overwrite {
+		if backup.ForceConflicts {
 			b := true
 			patchOptions.Force = &b
 		}
@@ -139,9 +144,9 @@ postgresclusters/hippo backup initiated`)
 }
 
 type pgBackRestBackup struct {
-	Options   []string
-	RepoName  string
-	Overwrite bool
+	Options        []string
+	RepoName       string
+	ForceConflicts bool
 }
 
 func (config pgBackRestBackup) modifyIntent(

@@ -23,25 +23,12 @@ pgo restore CLUSTER_NAME [flags]
 ### Examples
 
 ```
-# Restore the 'hippo' cluster using the latest backup and replay all available WAL
-pgo restore hippo --repoName repo1
-
-# Restore the 'hippo' cluster to a specific point in time
-pgo restore hippo --repoName repo1 --options '--type=time --target="2021-06-09 14:15:11-04"'
-
-```
-### Example output
-```
-WARNING: You are about to restore from pgBackRest with {options:[] repoName:repo1}
-WARNING: This action is destructive and PostgreSQL will be unavailable while its data is restored.
-
-Do you want to continue? (yes/no): yes
-postgresclusters/hippo patched
 ```
 
 ### Options
 
 ```
+      --force-conflicts       take ownership and overwrite the restore annotation
   -h, --help                  help for restore
       --options stringArray   options to pass to the "pgbackrest restore" command; can be used multiple times
       --repoName string       repository to restore from
