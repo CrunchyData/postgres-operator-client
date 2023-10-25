@@ -3,7 +3,7 @@ kind: PostgresCluster
 metadata:
   name: kuttl-support-monitoring-cluster
 spec:
-  postgresVersion: 14
+  postgresVersion: 15
   instances:
     - dataVolumeClaimSpec:
         accessModes: [ReadWriteOnce]

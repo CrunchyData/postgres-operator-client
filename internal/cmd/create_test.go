@@ -47,10 +47,10 @@ spec:
       resources:
         requests:
           storage: 1Gi
-  postgresVersion: 14
+  postgresVersion: 15
 `
 
-	u, err := generateUnstructuredClusterYaml("hippo")
+	u, err := generateUnstructuredClusterYaml("hippo", "15")
 	assert.NilError(t, err)
 
 	assert.Assert(t, cmp.MarshalMatches(

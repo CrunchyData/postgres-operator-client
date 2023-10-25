@@ -1,0 +1,46 @@
+---
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - script: |
+     # Verify the error when the Postgres version given is too low.
+     TOO_LOW=$(kubectl-pgo create postgrescluster --pg-major-version=1 toolow 2>&1)
+     if [[ "${TOO_LOW}" != "Error:"*"Invalid value"* ]]; then
+      printf 'Expected invalid value error, got %q\n' "${TOO_LOW}"
+      exit 1
+     fi
+
+     # Verify the error when the Postgres version given is too high.
+     TOO_HIGH=$(kubectl-pgo create postgrescluster --pg-major-version=100 toohigh 2>&1)
+     if [[ "${TOO_HIGH}" != "Error:"*"Invalid value"* ]]; then
+      printf 'Expected invalid value error, got %q\n' "${TOO_HIGH}"
+      exit 1
+     fi
+
+     # Verify the error when the Postgres version is not an integer.
+     NOT_INT=$(kubectl-pgo create postgrescluster --pg-major-version=15.1 notint 2>&1)
+     if [[ "${NOT_INT}" != "Error: invalid argument"* ]]; then
+      printf 'Expected invalid argument error, got %q\n' "${NOT_INT}"
+      exit 1
+     fi
+
+     # Verify the error when the Postgres version is not a number.
+     NOT_NUM=$(kubectl-pgo create postgrescluster --pg-major-version=x notnum 2>&1)
+     if [[ "${NOT_NUM}" != "Error: invalid argument"* ]]; then
+      printf 'Expected invalid argument error, got %q\n' "${NOT_NUM}"
+      exit 1
+     fi
+
+     # Verify the error when the Postgres version flag is not provided.
+     MISSING=$(kubectl-pgo create postgrescluster missing 2>&1)
+     if [[ "${MISSING}" != "Error: required flag"* ]]; then
+      printf 'Expected required flag error, got %q\n' "${MISSING}"
+      exit 1
+     fi
+
+     # Verify the error when the Postgres version value is empty.
+     NOT_SET=$(kubectl-pgo create postgrescluster --pg-major-version=  notset 2>&1)
+     if [[ "${NOT_SET}" != "Error: invalid argument"* ]]; then
+      printf 'Expected invalid argument error, got %q\n' "${NOT_SET}"
+      exit 1
+     fi
