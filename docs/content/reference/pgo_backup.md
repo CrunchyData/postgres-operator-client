@@ -9,7 +9,7 @@ Backup cluster
 
 Backup allows you to backup a PostgreSQL cluster either by using
 the current "spec.backups.pgbackrest.manual" settings on the PostgreSQL cluster
-or by using flags to write your settings. Overwriting those settings requires
+or by using flags to write your settings. Overwriting those settings may require
 the --force-conflicts flag.
 
 ### RBAC Requirements
@@ -26,22 +26,27 @@ pgo backup CLUSTER_NAME [flags]
 ### Examples
 
 ```
-  # Trigger a backup on the 'hippo' postgrescluster using the current spec options
-  # Note: "spec.backups.pgbackrest.manual.repoName" has to exist for the backup to begin
-  pgo backup hippo
-  
-  # Update the 'backups.pgbackrest.manual.repoName' and 'backups.pgbackrest.manual.options' fields
-  # on the 'hippo' postgrescluster and trigger a backup
-  pgo backup hippo --repoName="repo1" --options="--type=full"
-  
-  # Resolve ownership conflict
-  pgo backup hippo --force-conflicts
+# Trigger a backup on the 'hippo' postgrescluster using the current spec options
+# Note: "spec.backups.pgbackrest.manual.repoName" has to exist for the backup to begin
+pgo backup hippo
+
+# Update the 'backups.pgbackrest.manual.repoName' and 'backups.pgbackrest.manual.options' fields
+# on the 'hippo' postgrescluster and trigger a backup
+pgo backup hippo --repoName="repo1" --options="--type=full"
+
+# Resolve ownership conflict
+pgo backup hippo --force-conflicts
+
+```
+### Example output
+```
+postgresclusters/hippo backup initiated
 ```
 
 ### Options
 
 ```
-      --force-conflicts       take ownership and overwrite the backup annotation
+      --force-conflicts       take ownership and overwrite the backup settings
   -h, --help                  help for backup
       --options stringArray   options for taking a backup; can be used multiple times
       --repoName string       repoName to backup to

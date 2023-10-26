@@ -54,6 +54,7 @@ WARNING: You are about to restore from pgBackRest with {options:[] repoName:repo
 WARNING: This action is destructive and PostgreSQL will be unavailable while its data is restored.
 
 Do you want to continue? (yes/no): yes
+postgresclusters/hippo patched
 
 # Resolve ownership conflict
 pgo restore hippo --force-conflicts

@@ -37,7 +37,7 @@ func newBackupCommand(config *internal.Config) *cobra.Command {
 		Short: "Backup cluster",
 		Long: `Backup allows you to backup a PostgreSQL cluster either by using
 the current "spec.backups.pgbackrest.manual" settings on the PostgreSQL cluster
-or by using flags to write your settings. Overwriting those settings requires
+or by using flags to write your settings. Overwriting those settings may require
 the --force-conflicts flag.
 
 ### RBAC Requirements
@@ -58,7 +58,6 @@ pgo backup hippo --repoName="repo1" --options="--type=full"
 
 # Resolve ownership conflict
 pgo backup hippo --force-conflicts
-`)
 
 ### Example output
 postgresclusters/hippo backup initiated`)
