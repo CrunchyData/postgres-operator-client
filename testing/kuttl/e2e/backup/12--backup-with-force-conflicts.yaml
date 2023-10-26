@@ -1,18 +1,4 @@
 ---
-# The cluster should not have changed.
-apiVersion: postgres-operator.crunchydata.com/v1beta1
-kind: PostgresCluster
-metadata:
-  name: backup-cluster
-spec:
-  backups:
-    pgbackrest:
-      manual:
-        options:
-        - --type=full
-        repoName: repo4
-
----
 apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
