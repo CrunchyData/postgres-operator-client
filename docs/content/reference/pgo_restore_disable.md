@@ -11,13 +11,27 @@ Update a PostgresCluster spec to disable restores.
 
 This is recommended after your restore is complete. Running "pgo restore" will enable restores again.
 
-#### RBAC Requirements
+### RBAC Requirements
     Resources                                           Verbs
     ---------                                           -----
     postgresclusters.postgres-operator.crunchydata.com  [get patch]
+	
+### Usage
 
 ```
 pgo restore disable CLUSTER_NAME [flags]
+```
+
+### Examples
+
+```
+# Disable the restore section on the 'hippo' cluster
+pgo restore disable hippo
+
+```
+### Example output
+```
+postgresclusters/hippo patched
 ```
 
 ### Options

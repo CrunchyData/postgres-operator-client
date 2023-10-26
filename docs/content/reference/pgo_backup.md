@@ -11,10 +11,12 @@ Backup allows you to take a backup of a PostgreSQL cluster, either using
 the current "spec.backups.pgbackrest.manual" settings on the PostgreSQL cluster
 or by overwriting those settings using the flags
 
-#### RBAC Requirements
+### RBAC Requirements
     Resources                                           Verbs
     ---------                                           -----
     postgresclusters.postgres-operator.crunchydata.com  [get patch]
+
+### Usage
 
 ```
 pgo backup CLUSTER_NAME [flags]
@@ -23,13 +25,18 @@ pgo backup CLUSTER_NAME [flags]
 ### Examples
 
 ```
-  # Trigger a backup on the 'hippo' postgrescluster using the current spec options
-  # Note: "spec.backups.pgbackrest.manual.repoName" has to exist for the backup to begin
-  pgo backup hippo
-  
-  # Update the 'backups.pgbackrest.manual.repoName' and 'backups.pgbackrest.manual.options' fields
-  # on the 'hippo' postgrescluster and trigger a backup
-  pgo backup hippo --repoName="repo1" --options="--type=full"
+# Trigger a backup on the 'hippo' postgrescluster using the current spec options
+# Note: "spec.backups.pgbackrest.manual.repoName" has to exist for the backup to begin
+pgo backup hippo
+
+# Update the 'backups.pgbackrest.manual.repoName' and 'backups.pgbackrest.manual.options' fields
+# on the 'hippo' postgrescluster and trigger a backup
+pgo backup hippo --repoName="repo1" --options="--type=full"
+
+```
+### Example output
+```
+postgresclusters/hippo backup initiated
 ```
 
 ### Options

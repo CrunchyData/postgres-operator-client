@@ -9,13 +9,29 @@ Delete a PostgresCluster
 
 Delete a PostgresCluster with a given name.
 
-#### RBAC Requirements
+### RBAC Requirements
     Resources                                           Verbs
     ---------                                           -----
     postgresclusters.postgres-operator.crunchydata.com  [delete]
 
+### Usage
+
 ```
 pgo delete postgrescluster CLUSTER_NAME [flags]
+```
+
+### Examples
+
+```
+# Delete a postgrescluster
+pgo delete postgrescluster hippo
+
+```
+### Example output
+```    
+WARNING: Deleting a postgrescluster is destructive and data retention is dependent on PV configuration. 
+Are you sure you want to continue? (yes/no): yes
+postgresclusters/hippo deleted
 ```
 
 ### Options

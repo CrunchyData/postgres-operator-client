@@ -50,13 +50,23 @@ func newDeleteClusterCommand(config *internal.Config) *cobra.Command {
 		Short: "Delete a PostgresCluster",
 		Long: `Delete a PostgresCluster with a given name.
 
-#### RBAC Requirements
+### RBAC Requirements
     Resources                                           Verbs
     ---------                                           -----
-    postgresclusters.postgres-operator.crunchydata.com  [delete]`,
+    postgresclusters.postgres-operator.crunchydata.com  [delete]
+
+### Usage`,
 	}
 
 	cmd.Args = cobra.ExactArgs(1)
+
+	cmd.Example = internal.FormatExample(`# Delete a postgrescluster
+pgo delete postgrescluster hippo
+
+### Example output	
+WARNING: Deleting a postgrescluster is destructive and data retention is dependent on PV configuration. 
+Are you sure you want to continue? (yes/no): yes
+postgresclusters/hippo deleted`)
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()

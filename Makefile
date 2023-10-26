@@ -68,6 +68,10 @@ cli-docs: ## generate cli documenation
 		docs/content/reference/pgo.md > \
 		docs/content/reference/_index.md
 	rm docs/content/reference/pgo.md
+	for filename in $(wildcard docs/content/reference/pgo_*.md); do \
+		NL=$$'\n'; \
+		sed -i "" "s/### Example output/\`\`\`\\$${NL}### Example output\\$${NL}\`\`\`/g" $${filename}; \
+	done
 
 .PHONY: check-cli-docs
 check-cli-docs: cli-docs 

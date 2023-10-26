@@ -18,6 +18,7 @@ import "strings"
 
 // FormatExample prepares text to appear in the Examples section of a command's
 // help text.
+// For spacing, all tabs should be replaced with spaces
 func FormatExample(text string) string {
-	return "  " + strings.ReplaceAll(strings.Trim(text, "\t\n"), "\n", "\n  ")
+	return strings.ReplaceAll(text, "\t", "    ")
 }

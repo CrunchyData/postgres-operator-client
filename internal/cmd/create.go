@@ -51,18 +51,21 @@ func newCreateClusterCommand(config *internal.Config) *cobra.Command {
 		Short:   "Create PostgresCluster with a given name",
 		Long: `Create basic PostgresCluster with a given name.
 
-#### RBAC Requirements
+### RBAC Requirements
     Resources                                           Verbs
     ---------                                           -----
-    postgresclusters.postgres-operator.crunchydata.com  [create]`,
+    postgresclusters.postgres-operator.crunchydata.com  [create]
+
+### Usage`,
 	}
 
 	cmd.Args = cobra.ExactArgs(1)
 
-	cmd.Example = internal.FormatExample(`
-# Create a postgrescluster
+	cmd.Example = internal.FormatExample(`# Create a postgrescluster
 pgo create postgrescluster hippo
-`)
+
+### Example output	
+postgresclusters/hippo created`)
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()

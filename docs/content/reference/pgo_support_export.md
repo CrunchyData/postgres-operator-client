@@ -10,7 +10,7 @@ Export a snapshot of a PostgresCluster
 The support export tool will collect information that is commonly necessary for troubleshooting a
 PostgresCluster.
 
-#### RBAC Requirements
+### RBAC Requirements
     Resources                                           Verbs
     ---------                                           -----
     configmaps                                          [list]
@@ -36,11 +36,13 @@ PostgresCluster.
 
     Note: This RBAC needs to be cluster-scoped to retrieve information on nodes.
 
-#### Event Capture
+### Event Capture
     Support export captures all Events in the PostgresCluster's Namespace.
     Event duration is determined by the '--event-ttl' setting of the Kubernetes
     API server. Default is 1 hour.
     - https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
+
+### Usage
 
 ```
 pgo support export CLUSTER_NAME [flags]
@@ -49,15 +51,57 @@ pgo support export CLUSTER_NAME [flags]
 ### Examples
 
 ```
-  # Short Flags
-  kubectl pgo support export daisy -o . -l 2
-  
-  # Long Flags
-  kubectl pgo support export daisy --output . --pg-logs-count 2
-  
-  # Monitoring namespace override
-  # This is only required when monitoring is not deployed in the PostgresCluster's namespace.
-  kubectl pgo support export daisy --monitoring-namespace another-namespace --output .
+# Short Flags
+kubectl pgo support export daisy -o . -l 2
+
+# Long Flags
+kubectl pgo support export daisy --output . --pg-logs-count 2
+
+# Monitoring namespace override
+# This is only required when monitoring is not deployed in the PostgresCluster's namespace.
+kubectl pgo support export daisy --monitoring-namespace another-namespace --output .
+
+```
+### Example output
+```
+┌────────────────────────────────────────────────────────────────
+| PGO CLI Support Export Tool
+| The support export tool will collect information that is
+| commonly necessary for troubleshooting a PostgresCluster.
+| Note: No data or k8s secrets are collected.
+└────────────────────────────────────────────────────────────────
+Collecting PGO CLI version...
+Collecting current Kubernetes context...
+Collecting Kubernetes version...
+Collecting nodes...
+Collecting namespace...
+Collecting PostgresCluster...
+Collecting statefulsets...
+Collecting deployments...
+Collecting replicasets...
+Collecting jobs...
+Collecting cronjobs...
+Collecting poddisruptionbudgets...
+Collecting pods...
+Collecting persistentvolumeclaims...
+Collecting configmaps...
+Collecting services...
+Collecting endpoints...
+Collecting serviceaccounts...
+Collecting ingresses...
+Collecting limitranges...
+Collecting events...
+Collecting Postgres logs...
+Collecting PostgresCluster pod logs...
+Collecting monitoring pod logs...
+Collecting Patroni info...
+Collecting processes...
+Collecting PGO CLI logs...
+┌────────────────────────────────────────────────────────────────
+| Archive file size: 0.02 MiB
+| Email the support export archive to support@crunchydata.com
+| or attach as a email reply to your existing Support Ticket
+└────────────────────────────────────────────────────────────────
 ```
 
 ### Options
