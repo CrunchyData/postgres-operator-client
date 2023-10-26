@@ -26,12 +26,12 @@ func TestFormatHeader(t *testing.T) {
 		input  string
 		output string
 	}{
-		{"Expected", "#### Some Header\n", "Some Header:\n"},
-		{"One valid, one not", "#### Some Header\n#### Another Header", "Some Header:\n#### Another Header"},
-		{"Two expected", "#### Some Header\n#### Another Header\n", "Some Header:\nAnother Header:\n"},
-		{"No newline", "#### Some Header", "#### Some Header"},
-		{"3 hashes", "### Some Header\n", "### Some Header\n"},
-		{"leading space", " #### Some Header\n", " Some Header:\n"},
+		{"Expected", "### Some Header\n", "Some Header:\n"},
+		{"One valid, one not", "### Some Header\n### Another Header", "Some Header:\n### Another Header"},
+		{"Two expected", "### Some Header\n### Another Header\n", "Some Header:\nAnother Header:\n"},
+		{"No newline", "### Some Header", "### Some Header"},
+		{"2 hashes", "## Some Header\n", "## Some Header\n"},
+		{"leading space", " ### Some Header\n", " Some Header:\n"},
 	}
 
 	for _, tc := range testsCases {

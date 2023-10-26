@@ -15,43 +15,27 @@
 package internal
 
 import (
-	"regexp"
-	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
 )
 
 func TestFormatExample(t *testing.T) {
-	alwaysExpect := func(t testing.TB, formatted string) {
-		assert.Assert(t, formatted[:1] != "\n", "should not start with newline")
-
-		// Every line should be indented two spaces.
-		assert.DeepEqual(t,
-			strings.Split(formatted, "\n"),
-			regexp.MustCompile(`(?m)^  ($|[^ ].*$)`).FindAllString(formatted, -1))
-	}
-
 	t.Run("BlankLines", func(t *testing.T) {
+		// Tabs should be replaced by spaces
 		formatted := FormatExample(`
-# first
-a --b c
+    # spaced
+    a --b c
 
-# second
-x y z
-`)
+	# tabbed
+	x y z`)
 
-		alwaysExpect(t, formatted)
-		assert.Equal(t, "  # first\n  a --b c\n  \n  # second\n  x y z", formatted)
-	})
+		expected := `
+    # spaced
+    a --b c
 
-	t.Run("TrailingTabs", func(t *testing.T) {
-		formatted := FormatExample(`
-# description
-command with arguments
-		`)
-
-		alwaysExpect(t, formatted)
-		assert.Equal(t, "  # description\n  command with arguments", formatted)
+    # tabbed
+    x y z`
+		assert.Equal(t, expected, formatted)
 	})
 }
