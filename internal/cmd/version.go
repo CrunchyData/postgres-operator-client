@@ -51,7 +51,7 @@ pgo version
 
 ### Example output
 Client Version: v0.3.0
-Operator Version: vlatest`)
+Operator Version: v5.5.0`)
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 
