@@ -70,7 +70,7 @@ cli-docs: ## generate cli documenation
 	rm docs/content/reference/pgo.md
 	for filename in $(wildcard docs/content/reference/pgo_*.md); do \
 		NL=$$'\n'; \
-		sed -i "" "s/### Example output/\`\`\`\\$${NL}### Example output\\$${NL}\`\`\`/g" $${filename}; \
+		sed -i "s/### Example output/\`\`\`\\$${NL}### Example output\\$${NL}\`\`\`/g" $${filename}; \
 	done
 
 .PHONY: check-cli-docs
