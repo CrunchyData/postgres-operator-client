@@ -90,6 +90,8 @@ func NewPGOCommand(stdin io.Reader, stdout, stderr io.Writer) *cobra.Command {
 
 {{end}}{{if or .Runnable .HasSubCommands}}{{.UsageString}}{{end}}`)
 
+	// We take the default UsageTemplate and alter it for our needs
+	// -- source: https://github.com/spf13/cobra/blob/main/command.go#UsageTemplate
 	root.SetUsageTemplate(`Usage:{{if .Runnable}}
     {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}
     {{.CommandPath}} [command]{{end}}{{if gt (len .Aliases) 0}}
