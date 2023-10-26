@@ -9,10 +9,12 @@ Create PostgresCluster with a given name
 
 Create basic PostgresCluster with a given name.
 
-#### RBAC Requirements
+### RBAC Requirements
     Resources                                           Verbs
     ---------                                           -----
     postgresclusters.postgres-operator.crunchydata.com  [create]
+
+### Usage
 
 ```
 pgo create postgrescluster CLUSTER_NAME [flags]
@@ -21,8 +23,13 @@ pgo create postgrescluster CLUSTER_NAME [flags]
 ### Examples
 
 ```
-  # Create a postgrescluster
-  pgo create postgrescluster hippo
+# Create a postgrescluster
+pgo create postgrescluster hippo
+
+```
+### Example output
+```    
+postgresclusters/hippo created
 ```
 
 ### Options

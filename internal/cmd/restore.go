@@ -35,19 +35,26 @@ func newRestoreCommand(config *internal.Config) *cobra.Command {
 		Short: "Restore cluster",
 		Long: `Restore the data of a PostgreSQL cluster from a backup
 
-#### RBAC Requirements
+### RBAC Requirements
     Resources                                           Verbs
     ---------                                           -----
-    postgresclusters.postgres-operator.crunchydata.com  [get patch]`,
+    postgresclusters.postgres-operator.crunchydata.com  [get patch]
+	
+### Usage`,
 	}
 
-	cmd.Example = internal.FormatExample(`
-# Restore the 'hippo' cluster using the latest backup and replay all available WAL
+	cmd.Example = internal.FormatExample(`# Restore the 'hippo' cluster using the latest backup and replay all available WAL
 pgo restore hippo --repoName repo1
 
 # Restore the 'hippo' cluster to a specific point in time
 pgo restore hippo --repoName repo1 --options '--type=time --target="2021-06-09 14:15:11-04"'
-`)
+
+### Example output
+WARNING: You are about to restore from pgBackRest with {options:[] repoName:repo1}
+WARNING: This action is destructive and PostgreSQL will be unavailable while its data is restored.
+
+Do you want to continue? (yes/no): yes
+postgresclusters/hippo patched`)
 
 	restore := pgBackRestRestore{Config: config}
 
@@ -82,16 +89,24 @@ func newRestoreDisableCommand(config *internal.Config) *cobra.Command {
 
 This is recommended after your restore is complete. Running "pgo restore" will enable restores again.
 
-#### RBAC Requirements
+### RBAC Requirements
     Resources                                           Verbs
     ---------                                           -----
-    postgresclusters.postgres-operator.crunchydata.com  [get patch]`,
+    postgresclusters.postgres-operator.crunchydata.com  [get patch]
+
+### Usage`,
 	}
 
 	disable := pgBackRestRestoreDisable{Config: config}
 
 	// Only one positional argument: the PostgresCluster name.
 	cmd.Args = cobra.ExactArgs(1)
+
+	cmd.Example = internal.FormatExample(`# Disable the restore section on the 'hippo' cluster
+pgo restore disable hippo
+
+### Example output
+postgresclusters/hippo patched`)
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		disable.PostgresCluster = args[0]

@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -83,10 +84,38 @@ func NewPGOCommand(stdin io.Reader, stdout, stderr io.Writer) *cobra.Command {
 	}
 
 	cobra.AddTemplateFunc("formatHeader", formatHeader)
+	cobra.AddTemplateFunc("formatExample", formatExample)
 
 	root.SetHelpTemplate(`{{with .Long}}{{ formatHeader . | trimTrailingWhitespaces }}
 
 {{end}}{{if or .Runnable .HasSubCommands}}{{.UsageString}}{{end}}`)
+
+	// We take the default UsageTemplate and alter it for our needs
+	// -- source: https://github.com/spf13/cobra/blob/main/command.go#UsageTemplate
+	root.SetUsageTemplate(`Usage:{{if .Runnable}}
+    {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}
+    {{.CommandPath}} [command]{{end}}{{if gt (len .Aliases) 0}}
+  
+Aliases:
+    {{.NameAndAliases}}{{end}}{{if .HasExample}}
+  
+Examples:
+{{ formatExample .Example}}{{end}}{{if .HasAvailableSubCommands}}
+  
+Available Commands:{{range .Commands}}{{if (or .IsAvailableCommand (eq .Name "help"))}}
+    {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
+  
+Flags:
+  {{.LocalFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if .HasAvailableInheritedFlags}}
+  
+Global Flags:
+{{.InheritedFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if .HasHelpSubCommands}}
+  
+Additional help topics:{{range .Commands}}{{if .IsAdditionalHelpTopicCommand}}
+  {{rpad .CommandPath .CommandPathPadding}} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableSubCommands}}
+  
+Use "{{.CommandPath}} [command] --help" for more information about a command.{{end}}
+  `)
 
 	// Add flags for kubeconfig, authentication, namespace, and timeout to
 	// every subcommand.
@@ -110,6 +139,21 @@ func NewPGOCommand(stdin io.Reader, stdout, stderr io.Writer) *cobra.Command {
 
 // formatHeader removes markdown header syntax for CLI help output
 func formatHeader(s string) string {
-	re := regexp.MustCompile(`#### (.*)\n`)
-	return re.ReplaceAllString(s, "$1:\n")
+	re := regexp.MustCompile(`### (.*)\n`)
+	return strings.TrimSuffix(re.ReplaceAllString(s, "$1:\n"), "### Usage")
+}
+
+// Regularize the example test in the `--help`:
+// add spaces before every line except the `Example output` header
+// which should also end with a `:`
+func formatExample(s string) string {
+	spacing := "    "
+	spacedS := strings.ReplaceAll(s, "\n", "\n"+spacing)
+	return spacing +
+		strings.Replace(
+			spacedS,
+			"\n"+spacing+"### Example output",
+			"\nExample output:",
+			1,
+		)
 }

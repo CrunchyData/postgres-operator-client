@@ -9,15 +9,30 @@ PGO client and operator versions
 
 Version displays the versions of the PGO client and the Crunchy Postgres Operator
 
-#### RBAC Requirements
+### RBAC Requirements
     Resources                                       Verbs
     ---------                                       -----
     customresourcedefinitions.apiextensions.k8s.io  [get]
 
     Note: This RBAC needs to be cluster-scoped.
 
+### Usage
+
 ```
 pgo version [flags]
+```
+
+### Examples
+
+```
+# Request the version of the client and the operator
+pgo version
+
+```
+### Example output
+```
+Client Version: v0.3.0
+Operator Version: v5.5.0
 ```
 
 ### Options

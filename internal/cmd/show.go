@@ -60,15 +60,16 @@ func newShowBackupCommand(config *internal.Config) *cobra.Command {
 		Short:   "Show backup information for a PostgresCluster",
 		Long: `Show backup information for a PostgresCluster from 'pgbackrest info' command.
 
-#### RBAC Requirements
+### RBAC Requirements
     Resources  Verbs
     ---------  -----
     pods       [list]
-    pods/exec  [create]`,
+    pods/exec  [create]
+
+### Usage`,
 	}
 
-	cmdShowBackup.Example = internal.FormatExample(`
-# Show every repository of the 'hippo' postgrescluster
+	cmdShowBackup.Example = internal.FormatExample(`# Show every repository of the 'hippo' postgrescluster
 pgo show backup hippo
 
 # Show every repository of the 'hippo' postgrescluster as JSON
@@ -76,7 +77,20 @@ pgo show backup hippo --output=json
 
 # Show one repository of the 'hippo' postgrescluster
 pgo show backup hippo --repoName=repo1
-	`)
+
+### Example output
+stanza: db
+    status: ok
+    cipher: none
+
+    db (current)
+        wal archive min/max (14): 000000010000000000000001/000000010000000000000004
+
+        full backup: 20231023-201416F
+            timestamp start/stop: 2023-10-23 20:14:16+00 / 2023-10-23 20:14:32+00
+            wal start/stop: 000000010000000000000002 / 000000010000000000000002
+            database size: 33.5MB, database backup size: 33.5MB
+            repo1: backup set size: 4.2MB, backup size: 4.2MB`)
 
 	// Define the command flags.
 	// - https://pgbackrest.org/command.html
@@ -131,7 +145,7 @@ pgo show backup hippo --repoName=repo1
 		}
 
 		if len(pods.Items) != 1 {
-			return fmt.Errorf("Primary instance Pod not found.")
+			return fmt.Errorf("primary instance Pod not found")
 		}
 
 		PodExec, err := util.NewPodExecutor(rest)
