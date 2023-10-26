@@ -8,7 +8,7 @@ Show backup information for a PostgresCluster
 ### Synopsis
 
 Show backup information for a PostgresCluster from 'pgbackrest info' command.
-	
+
 ### RBAC Requirements
     Resources  Verbs
     ---------  -----

@@ -15,7 +15,7 @@ This is recommended after your restore is complete. Running "pgo restore" will e
     Resources                                           Verbs
     ---------                                           -----
     postgresclusters.postgres-operator.crunchydata.com  [get patch]
-	
+
 ### Usage
 
 ```
