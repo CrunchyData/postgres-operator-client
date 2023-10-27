@@ -35,9 +35,10 @@ func newBackupCommand(config *internal.Config) *cobra.Command {
 	cmdBackup := &cobra.Command{
 		Use:   "backup CLUSTER_NAME",
 		Short: "Backup cluster",
-		Long: `Backup allows you to take a backup of a PostgreSQL cluster, either using
+		Long: `Backup allows you to backup a PostgreSQL cluster either by using
 the current "spec.backups.pgbackrest.manual" settings on the PostgreSQL cluster
-or by overwriting those settings using the flags
+or by using flags to write your settings. Overwriting those settings may require
+the --force-conflicts flag.
 
 ### RBAC Requirements
     Resources                                           Verbs
@@ -55,16 +56,20 @@ pgo backup hippo
 # on the 'hippo' postgrescluster and trigger a backup
 pgo backup hippo --repoName="repo1" --options="--type=full"
 
+# Resolve ownership conflict
+pgo backup hippo --force-conflicts
+
 ### Example output
 postgresclusters/hippo backup initiated`)
 
 	// Limit the number of args, that is, only one cluster name
 	cmdBackup.Args = cobra.ExactArgs(1)
 
-	// `backup` command accepts `repoName` and `options` flags;
+	// `backup` command accepts `repoName`, `force-conflicts` and `options` flags;
 	// multiple options flags can be used, with each becoming a new line
 	// in the options array on the spec
 	backup := pgBackRestBackup{}
+	cmdBackup.Flags().BoolVar(&backup.ForceConflicts, "force-conflicts", false, "take ownership and overwrite the backup settings")
 	cmdBackup.Flags().StringVar(&backup.RepoName, "repoName", "", "repoName to backup to")
 	cmdBackup.Flags().StringArrayVar(&backup.Options, "options", []string{},
 		"options for taking a backup; can be used multiple times")
@@ -110,12 +115,16 @@ postgresclusters/hippo backup initiated`)
 
 		// Update the spec/annotate
 		// TODO(benjaminjb): Would we want to allow a dry-run option here?
-		// TODO(benjaminjb): Would we want to allow a force option here?
+		patchOptions := metav1.PatchOptions{}
+		if backup.ForceConflicts {
+			b := true
+			patchOptions.Force = &b
+		}
 		_, err = client.Namespace(configNamespace).Patch(ctx,
 			args[0], // the name of the cluster object, limited to one name through `ExactArgs(1)`
 			types.ApplyPatchType,
 			patch,
-			config.Patch.PatchOptions(metav1.PatchOptions{}),
+			config.Patch.PatchOptions(patchOptions),
 		)
 
 		if err != nil {
@@ -134,8 +143,9 @@ postgresclusters/hippo backup initiated`)
 }
 
 type pgBackRestBackup struct {
-	Options  []string
-	RepoName string
+	Options        []string
+	RepoName       string
+	ForceConflicts bool
 }
 
 func (config pgBackRestBackup) modifyIntent(

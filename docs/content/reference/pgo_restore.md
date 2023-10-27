@@ -37,11 +37,16 @@ WARNING: This action is destructive and PostgreSQL will be unavailable while its
 
 Do you want to continue? (yes/no): yes
 postgresclusters/hippo patched
+
+# Resolve ownership conflict
+pgo restore hippo --force-conflicts
+
 ```
 
 ### Options
 
 ```
+      --force-conflicts       take ownership and overwrite the restore settings
   -h, --help                  help for restore
       --options stringArray   options to pass to the "pgbackrest restore" command; can be used multiple times
       --repoName string       repository to restore from
