@@ -46,7 +46,7 @@ pgo restore hippo --force-conflicts
 ### Options
 
 ```
-      --force-conflicts       take ownership and overwrite the restore annotation
+      --force-conflicts       take ownership and overwrite the restore settings
   -h, --help                  help for restore
       --options stringArray   options to pass to the "pgbackrest restore" command; can be used multiple times
       --repoName string       repository to restore from
