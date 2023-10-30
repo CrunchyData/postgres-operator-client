@@ -234,6 +234,7 @@ kubectl pgo support export daisy --monitoring-namespace another-namespace --outp
 | Note: No data or k8s secrets are collected.
 └────────────────────────────────────────────────────────────────
 Collecting PGO CLI version...
+Collecting names and namespaces for PostgresClusters...
 Collecting current Kubernetes context...
 Collecting Kubernetes version...
 Collecting nodes...
@@ -315,6 +316,7 @@ Collecting PGO CLI logs...
 		if err != nil {
 			return err
 		}
+
 		get, err := postgresClient.Namespace(namespace).Get(ctx,
 			clusterName, metav1.GetOptions{})
 		if err != nil || get == nil {
@@ -354,6 +356,10 @@ Collecting PGO CLI logs...
 
 		// PGO CLI version
 		err = gatherPGOCLIVersion(ctx, clusterName, tw, cmd)
+
+		if err == nil {
+			err = gatherPostgresClusterNames(clusterName, ctx, cmd, tw, postgresClient)
+		}
 
 		// Current Kubernetes context
 		if err == nil {
@@ -481,6 +487,40 @@ func gatherPGOCLIVersion(_ context.Context,
 	if err := writeTar(tw, []byte(clientVersion), path, cmd); err != nil {
 		return err
 	}
+	return nil
+}
+
+func gatherPostgresClusterNames(clusterName string, ctx context.Context, cmd *cobra.Command, tw *tar.Writer, client dynamic.NamespaceableResourceInterface) error {
+	result, err := client.List(ctx, metav1.ListOptions{})
+
+	if err != nil {
+		return err
+	}
+
+	data := []byte{}
+	for _, item := range result.Items {
+		ns, found, err := unstructured.NestedString(item.Object, "metadata", "namespace")
+		if !found {
+			return fmt.Errorf("key not found: metadata.namespace")
+		}
+		if err != nil {
+			return err
+		}
+		name, found, err := unstructured.NestedString(item.Object, "metadata", "name")
+		if !found {
+			return fmt.Errorf("key not found: metadata.name")
+		}
+		if err != nil {
+			return err
+		}
+		data = append(data, []byte("Namespace: "+ns+"\t"+"Cluster: "+name+"\n")...)
+	}
+
+	path := clusterName + "/cluster-names"
+	if err := writeTar(tw, data, path, cmd); err != nil {
+		return err
+	}
+
 	return nil
 }
 
