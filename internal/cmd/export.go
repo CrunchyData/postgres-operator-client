@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -147,6 +148,17 @@ var otherNamespacedResources = []schema.GroupVersionResource{{
 	Resource: "limitranges",
 }}
 
+type PostgresClusterList struct {
+	Clusters []PostgresClusterItem `json:"items"`
+}
+type PostgresClusterItem struct {
+	Metadata PostgresClusterMetadata `json:"metadata"`
+}
+type PostgresClusterMetadata struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+}
+
 // newSupportCommand returns the support subcommand of the PGO plugin.
 func newSupportExportCommand(config *internal.Config) *cobra.Command {
 	cmd := &cobra.Command{
@@ -234,6 +246,7 @@ kubectl pgo support export daisy --monitoring-namespace another-namespace --outp
 | Note: No data or k8s secrets are collected.
 └────────────────────────────────────────────────────────────────
 Collecting PGO CLI version...
+Collecting names and namespaces for PostgresClusters...
 Collecting current Kubernetes context...
 Collecting Kubernetes version...
 Collecting nodes...
@@ -354,6 +367,10 @@ Collecting PGO CLI logs...
 
 		// PGO CLI version
 		err = gatherPGOCLIVersion(ctx, clusterName, tw, cmd)
+
+		if err == nil {
+			err = gatherPostgresClusterNames(clusterName, ctx, cmd, tw, clientset)
+		}
 
 		// Current Kubernetes context
 		if err == nil {
@@ -481,6 +498,38 @@ func gatherPGOCLIVersion(_ context.Context,
 	if err := writeTar(tw, []byte(clientVersion), path, cmd); err != nil {
 		return err
 	}
+	return nil
+}
+
+func gatherPostgresClusterNames(clusterName string, ctx context.Context, cmd *cobra.Command, tw *tar.Writer, clientset *kubernetes.Clientset) error {
+	restclient := clientset.CoreV1().RESTClient()
+	result := restclient.Get().AbsPath("apis/postgres-operator.crunchydata.com/v1beta1/").Resource("postgresclusters").Do(ctx)
+
+	if err := result.Error(); err != nil {
+		return err
+	}
+
+	raw, err := result.Raw()
+	if err != nil {
+		return err
+	}
+
+	var list PostgresClusterList
+	err = json.Unmarshal(raw, &list)
+	if err != nil {
+		return err
+	}
+
+	data := []byte{}
+	for _, item := range list.Clusters {
+		data = append(data, []byte("Namespace: "+item.Metadata.Namespace+"\t"+"Cluster: "+item.Metadata.Name+"\n")...)
+	}
+
+	path := clusterName + "/cluster-names"
+	if err := writeTar(tw, data, path, cmd); err != nil {
+		return err
+	}
+
 	return nil
 }
 

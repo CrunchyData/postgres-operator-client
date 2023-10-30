@@ -18,6 +18,14 @@ commands:
       exit 1
     }
 
+    # check that the cluster-names file exist and is not empty
+    if [[ ! -s ./kuttl-support-cluster/cluster-names ]]
+    then
+      echo "Expected cluster-names file to not be empty"
+      eval "$CLEANUP"
+      exit 1
+    fi
+
     # check that the context file exist and is not empty
     if [[ ! -s ./kuttl-support-cluster/current-context ]]
     then
@@ -25,7 +33,6 @@ commands:
       eval "$CLEANUP"
       exit 1
     fi
-
 
     # check for expected gzip compression level
     FILE_INFO=$(file ./crunchy_k8s_support_export_*.tar.gz)
