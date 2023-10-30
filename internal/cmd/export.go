@@ -1041,7 +1041,7 @@ func gatherPatroniInfo(ctx context.Context,
 	var buf bytes.Buffer
 
 	buf.Write([]byte("patronictl list\n"))
-	stdout, stderr, err := Executor(exec).patronictl("list", false)
+	stdout, stderr, err := Executor(exec).patronictl("list", "")
 	if err != nil {
 		if apierrors.IsForbidden(err) {
 			writeInfo(cmd, err.Error())
@@ -1056,7 +1056,7 @@ func gatherPatroniInfo(ctx context.Context,
 	}
 
 	buf.Write([]byte("patronictl history\n"))
-	stdout, stderr, err = Executor(exec).patronictl("history", false)
+	stdout, stderr, err = Executor(exec).patronictl("history", "")
 	if err != nil {
 		if apierrors.IsForbidden(err) {
 			writeInfo(cmd, err.Error())

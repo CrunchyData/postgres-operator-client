@@ -1,7 +1,7 @@
 apiVersion: postgres-operator.crunchydata.com/v1beta1
 kind: PostgresCluster
 metadata:
-  name: show-ha-cluster
+  name: show-cluster
 spec:
   postgresVersion: 15
   instances:

@@ -28,7 +28,7 @@ pgo show ha CLUSTER_NAME [flags]
 pgo show ha hippo
 
 # Show 'patronictl list' JSON output for the 'hippo' postgrescluster
-pgo show ha hippo --json
+pgo show ha hippo --output json
 
 ```
 ### Example output
@@ -44,8 +44,8 @@ pgo show ha hippo --json
 ### Options
 
 ```
-  -h, --help   help for ha
-      --json   json format
+  -h, --help                   help for ha
+  -o, --output patroniFormat   output format. types supported: pretty,tsv,json,yaml (default pretty)
 ```
 
 ### Options inherited from parent commands

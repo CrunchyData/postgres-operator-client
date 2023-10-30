@@ -53,9 +53,9 @@ stanza: db
 ### Options
 
 ```
-  -h, --help              help for backup
-  -o, --output string     output format. types supported: text,json (default "text")
-      --repoName string   Set the repository name for the command. example: repo1
+  -h, --help                      help for backup
+  -o, --output pgbackrestFormat   output format. types supported: text,json (default text)
+      --repoName string           Set the repository name for the command. example: repo1
 ```
 
 ### Options inherited from parent commands

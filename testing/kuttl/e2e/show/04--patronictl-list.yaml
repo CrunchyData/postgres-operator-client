@@ -5,18 +5,17 @@ commands:
     PRIMARY=$(
         kubectl get pod --namespace "${NAMESPACE}" \
           --output name --selector '
-            postgres-operator.crunchydata.com/cluster=show-backup-cluster,
+            postgres-operator.crunchydata.com/cluster=show-cluster,
             postgres-operator.crunchydata.com/role=master'
-      )
+    )
 
     EXEC_INFO=$(
         kubectl exec --namespace "${NAMESPACE}" "${PRIMARY}" -- \
-          pgbackrest info --output=json
+          patronictl list
     )
 
-    CLI_INFO=$(
-        kubectl-pgo --namespace "${NAMESPACE}" show backup show-backup-cluster \
-          --output=json
+    CLI_HA=$(
+        kubectl-pgo --namespace "${NAMESPACE}" show ha show-cluster
     )
 
     status=$?
@@ -26,7 +25,7 @@ commands:
     fi
 
     # check command output is not empty and equals 'exec' output
-    if [[ -n $CLI_INFO && "$EXEC_INFO" == "$CLI_INFO" ]]; then
+    if [[ -n $CLI_HA && "$EXEC_INFO" == "$CLI_HA" ]]; then
         exit 0
     fi
 
