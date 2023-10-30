@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -147,17 +146,6 @@ var otherNamespacedResources = []schema.GroupVersionResource{{
 	Version:  corev1.SchemeGroupVersion.Version,
 	Resource: "limitranges",
 }}
-
-type PostgresClusterList struct {
-	Clusters []PostgresClusterItem `json:"items"`
-}
-type PostgresClusterItem struct {
-	Metadata PostgresClusterMetadata `json:"metadata"`
-}
-type PostgresClusterMetadata struct {
-	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
-}
 
 // newSupportCommand returns the support subcommand of the PGO plugin.
 func newSupportExportCommand(config *internal.Config) *cobra.Command {
@@ -328,6 +316,7 @@ Collecting PGO CLI logs...
 		if err != nil {
 			return err
 		}
+
 		get, err := postgresClient.Namespace(namespace).Get(ctx,
 			clusterName, metav1.GetOptions{})
 		if err != nil || get == nil {
@@ -369,7 +358,7 @@ Collecting PGO CLI logs...
 		err = gatherPGOCLIVersion(ctx, clusterName, tw, cmd)
 
 		if err == nil {
-			err = gatherPostgresClusterNames(clusterName, ctx, cmd, tw, clientset)
+			err = gatherPostgresClusterNames(clusterName, ctx, cmd, tw, postgresClient)
 		}
 
 		// Current Kubernetes context
@@ -501,28 +490,30 @@ func gatherPGOCLIVersion(_ context.Context,
 	return nil
 }
 
-func gatherPostgresClusterNames(clusterName string, ctx context.Context, cmd *cobra.Command, tw *tar.Writer, clientset *kubernetes.Clientset) error {
-	restclient := clientset.CoreV1().RESTClient()
-	result := restclient.Get().AbsPath("apis/postgres-operator.crunchydata.com/v1beta1/").Resource("postgresclusters").Do(ctx)
+func gatherPostgresClusterNames(clusterName string, ctx context.Context, cmd *cobra.Command, tw *tar.Writer, client dynamic.NamespaceableResourceInterface) error {
+	result, err := client.List(ctx, metav1.ListOptions{})
 
-	if err := result.Error(); err != nil {
-		return err
-	}
-
-	raw, err := result.Raw()
-	if err != nil {
-		return err
-	}
-
-	var list PostgresClusterList
-	err = json.Unmarshal(raw, &list)
 	if err != nil {
 		return err
 	}
 
 	data := []byte{}
-	for _, item := range list.Clusters {
-		data = append(data, []byte("Namespace: "+item.Metadata.Namespace+"\t"+"Cluster: "+item.Metadata.Name+"\n")...)
+	for _, item := range result.Items {
+		ns, found, err := unstructured.NestedString(item.Object, "metadata", "namespace")
+		if !found {
+			return fmt.Errorf("key not found: metadata.namespace")
+		}
+		if err != nil {
+			return err
+		}
+		name, found, err := unstructured.NestedString(item.Object, "metadata", "name")
+		if !found {
+			return fmt.Errorf("key not found: metadata.name")
+		}
+		if err != nil {
+			return err
+		}
+		data = append(data, []byte("Namespace: "+ns+"\t"+"Cluster: "+name+"\n")...)
 	}
 
 	path := clusterName + "/cluster-names"
