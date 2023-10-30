@@ -15,18 +15,21 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
-	"log"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/dynamic/fake"
+	k8stesting "k8s.io/client-go/testing"
 
 	"github.com/crunchydata/postgres-operator-client/internal"
 	"github.com/crunchydata/postgres-operator-client/internal/apis/postgres-operator.crunchydata.com/v1beta1"
@@ -71,8 +74,68 @@ spec:
 
 }
 
-func TestCreate(t *testing.T) {
-	streams, inStream, outStream, errStream := genericiooptions.NewTestIOStreams()
+func TestCreateArgsErrors(t *testing.T) {
+	streams, _, _, _ := genericiooptions.NewTestIOStreams()
+	config := &internal.Config{
+		ConfigFlags: genericclioptions.NewConfigFlags(true),
+		IOStreams:   streams,
+		Patch:       internal.PatchConfig{FieldManager: filepath.Base(os.Args[0])},
+	}
+
+	cmd := newCreateClusterCommand(config)
+	buf := new(bytes.Buffer)
+	cmd.SetOutput(buf)
+
+	for _, test := range []struct {
+		name     string
+		args     []string
+		errorMsg string
+	}{
+		{
+			name:     "missing arg",
+			args:     []string{},
+			errorMsg: "accepts 1 arg(s), received 0",
+		},
+		{
+			name:     "too many args",
+			args:     []string{"hippo", "rhino"},
+			errorMsg: "accepts 1 arg(s), received 2",
+		},
+		{
+			name:     "missing version flag arg",
+			args:     []string{"hippo"},
+			errorMsg: "\"pg-major-version\" not set",
+		},
+		{
+			name:     "flag present but unset",
+			args:     []string{"hippo", "--pg-major-version="},
+			errorMsg: "invalid argument \"\" for \"--pg-major-version\" flag: strconv.ParseInt: parsing \"\": invalid syntax",
+		},
+		{
+			name:     "wrong type for version",
+			args:     []string{"hippo", fmt.Sprintf("--pg-major-version=%f", 15.3)},
+			errorMsg: "invalid argument \"15.300000\" for \"--pg-major-version\" flag: strconv.ParseInt: parsing \"15.300000\": invalid syntax",
+		},
+		{
+			name:     "wrong type for version",
+			args:     []string{"hippo", fmt.Sprintf("--pg-major-version=%s", "x")},
+			errorMsg: "invalid argument \"x\" for \"--pg-major-version\" flag: strconv.ParseInt: parsing \"x\": invalid syntax",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			cmd.SetArgs(test.args)
+			cmd.Execute()
+			assert.Assert(t, strings.Contains(buf.String(), test.errorMsg),
+				fmt.Sprintf("Expected '%s', got '%s'\n", test.errorMsg, buf.String()))
+			// Clear out buffer
+			buf.Reset()
+		})
+	}
+}
+
+func TestCreatePassesThroughError(t *testing.T) {
+
+	streams, _, _, _ := genericiooptions.NewTestIOStreams()
 	cf := genericclioptions.NewConfigFlags(true)
 	nsd := "test"
 	cf.Namespace = &nsd
@@ -81,40 +144,96 @@ func TestCreate(t *testing.T) {
 		IOStreams:   streams,
 		Patch:       internal.PatchConfig{FieldManager: filepath.Base(os.Args[0])},
 	}
+
 	scheme := runtime.NewScheme()
 	client := fake.NewSimpleDynamicClient(scheme)
+	// Have the client return an error on creates
+	client.PrependReactor("create",
+		"postgresclusters",
+		func(action k8stesting.Action) (bool, runtime.Object, error) {
+			return true, nil, fmt.Errorf("whoops")
+		})
 
+	// Set up dynamicResourceClient with `fake` client
 	gvk := v1beta1.GroupVersion.WithKind("PostgresCluster")
-
-	mapper, err := config.ToRESTMapper()
-	assert.NilError(t, err)
-
-	mapping, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
-	assert.NilError(t, err)
-	drc := client.Resource(mapping.Resource)
-	// log.Printf("MAPPING IN TEST %#v \n", mapping)
-	// client.Resource(schema.GroupVersionResource{Group: "group", Version: "version", Resource: "thekinds"})
+	drc := client.Resource(schema.GroupVersionResource{Group: gvk.Group, Version: gvk.Version, Resource: "postgresclusters"})
 
 	postgresCluster := createPostgresCluster{
 		Config:         config,
 		Client:         drc,
-		PgMajorVersion: "14",
+		PgMajorVersion: 14,
 		ClusterName:    "hippo",
 	}
 
-	err = postgresCluster.Run(context.TODO())
-	assert.NilError(t, err)
-
-	// list, err := drc.List(context.TODO(), metav1.ListOptions{})
-	// assert.NilError(t, err)
-	// log.Printf("list %s", list)
-
-	get, err := drc.Namespace("test").Get(context.TODO(), "hippo", metav1.GetOptions{})
-	assert.NilError(t, err)
-	log.Printf("get %s", get)
-
-	log.Printf("in %s", inStream)
-	log.Printf("out %s", outStream)
-	log.Printf("err %s", errStream)
-	assert.Assert(t, false)
+	err := postgresCluster.Run(context.TODO())
+	assert.Error(t, err, "whoops", "Error from PGO API should be passed through")
 }
+
+// func TestCreate(t *testing.T) {
+
+// 	streams, inStream, outStream, errStream := genericiooptions.NewTestIOStreams()
+// 	cf := genericclioptions.NewConfigFlags(true)
+// 	nsd := "default"
+// 	cf.Namespace = &nsd
+// 	config := &internal.Config{
+// 		ConfigFlags: cf,
+// 		IOStreams:   streams,
+// 		Patch:       internal.PatchConfig{FieldManager: filepath.Base(os.Args[0])},
+// 	}
+
+// 	cmd := newCreateClusterCommand(config)
+// 	buf := new(bytes.Buffer)
+// 	cmd.SetOutput(buf)
+// 	cmd.SetArgs([]string{
+// 		"hippo2",
+// 		fmt.Sprintf("--pg-major-version=%f", 15.1),
+// 	})
+// 	cmd.Execute()
+// 	log.Printf("in %s", inStream)
+// 	log.Printf("out %s", outStream)
+// 	log.Printf("err %s", errStream)
+// 	t.Logf("hey %s", buf)
+
+// 	scheme := runtime.NewScheme()
+// 	client := fake.NewSimpleDynamicClient(scheme)
+
+// 	client.PrependReactor("create", "postgresclusters", func(action k8stesting.Action) (bool, runtime.Object, error) {
+// 		t.Logf("This works :)")
+// 		return true, nil, nil
+// 		// fmt.Errorf("whoops")
+// 	})
+
+// 	gvk := v1beta1.GroupVersion.WithKind("PostgresCluster")
+
+// 	mapper, err := config.ToRESTMapper()
+// 	assert.NilError(t, err)
+
+// 	mapping, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+// 	assert.NilError(t, err)
+// 	drc := client.Resource(mapping.Resource)
+// 	// log.Printf("MAPPING IN TEST %#v \n", mapping)
+// 	// client.Resource(schema.GroupVersionResource{Group: "group", Version: "version", Resource: "thekinds"})
+
+// 	postgresCluster := createPostgresCluster{
+// 		Config:         config,
+// 		Client:         drc,
+// 		PgMajorVersion: 14,
+// 		ClusterName:    "hippo",
+// 	}
+
+// 	err = postgresCluster.Run(context.TODO())
+// 	assert.NilError(t, err)
+
+// 	// list, err := drc.List(context.TODO(), metav1.ListOptions{})
+// 	// assert.NilError(t, err)
+// 	// log.Printf("list %s", list)
+
+// 	get, err := drc.Namespace("test").Get(context.TODO(), "hippo", metav1.GetOptions{})
+// 	assert.NilError(t, err)
+// 	log.Printf("get %s", get)
+
+// 	log.Printf("in %s", inStream)
+// 	log.Printf("out %s", outStream)
+// 	log.Printf("err %s", errStream)
+// 	assert.Assert(t, false)
+// }

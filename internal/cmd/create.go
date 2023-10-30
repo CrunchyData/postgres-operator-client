@@ -47,7 +47,7 @@ type createPostgresCluster struct {
 	*internal.Config
 
 	Client         dynamic.NamespaceableResourceInterface
-	PgMajorVersion string
+	PgMajorVersion int
 	ClusterName    string
 }
 
@@ -57,6 +57,7 @@ type createPostgresCluster struct {
 func newCreateClusterCommand(config *internal.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "postgrescluster CLUSTER_NAME",
+		Args:    cobra.ExactArgs(1),
 		Aliases: []string{"postgresclusters"},
 		Short:   "Create PostgresCluster with a given name",
 		Long: `Create basic PostgresCluster with a given name.
@@ -68,8 +69,6 @@ func newCreateClusterCommand(config *internal.Config) *cobra.Command {
 
 ### Usage`,
 	}
-
-	cmd.Args = cobra.ExactArgs(1)
 
 	var pgMajorVersion int
 	cmd.Flags().IntVar(&pgMajorVersion, "pg-major-version", 0, "Set the Postgres major version")
@@ -84,6 +83,7 @@ postgresclusters/hippo created`)
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 
+		clusterName := args[0]
 		mapping, client, err := v1beta1.NewPostgresClusterClient(config)
 		if err != nil {
 			return err
@@ -92,13 +92,13 @@ postgresclusters/hippo created`)
 		postgresCluster := createPostgresCluster{
 			Config:         config,
 			Client:         client,
-			PgMajorVersion: strconv.Itoa(pgMajorVersion),
-			ClusterName:    args[0],
+			PgMajorVersion: pgMajorVersion,
+			ClusterName:    clusterName,
 		}
 
 		err = postgresCluster.Run(ctx)
 		if err == nil {
-			cmd.Printf("%s/%s created\n", mapping.Resource.Resource, args[0])
+			cmd.Printf("%s/%s created\n", mapping.Resource.Resource, clusterName)
 		}
 
 		return err
@@ -108,19 +108,20 @@ postgresclusters/hippo created`)
 }
 
 func (config createPostgresCluster) Run(ctx context.Context) error {
+	var (
+		cluster *unstructured.Unstructured
+	)
+
 	namespace, err := config.Namespace()
-	if err != nil {
-		return err
+	if err == nil {
+		cluster, err = generateUnstructuredClusterYaml(config.ClusterName, strconv.Itoa(config.PgMajorVersion))
 	}
 
-	cluster, err := generateUnstructuredClusterYaml(config.ClusterName, config.PgMajorVersion)
-	if err != nil {
-		return err
+	if err == nil {
+		_, err = config.Client.
+			Namespace(namespace).
+			Create(ctx, cluster, config.Patch.CreateOptions(metav1.CreateOptions{}))
 	}
-
-	_, err = config.Client.
-		Namespace(namespace).
-		Create(ctx, cluster, config.Patch.CreateOptions(metav1.CreateOptions{}))
 
 	return err
 }
