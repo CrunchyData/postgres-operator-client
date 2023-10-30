@@ -40,6 +40,7 @@ func newShowCommand(config *internal.Config) *cobra.Command {
 
 	cmdShow.AddCommand(
 		newShowBackupCommand(config),
+		newShowHACommand(config),
 	)
 
 	// No arguments for 'show', but there are arguments for the subcommands, e.g.
@@ -114,51 +115,11 @@ stanza: db
 		// handle validation.
 		repoNum := strings.TrimPrefix(repoName, "repo")
 
-		// configure client
-		ctx := context.Background()
-		rest, err := config.ToRESTConfig()
-		if err != nil {
-			return err
-		}
-		client, err := corev1.NewForConfig(rest)
+		exec, err := getPrimaryExec(config, args)
 		if err != nil {
 			return err
 		}
 
-		// Get the namespace. This will either be from the Kubernetes configuration
-		// or from the --namespace (-n) flag.
-		configNamespace, err := config.Namespace()
-		if err != nil {
-			return err
-		}
-
-		// Get the primary instance Pod by its labels. For a Postgres cluster
-		// named 'hippo', we'll use the following:
-		//    postgres-operator.crunchydata.com/cluster=hippo
-		//    postgres-operator.crunchydata.com/data=postgres
-		//    postgres-operator.crunchydata.com/role=master
-		pods, err := client.Pods(configNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: util.PrimaryInstanceLabels(args[0]),
-		})
-		if err != nil {
-			return err
-		}
-
-		if len(pods.Items) != 1 {
-			return fmt.Errorf("primary instance Pod not found")
-		}
-
-		PodExec, err := util.NewPodExecutor(rest)
-		if err != nil {
-			return err
-		}
-
-		// Create an executor and attempt to get the pgBackRest info output.
-		exec := func(stdin io.Reader, stdout, stderr io.Writer,
-			command ...string) error {
-			return PodExec(pods.Items[0].GetNamespace(), pods.Items[0].GetName(),
-				util.ContainerDatabase, stdin, stdout, stderr, command...)
-		}
 		stdout, stderr, err := Executor(exec).pgBackRestInfo(output, repoNum)
 		if err != nil {
 			return err
@@ -174,4 +135,122 @@ stanza: db
 	}
 
 	return cmdShowBackup
+}
+
+// newShowHACommand returns the output of the 'patronictl list' command.
+// - https://patroni.readthedocs.io/en/latest/patronictl.html#patronictl-list
+func newShowHACommand(config *internal.Config) *cobra.Command {
+
+	cmdShowHA := &cobra.Command{
+		Use:   "ha CLUSTER_NAME",
+		Short: "Show 'patronictl list' for a PostgresCluster.",
+		Long: `Show 'patronictl list' for a PostgresCluster.
+
+#### RBAC Requirements
+    Resources  Verbs
+    ---------  -----
+    pods       [list]
+    pods/exec  [create]
+
+### Usage`}
+
+	cmdShowHA.Example = internal.FormatExample(`# Show 'patronictl list' for the 'hippo' postgrescluster
+pgo show ha hippo
+
+# Show 'patronictl list' JSON output for the 'hippo' postgrescluster
+pgo show ha hippo --json
+
+### Example output
++ Cluster: hippo-ha (7295822780081832000) -----+--------+---------+----+-----------+
+| Member          | Host                       | Role   | State   | TL | Lag in MB |
++-----------------+----------------------------+--------+---------+----+-----------+
+| hippo-00-cwqq-0 | hippo-00-cwqq-0.hippo-pods | Leader | running |  1 |           |
++-----------------+----------------------------+--------+---------+----+-----------+
+	`)
+
+	var json bool
+	cmdShowHA.Flags().BoolVar(&json, "json", false, "json format")
+
+	// Limit the number of args, that is, only one cluster name
+	cmdShowHA.Args = cobra.ExactArgs(1)
+
+	// Define the 'show backup' command
+	cmdShowHA.RunE = func(cmd *cobra.Command, args []string) error {
+
+		exec, err := getPrimaryExec(config, args)
+		if err != nil {
+			return err
+		}
+
+		stdout, stderr, err := Executor(exec).patronictl("list", json)
+		if err != nil {
+			return err
+		}
+
+		// Print the output received.
+		cmd.Printf(stdout)
+		if stderr != "" {
+			cmd.Printf("\nError returned: %s\n", stderr)
+		}
+
+		return nil
+	}
+
+	return cmdShowHA
+}
+
+// getPrimaryExec returns a executor function for the primary Pod to allow for
+// commands to be run against it.
+func getPrimaryExec(config *internal.Config, args []string) (
+	func(stdin io.Reader, stdout io.Writer, stderr io.Writer, command ...string) error,
+	error,
+) {
+
+	// configure client
+	ctx := context.Background()
+	rest, err := config.ToRESTConfig()
+	if err != nil {
+		return nil, err
+	}
+	client, err := corev1.NewForConfig(rest)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the namespace. This will either be from the Kubernetes configuration
+	// or from the --namespace (-n) flag.
+	configNamespace, err := config.Namespace()
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the primary instance Pod by its labels. For a Postgres cluster
+	// named 'hippo', we'll use the following:
+	//    postgres-operator.crunchydata.com/cluster=hippo
+	//    postgres-operator.crunchydata.com/data=postgres
+	//    postgres-operator.crunchydata.com/role=master
+	pods, err := client.Pods(configNamespace).List(ctx, metav1.ListOptions{
+		LabelSelector: util.PrimaryInstanceLabels(args[0]),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(pods.Items) != 1 {
+		return nil, fmt.Errorf("primary instance Pod not found")
+	}
+
+	PodExec, err := util.NewPodExecutor(rest)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create an executor and attempt to get the pgBackRest info output.
+	exec := func(stdin io.Reader, stdout, stderr io.Writer,
+		command ...string) error {
+		return PodExec(pods.Items[0].GetNamespace(), pods.Items[0].GetName(),
+			util.ContainerDatabase, stdin, stdout, stderr, command...)
+	}
+
+	return exec, err
 }
