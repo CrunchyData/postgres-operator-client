@@ -61,10 +61,13 @@ func (exec Executor) catFile(filePath string) (string, string, error) {
 }
 
 // patronictl takes a patronictl subcommand and returns the output of that command
-func (exec Executor) patronictl(cmd string) (string, string, error) {
+func (exec Executor) patronictl(cmd string, json bool) (string, string, error) {
 	var stdout, stderr bytes.Buffer
 
 	command := "patronictl " + cmd
+	if json {
+		command += " -f json"
+	}
 	err := exec(nil, &stdout, &stderr, "bash", "-ceu", "--", command)
 
 	return stdout.String(), stderr.String(), err

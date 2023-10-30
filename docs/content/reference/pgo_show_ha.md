@@ -1,18 +1,51 @@
 ---
-title: pgo show
+title: pgo show ha
 ---
-## pgo show
+## pgo show ha
 
-Show PostgresCluster details
+Show 'patronictl list' for a PostgresCluster.
 
 ### Synopsis
 
-Show allows you to display particular details related to the PostgresCluster
+Show 'patronictl list' for a PostgresCluster.
+
+#### RBAC Requirements
+    Resources  Verbs
+    ---------  -----
+    pods       [list]
+    pods/exec  [create]
+
+### Usage
+
+```
+pgo show ha CLUSTER_NAME [flags]
+```
+
+### Examples
+
+```
+# Show 'patronictl list' for the 'hippo' postgrescluster
+pgo show ha hippo
+
+# Show 'patronictl list' JSON output for the 'hippo' postgrescluster
+pgo show ha hippo --json
+
+```
+### Example output
+```
++ Cluster: hippo-ha (7295822780081832000) -----+--------+---------+----+-----------+
+| Member          | Host                       | Role   | State   | TL | Lag in MB |
++-----------------+----------------------------+--------+---------+----+-----------+
+| hippo-00-cwqq-0 | hippo-00-cwqq-0.hippo-pods | Leader | running |  1 |           |
++-----------------+----------------------------+--------+---------+----+-----------+
+    
+```
 
 ### Options
 
 ```
-  -h, --help   help for show
+  -h, --help   help for ha
+      --json   json format
 ```
 
 ### Options inherited from parent commands
@@ -39,7 +72,5 @@ Show allows you to display particular details related to the PostgresCluster
 
 ### SEE ALSO
 
-* [pgo](/reference/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
-* [pgo show backup](/reference/pgo_show_backup/)	 - Show backup information for a PostgresCluster
-* [pgo show ha](/reference/pgo_show_ha/)	 - Show 'patronictl list' for a PostgresCluster.
+* [pgo show](/reference/pgo_show/)	 - Show PostgresCluster details
 
