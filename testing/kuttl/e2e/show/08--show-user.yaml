@@ -1,0 +1,43 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    PRIMARY=$(
+        kubectl get pod --namespace "${NAMESPACE}" \
+          --output name --selector '
+            postgres-operator.crunchydata.com/cluster=show-cluster,
+            postgres-operator.crunchydata.com/role=master'
+    )
+
+    CLI_USER=$(
+        kubectl-pgo --namespace "${NAMESPACE}" show user show-cluster
+    )
+
+    status=$?
+    if [ $status -ne 0 ]; then
+        echo "pgo command unsuccessful"
+        exit 1
+    fi
+
+    # expected output
+    SHOW_USER_OUTPUT="SECRET: show-cluster-pguser-show-cluster
+      DBNAME: show-cluster
+      HOST: show-cluster-primary.${NAMESPACE}.svc
+      PORT: 5432
+      USER: show-cluster"
+
+    # check command output is not empty and equals the expected output
+    if [[ -z $CLI_USER && "$CLI_USER" != "$SHOW_USER_OUTPUT" ]]; then
+        exit 1
+    fi
+
+    CLI_USER_SENSITIVE=$(
+        echo yes | kubectl-pgo --namespace "${NAMESPACE}" show user show-cluster --show-sensitive-fields
+    )
+
+    # check command output is not empty and contains the password field
+    if [[ -n $CLI_USER_SENSITIVE && "$CLI_USER_SENSITIVE" == *"PASSWORD:"* ]]; then
+        exit 0
+    fi
+
+    exit 1
