@@ -1,0 +1,47 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    PRIMARY=$(
+        kubectl get pod --namespace "${NAMESPACE}" \
+          --output name --selector '
+            postgres-operator.crunchydata.com/cluster=show-cluster,
+            postgres-operator.crunchydata.com/role=master'
+    )
+
+    PGBACKREST_INFO_EXEC=$(
+        kubectl exec --namespace "${NAMESPACE}" "${PRIMARY}" -- \
+          pgbackrest info
+    )
+
+    PATRONI_LIST_EXEC=$(
+        kubectl exec --namespace "${NAMESPACE}" "${PRIMARY}" -- \
+          patronictl list
+    )
+
+    EXPECTED_SHOW_COMMAND="BACKUP
+    
+    $PGBACKREST_INFO_EXEC
+    
+    HA
+    
+    $PATRONI_LIST_EXEC"
+
+    echo $EXPECTED_SHOW_COMMAND
+
+    CLI_SHOW=$(
+        kubectl-pgo --namespace "${NAMESPACE}" show show-cluster
+    )
+
+    status=$?
+    if [ $status -ne 0 ]; then
+        echo "pgo command unsuccessful"
+        exit 1
+    fi
+
+    # check command output is not empty and equals expected output
+    if [[ -n $CLI_SHOW && "$EXPECTED_SHOW_COMMAND" == "$CLI_SHOW" ]]; then
+        exit 0
+    fi
+
+    exit 1

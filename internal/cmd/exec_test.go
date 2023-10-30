@@ -120,7 +120,7 @@ func TestPatronictl(t *testing.T) {
 			assert.Assert(t, stderr != nil, "should capture stderr")
 			return expected
 		}
-		_, _, err := Executor(exec).patronictl("sub-command", false)
+		_, _, err := Executor(exec).patronictl("sub-command", "")
 		assert.ErrorContains(t, err, "pass-through")
 
 	})

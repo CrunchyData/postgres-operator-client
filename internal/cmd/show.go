@@ -35,17 +35,66 @@ func newShowCommand(config *internal.Config) *cobra.Command {
 	cmdShow := &cobra.Command{
 		Use:   "show",
 		Short: "Show PostgresCluster details",
-		Long:  "Show allows you to display particular details related to the PostgresCluster",
+		Long: `Show allows you to display particular details related to the PostgresCluster.
+
+### RBAC Requirements
+    Resources  Verbs
+    ---------  -----
+    pods       [list]
+    pods/exec  [create]
+
+### Usage`,
 	}
+
+	cmdShow.Example = internal.FormatExample(`# Show the backup and HA output of the 'hippo' postgrescluster
+pgo show hippo
+
+### Example output
+BACKUP
+
+stanza: db
+    status: ok
+    cipher: none
+
+    db (current)
+        wal archive min/max (14): 000000010000000000000001/000000010000000000000003
+
+        full backup: 20231030-183841F
+            timestamp start/stop: 2023-10-30 18:38:41+00 / 2023-10-30 18:38:46+00
+            wal start/stop: 000000010000000000000002 / 000000010000000000000002
+            database size: 25.3MB, database backup size: 25.3MB
+            repo1: backup set size: 3.2MB, backup size: 3.2MB
+
+HA
+
++ Cluster: hippo-ha (7295822780081832000) -----+--------+---------+----+-----------+
+| Member          | Host                       | Role   | State   | TL | Lag in MB |
++-----------------+----------------------------+--------+---------+----+-----------+
+| hippo-00-cwqq-0 | hippo-00-cwqq-0.hippo-pods | Leader | running |  1 |           |
++-----------------+----------------------------+--------+---------+----+-----------+
+`)
 
 	cmdShow.AddCommand(
 		newShowBackupCommand(config),
 		newShowHACommand(config),
 	)
 
-	// No arguments for 'show', but there are arguments for the subcommands, e.g.
-	// 'show backup'
-	cmdShow.Args = cobra.NoArgs
+	// Limit the number of args, that is, only one cluster name
+	cmdShow.Args = cobra.ExactArgs(1)
+
+	// Define the 'show backup' command
+	cmdShow.RunE = func(cmd *cobra.Command, args []string) error {
+
+		// Print the pgbackrest info output received.
+		cmd.Printf("BACKUP\n\n")
+		if err := newShowBackupCommand(config).RunE(cmd, args); err != nil {
+			return err
+		}
+
+		// Print the patronictl list output received.
+		cmd.Printf("\nHA\n\n")
+		return newShowHACommand(config).RunE(cmd, args)
+	}
 
 	return cmdShow
 }
@@ -158,7 +207,7 @@ func newShowHACommand(config *internal.Config) *cobra.Command {
 pgo show ha hippo
 
 # Show 'patronictl list' JSON output for the 'hippo' postgrescluster
-pgo show ha hippo --json
+pgo show ha hippo --output json
 
 ### Example output
 + Cluster: hippo-ha (7295822780081832000) -----+--------+---------+----+-----------+
@@ -168,8 +217,9 @@ pgo show ha hippo --json
 +-----------------+----------------------------+--------+---------+----+-----------+
 	`)
 
-	var json bool
-	cmdShowHA.Flags().BoolVar(&json, "json", false, "json format")
+	var outputEnum = util.PrettyPatroni
+	cmdShowHA.Flags().VarP(&outputEnum, "output", "o",
+		"output format. types supported: pretty,tsv,json,yaml")
 
 	// Limit the number of args, that is, only one cluster name
 	cmdShowHA.Args = cobra.ExactArgs(1)
@@ -182,7 +232,7 @@ pgo show ha hippo --json
 			return err
 		}
 
-		stdout, stderr, err := Executor(exec).patronictl("list", json)
+		stdout, stderr, err := Executor(exec).patronictl("list", outputEnum.String())
 		if err != nil {
 			return err
 		}

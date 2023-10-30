@@ -7,7 +7,53 @@ Show PostgresCluster details
 
 ### Synopsis
 
-Show allows you to display particular details related to the PostgresCluster
+Show allows you to display particular details related to the PostgresCluster.
+
+### RBAC Requirements
+    Resources  Verbs
+    ---------  -----
+    pods       [list]
+    pods/exec  [create]
+
+### Usage
+
+```
+pgo show [flags]
+```
+
+### Examples
+
+```
+# Show the backup and HA output of the 'hippo' postgrescluster
+pgo show hippo
+
+```
+### Example output
+```
+BACKUP
+
+stanza: db
+    status: ok
+    cipher: none
+
+    db (current)
+        wal archive min/max (14): 000000010000000000000001/000000010000000000000003
+
+        full backup: 20231030-183841F
+            timestamp start/stop: 2023-10-30 18:38:41+00 / 2023-10-30 18:38:46+00
+            wal start/stop: 000000010000000000000002 / 000000010000000000000002
+            database size: 25.3MB, database backup size: 25.3MB
+            repo1: backup set size: 3.2MB, backup size: 3.2MB
+
+HA
+
++ Cluster: hippo-ha (7295822780081832000) -----+--------+---------+----+-----------+
+| Member          | Host                       | Role   | State   | TL | Lag in MB |
++-----------------+----------------------------+--------+---------+----+-----------+
+| hippo-00-cwqq-0 | hippo-00-cwqq-0.hippo-pods | Leader | running |  1 |           |
++-----------------+----------------------------+--------+---------+----+-----------+
+
+```
 
 ### Options
 

@@ -5,17 +5,18 @@ commands:
     PRIMARY=$(
         kubectl get pod --namespace "${NAMESPACE}" \
           --output name --selector '
-            postgres-operator.crunchydata.com/cluster=show-ha-cluster,
+            postgres-operator.crunchydata.com/cluster=show-cluster,
             postgres-operator.crunchydata.com/role=master'
-    )
+      )
 
     EXEC_INFO=$(
         kubectl exec --namespace "${NAMESPACE}" "${PRIMARY}" -- \
-          patronictl list
+          pgbackrest info --output=json
     )
 
     CLI_INFO=$(
-        kubectl-pgo --namespace "${NAMESPACE}" show ha show-ha-cluster
+        kubectl-pgo --namespace "${NAMESPACE}" show backup show-cluster \
+          --output=json
     )
 
     status=$?
