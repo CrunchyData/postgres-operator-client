@@ -12,28 +12,28 @@ commands:
     MONITORING_DIR="./monitoring/logs/"
 
     # check for exporter, prometheus, grafana and alertmanager logs
-    found=$(find ${CLUSTER_DIR} -name "exporter" | wc -l)
+    found=$(find ${CLUSTER_DIR} -name "*exporter.log" | wc -l)
     if [ "${found}" -eq 0 ]; then
       echo "exporter not found"
       eval "$CLEANUP"
       exit 1
     fi
 
-    found=$(find ${MONITORING_DIR} -name "prometheus" | wc -l)
+    found=$(find ${MONITORING_DIR} -name "*prometheus.log" | wc -l)
     if [ "${found}" -eq 0 ]; then
       echo "prometheus not found"
       eval "$CLEANUP"
       exit 1
     fi
 
-    found=$(find ${MONITORING_DIR} -name "grafana" | wc -l)
+    found=$(find ${MONITORING_DIR} -name "*grafana.log" | wc -l)
     if [ "${found}" -eq 0 ]; then
       echo "grafana not found"
       eval "$CLEANUP"
       exit 1
     fi
 
-    found=$(find ${MONITORING_DIR} -name "alertmanager" | wc -l)
+    found=$(find ${MONITORING_DIR} -name "*alertmanager.log" | wc -l)
     if [ "${found}" -eq 0 ]; then
       echo "alertmanager not found"
       eval "$CLEANUP"
