@@ -1,64 +1,51 @@
 ---
-title: pgo show
+title: pgo show user
 ---
-## pgo show
+## pgo show user
 
-Show PostgresCluster details
+Show pguser Secret details for a PostgresCluster.
 
 ### Synopsis
 
-Show allows you to display particular details related to the PostgresCluster.
+Show pguser Secret details for a PostgresCluster.
 
-### RBAC Requirements
+#### RBAC Requirements
     Resources  Verbs
     ---------  -----
-    pods       [list]
-    pods/exec  [create]
+    secrets       [list]
 
 ### Usage
 
 ```
-pgo show [flags]
+pgo show user CLUSTER_NAME [flags]
 ```
 
 ### Examples
 
 ```
-# Show the backup and HA output of the 'hippo' postgrescluster
-pgo show hippo
+# Show non-sensitive contents of 'pguser' Secret
+pgo show user hippo
+
+# Show contents of 'pguser' Secret, including sensitive fields
+pgo show user hippo --show-sensitive-fields
 
 ```
 ### Example output
 ```
-BACKUP
-
-stanza: db
-    status: ok
-    cipher: none
-
-    db (current)
-        wal archive min/max (14): 000000010000000000000001/000000010000000000000003
-
-        full backup: 20231030-183841F
-            timestamp start/stop: 2023-10-30 18:38:41+00 / 2023-10-30 18:38:46+00
-            wal start/stop: 000000010000000000000002 / 000000010000000000000002
-            database size: 25.3MB, database backup size: 25.3MB
-            repo1: backup set size: 3.2MB, backup size: 3.2MB
-
-HA
-
-+ Cluster: hippo-ha (7295822780081832000) -----+--------+---------+----+-----------+
-| Member          | Host                       | Role   | State   | TL | Lag in MB |
-+-----------------+----------------------------+--------+---------+----+-----------+
-| hippo-00-cwqq-0 | hippo-00-cwqq-0.hippo-pods | Leader | running |  1 |           |
-+-----------------+----------------------------+--------+---------+----+-----------+
-
+pgo show user hippo
+SECRET: hippo-pguser-hippo
+  DBNAME: hippo
+  HOST: hippo-primary.postgres-operator.svc
+  PORT: 5432
+  USER: hippo
+    
 ```
 
 ### Options
 
 ```
-  -h, --help   help for show
+  -h, --help                    help for user
+  -f, --show-sensitive-fields   show sensitive user fields
 ```
 
 ### Options inherited from parent commands
@@ -85,8 +72,5 @@ HA
 
 ### SEE ALSO
 
-* [pgo](/reference/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
-* [pgo show backup](/reference/pgo_show_backup/)	 - Show backup information for a PostgresCluster
-* [pgo show ha](/reference/pgo_show_ha/)	 - Show 'patronictl list' for a PostgresCluster.
-* [pgo show user](/reference/pgo_show_user/)	 - Show pguser Secret details for a PostgresCluster.
+* [pgo show](/reference/pgo_show/)	 - Show PostgresCluster details
 

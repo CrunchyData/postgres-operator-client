@@ -46,6 +46,9 @@ const (
 	// RolePatroniLeader is the LabelRole that Patroni sets on the Pod that is
 	// currently the leader.
 	RolePatroniLeader = "master"
+
+	// RolePostgresUser is the LabelRole applied to PostgreSQL user secrets.
+	RolePostgresUser = "pguser"
 )
 
 const (
@@ -61,4 +64,10 @@ func PrimaryInstanceLabels(clusterName string) string {
 	return LabelCluster + "=" + clusterName + "," +
 		LabelData + "=" + DataPostgres + "," +
 		LabelRole + "=" + RolePatroniLeader
+}
+
+// PostgresUserSecretLabels provides labels for the Postgres user Secret
+func PostgresUserSecretLabels(clusterName string) string {
+	return LabelCluster + "=" + clusterName + "," +
+		LabelRole + "=" + RolePostgresUser
 }
