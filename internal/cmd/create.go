@@ -23,6 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/client-go/dynamic"
 
 	"github.com/crunchydata/postgres-operator-client/internal"
 	"github.com/crunchydata/postgres-operator-client/internal/apis/postgres-operator.crunchydata.com/v1beta1"
@@ -40,6 +41,14 @@ func newCreateCommand(config *internal.Config) *cobra.Command {
 	cmd.AddCommand(newCreateClusterCommand(config))
 
 	return cmd
+}
+
+type createPostgresCluster struct {
+	*internal.Config
+
+	Client         dynamic.NamespaceableResourceInterface
+	PgMajorVersion string
+	ClusterName    string
 }
 
 // newCreateClusterCommand returns the create cluster subcommand.
@@ -75,36 +84,45 @@ postgresclusters/hippo created`)
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 
-		clusterName := args[0]
-
-		namespace, err := config.Namespace()
-		if err != nil {
-			return err
-		}
-
 		mapping, client, err := v1beta1.NewPostgresClusterClient(config)
 		if err != nil {
 			return err
 		}
 
-		cluster, err := generateUnstructuredClusterYaml(clusterName, strconv.Itoa(pgMajorVersion))
-		if err != nil {
-			return err
+		postgresCluster := createPostgresCluster{
+			Config:         config,
+			Client:         client,
+			PgMajorVersion: strconv.Itoa(pgMajorVersion),
+			ClusterName:    args[0],
 		}
 
-		u, err := client.
-			Namespace(namespace).
-			Create(ctx, cluster, config.Patch.CreateOptions(metav1.CreateOptions{}))
-		if err != nil {
-			return err
+		err = postgresCluster.Run(ctx)
+		if err == nil {
+			cmd.Printf("%s/%s created\n", mapping.Resource.Resource, args[0])
 		}
 
-		cmd.Printf("%s/%s created\n", mapping.Resource.Resource, u.GetName())
-
-		return nil
+		return err
 	}
 
 	return cmd
+}
+
+func (config createPostgresCluster) Run(ctx context.Context) error {
+	namespace, err := config.Namespace()
+	if err != nil {
+		return err
+	}
+
+	cluster, err := generateUnstructuredClusterYaml(config.ClusterName, config.PgMajorVersion)
+	if err != nil {
+		return err
+	}
+
+	_, err = config.Client.
+		Namespace(namespace).
+		Create(ctx, cluster, config.Patch.CreateOptions(metav1.CreateOptions{}))
+
+	return err
 }
 
 // generateUnstructuredClusterYaml takes a name and returns a PostgresCluster
