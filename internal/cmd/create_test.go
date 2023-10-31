@@ -24,6 +24,8 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -133,8 +135,7 @@ func TestCreateArgsErrors(t *testing.T) {
 	}
 }
 
-func TestCreatePassesThroughError(t *testing.T) {
-
+func TestCreate(t *testing.T) {
 	streams, _, _, _ := genericiooptions.NewTestIOStreams()
 	cf := genericclioptions.NewConfigFlags(true)
 	nsd := "test"
@@ -147,93 +148,84 @@ func TestCreatePassesThroughError(t *testing.T) {
 
 	scheme := runtime.NewScheme()
 	client := fake.NewSimpleDynamicClient(scheme)
-	// Have the client return an error on creates
-	client.PrependReactor("create",
-		"postgresclusters",
-		func(action k8stesting.Action) (bool, runtime.Object, error) {
-			return true, nil, fmt.Errorf("whoops")
-		})
-
 	// Set up dynamicResourceClient with `fake` client
 	gvk := v1beta1.GroupVersion.WithKind("PostgresCluster")
 	drc := client.Resource(schema.GroupVersionResource{Group: gvk.Group, Version: gvk.Version, Resource: "postgresclusters"})
 
-	postgresCluster := createPostgresCluster{
-		Config:         config,
-		Client:         drc,
-		PgMajorVersion: 14,
-		ClusterName:    "hippo",
-	}
+	t.Run("Sends payload", func(t *testing.T) {
+		postgresCluster := createPostgresCluster{
+			Config:         config,
+			Client:         drc,
+			PgMajorVersion: 14,
+			ClusterName:    "hippo",
+		}
 
-	err := postgresCluster.Run(context.TODO())
-	assert.Error(t, err, "whoops", "Error from PGO API should be passed through")
+		err := postgresCluster.Run(context.TODO())
+		assert.NilError(t, err)
+
+		get, err := drc.Namespace("test").Get(context.TODO(), "hippo", metav1.GetOptions{})
+		assert.NilError(t, err)
+
+		expected := &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": string("postgres-operator.crunchydata.com/v1beta1"),
+				"kind":       string("PostgresCluster"),
+				"metadata": map[string]any{
+					"name":      string("hippo"),
+					"namespace": string("test"),
+				},
+				"spec": map[string]any{
+					"backups": map[string]any{
+						"pgbackrest": map[string]any{
+							"repos": []any{
+								map[string]any{
+									"name": string("repo1"),
+									"volume": map[string]any{
+										"volumeClaimSpec": map[string]any{
+											"accessModes": []any{string("ReadWriteOnce")},
+											"resources":   map[string]any{"requests": map[string]any{"storage": string("1Gi")}},
+										},
+									},
+								},
+							},
+						},
+					},
+					"instances": []any{
+						map[string]any{
+							"dataVolumeClaimSpec": map[string]any{
+								"accessModes": []any{string("ReadWriteOnce")},
+								"resources": map[string]any{
+									"requests": map[string]any{
+										"storage": string("1Gi"),
+									},
+								},
+							},
+						},
+					},
+					"postgresVersion": int64(14),
+				},
+			},
+		}
+
+		assert.DeepEqual(t, get, expected)
+	})
+
+	t.Run("PassesThroughError", func(t *testing.T) {
+		// Have the client return an error on creates
+		client.PrependReactor("create",
+			"postgresclusters",
+			func(action k8stesting.Action) (bool, runtime.Object, error) {
+				return true, nil, fmt.Errorf("whoops")
+			})
+
+		postgresCluster := createPostgresCluster{
+			Config:         config,
+			Client:         drc,
+			PgMajorVersion: 14,
+			ClusterName:    "hippo",
+		}
+
+		err := postgresCluster.Run(context.TODO())
+		assert.Error(t, err, "whoops", "Error from PGO API should be passed through")
+	})
 }
-
-// func TestCreate(t *testing.T) {
-
-// 	streams, inStream, outStream, errStream := genericiooptions.NewTestIOStreams()
-// 	cf := genericclioptions.NewConfigFlags(true)
-// 	nsd := "default"
-// 	cf.Namespace = &nsd
-// 	config := &internal.Config{
-// 		ConfigFlags: cf,
-// 		IOStreams:   streams,
-// 		Patch:       internal.PatchConfig{FieldManager: filepath.Base(os.Args[0])},
-// 	}
-
-// 	cmd := newCreateClusterCommand(config)
-// 	buf := new(bytes.Buffer)
-// 	cmd.SetOutput(buf)
-// 	cmd.SetArgs([]string{
-// 		"hippo2",
-// 		fmt.Sprintf("--pg-major-version=%f", 15.1),
-// 	})
-// 	cmd.Execute()
-// 	log.Printf("in %s", inStream)
-// 	log.Printf("out %s", outStream)
-// 	log.Printf("err %s", errStream)
-// 	t.Logf("hey %s", buf)
-
-// 	scheme := runtime.NewScheme()
-// 	client := fake.NewSimpleDynamicClient(scheme)
-
-// 	client.PrependReactor("create", "postgresclusters", func(action k8stesting.Action) (bool, runtime.Object, error) {
-// 		t.Logf("This works :)")
-// 		return true, nil, nil
-// 		// fmt.Errorf("whoops")
-// 	})
-
-// 	gvk := v1beta1.GroupVersion.WithKind("PostgresCluster")
-
-// 	mapper, err := config.ToRESTMapper()
-// 	assert.NilError(t, err)
-
-// 	mapping, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
-// 	assert.NilError(t, err)
-// 	drc := client.Resource(mapping.Resource)
-// 	// log.Printf("MAPPING IN TEST %#v \n", mapping)
-// 	// client.Resource(schema.GroupVersionResource{Group: "group", Version: "version", Resource: "thekinds"})
-
-// 	postgresCluster := createPostgresCluster{
-// 		Config:         config,
-// 		Client:         drc,
-// 		PgMajorVersion: 14,
-// 		ClusterName:    "hippo",
-// 	}
-
-// 	err = postgresCluster.Run(context.TODO())
-// 	assert.NilError(t, err)
-
-// 	// list, err := drc.List(context.TODO(), metav1.ListOptions{})
-// 	// assert.NilError(t, err)
-// 	// log.Printf("list %s", list)
-
-// 	get, err := drc.Namespace("test").Get(context.TODO(), "hippo", metav1.GetOptions{})
-// 	assert.NilError(t, err)
-// 	log.Printf("get %s", get)
-
-// 	log.Printf("in %s", inStream)
-// 	log.Printf("out %s", outStream)
-// 	log.Printf("err %s", errStream)
-// 	assert.Assert(t, false)
-// }
