@@ -79,3 +79,10 @@ func (exec Executor) processes() (string, string, error) {
 
 	return stdout.String(), stderr.String(), err
 }
+
+// systemTime returns the output of the date command
+func (exec Executor) systemTime() (string, string, error) {
+	var stdout, stderr bytes.Buffer
+	err := exec(nil, &stdout, &stderr, "date")
+	return stdout.String(), stderr.String(), err
+}

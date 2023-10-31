@@ -260,6 +260,7 @@ Collecting PostgresCluster pod logs...
 Collecting monitoring pod logs...
 Collecting Patroni info...
 Collecting processes...
+Collecting system times from containers...
 Collecting PGO CLI logs...
 ┌────────────────────────────────────────────────────────────────
 | Archive file size: 0.02 MiB
@@ -436,6 +437,11 @@ Collecting PGO CLI logs...
 		// Exec to get Container processes
 		if err == nil {
 			err = gatherProcessInfo(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
+		}
+
+		// Exec to get Container system time
+		if err == nil {
+			err = gatherSystemTime(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
 		}
 
 		// Print cli output
@@ -1076,6 +1082,103 @@ func gatherPatroniInfo(ctx context.Context,
 	}
 
 	return nil
+}
+
+// gatherSystemTime takes a client and buffer and collects system time
+// in each Pod and calculates the delta against client system time.
+func gatherSystemTime(ctx context.Context,
+	clientset *kubernetes.Clientset,
+	config *rest.Config,
+	namespace string,
+	clusterName string,
+	tw *tar.Writer,
+	cmd *cobra.Command,
+) error {
+	writeInfo(cmd, "Collecting system times from containers...")
+	// Get the cluster Pods by label
+	pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: "postgres-operator.crunchydata.com/cluster=" + clusterName,
+	})
+	if err != nil {
+		if apierrors.IsForbidden(err) {
+			writeInfo(cmd, err.Error())
+			return nil
+		}
+		return err
+	}
+
+	if len(pods.Items) == 0 {
+		// If we didn't find any resources, skip
+		writeInfo(cmd, "PostgresCluster Pods not found when gathering system time information, skipping")
+		return nil
+	}
+
+	podExec, err := util.NewPodExecutor(config)
+	if err != nil {
+		return err
+	}
+
+	var buf bytes.Buffer
+	for _, pod := range pods.Items {
+		for _, container := range pod.Spec.Containers {
+			// Attempt to exec in and run 'date' command in the first available container.
+			exec := func(stdin io.Reader, stdout, stderr io.Writer, command ...string,
+			) error {
+				return podExec(namespace, pod.GetName(), container.Name,
+					stdin, stdout, stderr, command...)
+			}
+
+			stdout, stderr, err := Executor(exec).systemTime()
+			if err == nil {
+				buf = writeSystemTime(buf, pod, stdout, stderr)
+				break
+			} else if err != nil {
+				// If we get an RBAC error, let the user know. Otherwise, just
+				// try the next container.
+				if apierrors.IsForbidden(err) {
+					writeInfo(cmd, fmt.Sprintf(
+						"Failed to get system time for Container \"%s\" in Pod \"%s\". Error: \"%s\"",
+						container.Name, pod.GetName(), err.Error()))
+				}
+				continue
+			}
+		}
+	}
+
+	path := clusterName + "/" + "system-time"
+	if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func writeSystemTime(buf bytes.Buffer, pod corev1.Pod, stdout, stderr string) bytes.Buffer {
+	// Get client datetime.
+	clientTime := time.Now().UTC()
+	clientDateTimeStr := clientTime.Format(time.UnixDate)
+
+	var deltaStr string
+	var containerDateTimeStr string
+	if containerDateTime, err := time.Parse(time.UnixDate, strings.TrimSpace(stdout)); err == nil {
+		// Calculate difference between client and container datetime.
+		containerDateTimeStr = containerDateTime.Format(time.UnixDate)
+		deltaStr = fmt.Sprint(clientTime.Sub(containerDateTime).Truncate(time.Second))
+	} else {
+		// Parse failed, use stdout instead.
+		containerDateTimeStr = strings.TrimSpace(stdout)
+		deltaStr = "No result"
+	}
+
+	// Build report.
+	fmt.Fprintln(&buf, "Delta: "+deltaStr+"\tPod time: "+containerDateTimeStr+
+		"\tClient time: "+clientDateTimeStr+"\tPod name: "+pod.GetName())
+
+	if stderr != "" {
+		buf.Write([]byte(stderr))
+	}
+
+	return buf
 }
 
 // gatherProcessInfo takes a client and buffer execs into relevant pods to grab

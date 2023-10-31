@@ -18,10 +18,18 @@ commands:
       exit 1
     }
 
-    # check that the cluster-names file exist and is not empty
+    # check that the cluster-names file exists and is not empty
     if [[ ! -s ./kuttl-support-cluster/cluster-names ]]
     then
       echo "Expected cluster-names file to not be empty"
+      eval "$CLEANUP"
+      exit 1
+    fi
+
+    # check that the system-time file exists and is not empty
+    if [[ ! -s ./kuttl-support-cluster/system-time ]]
+    then
+      echo "Expected system-time file to not be empty"
       eval "$CLEANUP"
       exit 1
     fi
