@@ -146,9 +146,9 @@ stanza: db
 	// - https://pgbackrest.org/command.html
 	// - output: '8.1.1 Output Option (--output)'
 	// - repoName: '8.4.1 Set Repository Option (--repo)'
-	var output string
 	var repoName string
-	cmdShowBackup.Flags().StringVarP(&output, "output", "o", "text",
+	var outputEnum = util.TextPGBackRest
+	cmdShowBackup.Flags().VarP(&outputEnum, "output", "o",
 		"output format. types supported: text,json")
 	cmdShowBackup.Flags().StringVar(&repoName, "repoName", "",
 		"Set the repository name for the command. example: repo1")
@@ -169,7 +169,7 @@ stanza: db
 			return err
 		}
 
-		stdout, stderr, err := Executor(exec).pgBackRestInfo(output, repoNum)
+		stdout, stderr, err := Executor(exec).pgBackRestInfo(outputEnum.String(), repoNum)
 		if err != nil {
 			return err
 		}

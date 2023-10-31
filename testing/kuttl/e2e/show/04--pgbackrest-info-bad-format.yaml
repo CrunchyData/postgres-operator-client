@@ -1,0 +1,27 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    PRIMARY=$(
+        kubectl get pod --namespace "${NAMESPACE}" \
+          --output name --selector '
+            postgres-operator.crunchydata.com/cluster=show-cluster,
+            postgres-operator.crunchydata.com/role=master'
+    )
+
+    CLI_HA=$(
+        kubectl-pgo --namespace "${NAMESPACE}" show backup show-cluster -o bad 2>&1
+    )
+
+    status=$?
+    if [ $status -ne 1 ]; then
+        echo "expected bad format to fail"
+        exit 1
+    fi
+
+    # check command output is not empty and equals the expected error
+    if [[ -n $CLI_HA && "$CLI_HA" == *"must be one of \"text\", \"json\""* ]]; then
+        exit 0
+    fi
+
+    exit 1
