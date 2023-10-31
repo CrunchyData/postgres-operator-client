@@ -884,7 +884,7 @@ func gatherPostgresqlLogs(ctx context.Context,
 		return nil
 	}
 
-	podExec, err := util.NewPodExecutor(config)
+	podExec, err := util.NewPodExecutor(ctx, config)
 	if err != nil {
 		return err
 	}
@@ -1027,7 +1027,7 @@ func gatherPatroniInfo(ctx context.Context,
 		return nil
 	}
 
-	podExec, err := util.NewPodExecutor(config)
+	podExec, err := util.NewPodExecutor(ctx, config)
 	if err != nil {
 		return err
 	}
@@ -1107,7 +1107,7 @@ func gatherProcessInfo(ctx context.Context,
 		return nil
 	}
 
-	podExec, err := util.NewPodExecutor(config)
+	podExec, err := util.NewPodExecutor(ctx, config)
 	if err != nil {
 		return err
 	}

@@ -126,7 +126,8 @@ func TestCreateArgsErrors(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			cmd.SetArgs(test.args)
-			cmd.Execute()
+			err := cmd.Execute()
+			assert.NilError(t, err)
 			assert.Assert(t, strings.Contains(buf.String(), test.errorMsg),
 				fmt.Sprintf("Expected '%s', got '%s'\n", test.errorMsg, buf.String()))
 			// Clear out buffer

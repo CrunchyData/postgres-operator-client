@@ -148,7 +148,7 @@ stanza: db
 			return fmt.Errorf("primary instance Pod not found")
 		}
 
-		PodExec, err := util.NewPodExecutor(rest)
+		PodExec, err := util.NewPodExecutor(ctx, rest)
 		if err != nil {
 			return err
 		}

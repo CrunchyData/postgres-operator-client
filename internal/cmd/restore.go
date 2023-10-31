@@ -68,7 +68,8 @@ pgo restore hippo --force-conflicts
 	cmd.Flags().StringVar(&restore.RepoName, "repoName", "",
 		"repository to restore from")
 
-	cmd.Flags().BoolVar(&restore.ForceConflicts, "force-conflicts", false, "take ownership and overwrite the restore settings")
+	cmd.Flags().BoolVar(&restore.ForceConflicts, "force-conflicts", false,
+		"take ownership and overwrite the restore settings")
 
 	// Only one positional argument: the PostgresCluster name.
 	cmd.Args = cobra.ExactArgs(1)

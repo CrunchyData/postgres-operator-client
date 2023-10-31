@@ -15,6 +15,7 @@
 package util
 
 import (
+	"context"
 	"io"
 
 	corev1 "k8s.io/api/core/v1"
@@ -34,7 +35,7 @@ type podExecutor func(
 // NewPodExecutor returns an executor function. It is used when commands are run
 // from a Container shell using an 'exec' command.
 // The RBAC settings required for this are "resources=pods/exec,verbs=create"
-func NewPodExecutor(config *rest.Config) (podExecutor, error) {
+func NewPodExecutor(ctx context.Context, config *rest.Config) (podExecutor, error) {
 
 	client, err := clientv1.NewForConfig(config)
 
@@ -56,11 +57,12 @@ func NewPodExecutor(config *rest.Config) (podExecutor, error) {
 		exec, err := remotecommand.NewSPDYExecutor(config, "POST", request.URL())
 
 		if err == nil {
-			err = exec.Stream(remotecommand.StreamOptions{
-				Stdin:  stdin,
-				Stdout: stdout,
-				Stderr: stderr,
-			})
+			err = exec.StreamWithContext(context.Background(),
+				remotecommand.StreamOptions{
+					Stdin:  stdin,
+					Stdout: stdout,
+					Stderr: stderr,
+				})
 		}
 
 		return err
