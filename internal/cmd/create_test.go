@@ -20,11 +20,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -85,6 +83,7 @@ func TestCreateArgsErrors(t *testing.T) {
 	}
 
 	cmd := newCreateClusterCommand(config)
+	// Prevent results from going to stdout/stderr during testing
 	buf := new(bytes.Buffer)
 	cmd.SetOutput(buf)
 
@@ -106,7 +105,7 @@ func TestCreateArgsErrors(t *testing.T) {
 		{
 			name:     "missing version flag arg",
 			args:     []string{"hippo"},
-			errorMsg: "\"pg-major-version\" not set",
+			errorMsg: "required flag(s) \"pg-major-version\" not set",
 		},
 		{
 			name:     "flag present but unset",
@@ -127,11 +126,7 @@ func TestCreateArgsErrors(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			cmd.SetArgs(test.args)
 			err := cmd.Execute()
-			assert.NilError(t, err)
-			assert.Assert(t, strings.Contains(buf.String(), test.errorMsg),
-				fmt.Sprintf("Expected '%s', got '%s'\n", test.errorMsg, buf.String()))
-			// Clear out buffer
-			buf.Reset()
+			assert.Error(t, err, test.errorMsg)
 		})
 	}
 }
@@ -151,7 +146,8 @@ func TestCreate(t *testing.T) {
 	client := fake.NewSimpleDynamicClient(scheme)
 	// Set up dynamicResourceClient with `fake` client
 	gvk := v1beta1.GroupVersion.WithKind("PostgresCluster")
-	drc := client.Resource(schema.GroupVersionResource{Group: gvk.Group, Version: gvk.Version, Resource: "postgresclusters"})
+	gvr := schema.GroupVersionResource{Group: gvk.Group, Version: gvk.Version, Resource: "postgresclusters"}
+	drc := client.Resource(gvr)
 
 	t.Run("Sends payload", func(t *testing.T) {
 		postgresCluster := createPostgresCluster{
@@ -164,7 +160,8 @@ func TestCreate(t *testing.T) {
 		err := postgresCluster.Run(context.TODO())
 		assert.NilError(t, err)
 
-		get, err := drc.Namespace("test").Get(context.TODO(), "hippo", metav1.GetOptions{})
+		tracker := client.Tracker()
+		get, err := tracker.Get(gvr, "test", "hippo")
 		assert.NilError(t, err)
 
 		expected := &unstructured.Unstructured{
