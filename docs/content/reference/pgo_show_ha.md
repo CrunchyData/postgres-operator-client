@@ -44,8 +44,8 @@ pgo show ha hippo --output json
 ### Options
 
 ```
-  -h, --help                   help for ha
-  -o, --output patroniFormat   output format. types supported: pretty,tsv,json,yaml (default pretty)
+  -h, --help            help for ha
+  -o, --output string   output format. types supported: pretty,tsv,json,yaml (default "pretty")
 ```
 
 ### Options inherited from parent commands
