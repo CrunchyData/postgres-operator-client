@@ -87,13 +87,26 @@ HA
 
 		// Print the pgbackrest info output received.
 		cmd.Printf("BACKUP\n\n")
-		if err := newShowBackupCommand(config).RunE(cmd, args); err != nil {
+		if stdout, stderr, err := showBackup(config, args, "text", ""); err != nil {
 			return err
+		} else {
+			cmd.Printf(stdout)
+			if stderr != "" {
+				cmd.Printf("\nError returned: %s\n", stderr)
+			}
 		}
 
 		// Print the patronictl list output received.
 		cmd.Printf("\nHA\n\n")
-		return newShowHACommand(config).RunE(cmd, args)
+		if stdout, stderr, err := showHA(config, args, "pretty"); err != nil {
+			return err
+		} else {
+			cmd.Printf(stdout)
+			if stderr != "" {
+				cmd.Printf("\nError returned: %s\n", stderr)
+			}
+		}
+		return nil
 	}
 
 	return cmdShow
@@ -164,26 +177,35 @@ stanza: db
 		// handle validation.
 		repoNum := strings.TrimPrefix(repoName, "repo")
 
-		exec, err := getPrimaryExec(config, args)
-		if err != nil {
-			return err
+		stdout, stderr, err := showBackup(config, args, outputEnum.String(), repoNum)
+
+		if err == nil {
+			cmd.Printf(stdout)
+			if stderr != "" {
+				cmd.Printf("\nError returned: %s\n", stderr)
+			}
 		}
 
-		stdout, stderr, err := Executor(exec).pgBackRestInfo(outputEnum.String(), repoNum)
-		if err != nil {
-			return err
-		}
-
-		// Print the output received.
-		cmd.Printf(stdout)
-		if stderr != "" {
-			cmd.Printf("\nError returned: %s\n", stderr)
-		}
-
-		return nil
+		return err
 	}
 
 	return cmdShowBackup
+}
+
+// showBackup execs into the primary Pod, runs the 'pgbackrest info' command and
+// returns the command output and/or error
+func showBackup(
+	config *internal.Config,
+	args []string,
+	output string,
+	repoNum string) (string, string, error) {
+
+	exec, err := getPrimaryExec(config, args)
+	if err != nil {
+		return "", "", err
+	}
+
+	return Executor(exec).pgBackRestInfo(output, repoNum)
 }
 
 // newShowHACommand returns the output of the 'patronictl list' command.
@@ -227,26 +249,33 @@ pgo show ha hippo --output json
 	// Define the 'show backup' command
 	cmdShowHA.RunE = func(cmd *cobra.Command, args []string) error {
 
-		exec, err := getPrimaryExec(config, args)
-		if err != nil {
-			return err
+		stdout, stderr, err := showHA(config, args, outputEnum.String())
+
+		if err == nil {
+			cmd.Printf(stdout)
+			if stderr != "" {
+				cmd.Printf("\nError returned: %s\n", stderr)
+			}
 		}
 
-		stdout, stderr, err := Executor(exec).patronictl("list", outputEnum.String())
-		if err != nil {
-			return err
-		}
-
-		// Print the output received.
-		cmd.Printf(stdout)
-		if stderr != "" {
-			cmd.Printf("\nError returned: %s\n", stderr)
-		}
-
-		return nil
+		return err
 	}
 
 	return cmdShowHA
+}
+
+// showHA execs into the primary Pod, runs the 'patronictl list' command and
+// returns the command output and/or error
+func showHA(
+	config *internal.Config,
+	args []string,
+	output string) (string, string, error) {
+	exec, err := getPrimaryExec(config, args)
+	if err != nil {
+		return "", "", err
+	}
+
+	return Executor(exec).patronictl("list", output)
 }
 
 // getPrimaryExec returns a executor function for the primary Pod to allow for

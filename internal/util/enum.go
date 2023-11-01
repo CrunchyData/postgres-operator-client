@@ -16,6 +16,12 @@ package util
 
 import "errors"
 
+// Define custom value types to use as flags for certain commands.
+// Cobra uses the pflag package and allows custom value types by implementing
+// the pflag.Value interface.
+// - https://github.com/spf13/pflag
+// - https://pkg.go.dev/github.com/spf13/pflag#Value
+
 // 'patroni list' output format options
 // - https://patroni.readthedocs.io/en/latest/patronictl.html#patronictl-list
 type patroniFormat string
@@ -45,7 +51,7 @@ func (e *patroniFormat) Set(v string) error {
 
 // Type is only used in help text
 func (e *patroniFormat) Type() string {
-	return "patroniFormat"
+	return "string"
 }
 
 // 'pgbackrest info' output format options
@@ -75,5 +81,5 @@ func (e *pgbackrestFormat) Set(v string) error {
 
 // Type is only used in help text
 func (e *pgbackrestFormat) Type() string {
-	return "pgbackrestFormat"
+	return "string"
 }
