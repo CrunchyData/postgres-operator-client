@@ -505,20 +505,8 @@ func gatherPostgresClusterNames(clusterName string, ctx context.Context, cmd *co
 
 	data := []byte{}
 	for _, item := range result.Items {
-		ns, found, err := unstructured.NestedString(item.Object, "metadata", "namespace")
-		if !found {
-			return fmt.Errorf("key not found: metadata.namespace")
-		}
-		if err != nil {
-			return err
-		}
-		name, found, err := unstructured.NestedString(item.Object, "metadata", "name")
-		if !found {
-			return fmt.Errorf("key not found: metadata.name")
-		}
-		if err != nil {
-			return err
-		}
+		ns, _, _ := unstructured.NestedString(item.Object, "metadata", "namespace")
+		name, _, _ := unstructured.NestedString(item.Object, "metadata", "name")
 		data = append(data, []byte("Namespace: "+ns+"\t"+"Cluster: "+name+"\n")...)
 	}
 
