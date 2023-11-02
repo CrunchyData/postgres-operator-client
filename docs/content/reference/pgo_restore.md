@@ -7,7 +7,10 @@ Restore cluster
 
 ### Synopsis
 
-Restore the data of a PostgreSQL cluster from a backup
+Restore the data of a PostgreSQL cluster from a backup either by
+using the current "spec.backups.pgbackrest.restore" settings on the PostgreSQL
+cluster or by using flags to write your settings. Overwriting those settings
+may require the --force-conflicts flags.
 
 ### RBAC Requirements
     Resources                                           Verbs
