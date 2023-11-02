@@ -434,6 +434,10 @@ Collecting PGO CLI logs...
 			err = gatherPatroniInfo(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
 		}
 
+		if err == nil {
+			err = gatherPgBackRestInfo(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
+		}
+
 		// Exec to get Container processes
 		if err == nil {
 			err = gatherProcessInfo(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
@@ -994,7 +998,7 @@ func gatherPodLogs(ctx context.Context,
 	return nil
 }
 
-// gatherExecInfo takes a client and buffer
+// gatherPatroniInfo takes a client and buffer
 // execs into relevant pods to grab information
 func gatherPatroniInfo(ctx context.Context,
 	clientset *kubernetes.Clientset,
@@ -1070,6 +1074,65 @@ func gatherPatroniInfo(ctx context.Context,
 	}
 
 	return nil
+}
+
+// gatherPgBackRestInfo takes a client and buffer
+// execs into relevant pods to grab information
+func gatherPgBackRestInfo(ctx context.Context,
+	clientset *kubernetes.Clientset,
+	config *rest.Config,
+	namespace string,
+	clusterName string,
+	tw *tar.Writer,
+	cmd *cobra.Command,
+) error {
+	writeInfo(cmd, "Collecting pgBackRest info...")
+	// Get the primary instance Pod by its labels
+	pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: util.PrimaryInstanceLabels(clusterName),
+	})
+	if err != nil {
+		if apierrors.IsForbidden(err) {
+			writeInfo(cmd, err.Error())
+			return nil
+		}
+		return err
+	}
+	if len(pods.Items) < 1 {
+		writeInfo(cmd, "No pod found for pgBackRest info")
+		return nil
+	}
+
+	podExec, err := util.NewPodExecutor(config)
+	if err != nil {
+		return err
+	}
+
+	exec := func(stdin io.Reader, stdout, stderr io.Writer, command ...string,
+	) error {
+		return podExec(namespace, pods.Items[0].GetName(), util.ContainerDatabase,
+			stdin, stdout, stderr, command...)
+	}
+
+	var buf bytes.Buffer
+
+	buf.Write([]byte("pgbackrest info\n"))
+	stdout, stderr, err := Executor(exec).pgBackRestInfo("text", "")
+	if err != nil {
+		if apierrors.IsForbidden(err) {
+			writeInfo(cmd, err.Error())
+			return nil
+		}
+		return err
+	}
+
+	buf.Write([]byte(stdout))
+	if stderr != "" {
+		buf.Write([]byte(stderr))
+	}
+
+	path := clusterName + "/pgbackrest-info"
+	return writeTar(tw, buf.Bytes(), path, cmd)
 }
 
 // gatherSystemTime takes a client and buffer and collects system time
