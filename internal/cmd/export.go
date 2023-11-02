@@ -1121,12 +1121,13 @@ func gatherSystemTime(ctx context.Context,
 				buf = writeSystemTime(buf, pod, stdout, stderr)
 				break
 			} else if err != nil {
-				// If we get an RBAC error, let the user know. Otherwise, just
-				// try the next container.
+				// If we get an RBAC error, let the user know and try the next pod.
+				// Otherwise, try the next container.
 				if apierrors.IsForbidden(err) {
 					writeInfo(cmd, fmt.Sprintf(
-						"Failed to get system time for Container \"%s\" in Pod \"%s\". Error: \"%s\"",
-						container.Name, pod.GetName(), err.Error()))
+						"Failed to get system time for Pod \"%s\". Error: \"%s\"",
+						pod.GetName(), err.Error()))
+					break
 				}
 				continue
 			}
@@ -1218,12 +1219,13 @@ func gatherProcessInfo(ctx context.Context,
 
 			stdout, stderr, err := Executor(exec).processes()
 			if err != nil {
-				// If we get an RBAC error, let the user know. Otherwise, just
-				// try the next container.
+				// If we get an RBAC error, let the user know and try the next pod.
+				// Otherwise, try the next container.
 				if apierrors.IsForbidden(err) {
 					writeInfo(cmd, fmt.Sprintf(
-						"Failed to get processes for Container \"%s\" in Pod \"%s\". Error: \"%s\"",
-						container.Name, pod.GetName(), err.Error()))
+						"Failed to get processes for Pod \"%s\". Error: \"%s\"",
+						pod.GetName(), err.Error()))
+					break
 				}
 				continue
 			}
