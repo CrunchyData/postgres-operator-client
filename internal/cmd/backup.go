@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -128,6 +129,9 @@ postgresclusters/hippo backup initiated`)
 		)
 
 		if err != nil {
+			if strings.Contains(err.Error(), "conflict") {
+				cmd.Printf("SUGGESTION: The --force-conflicts flag may help in performing this operation.")
+			}
 			cmd.Printf("\nError requesting update: %s\n", err)
 			return err
 		}
