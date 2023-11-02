@@ -33,7 +33,10 @@ func newRestoreCommand(config *internal.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "restore CLUSTER_NAME",
 		Short: "Restore cluster",
-		Long: `Restore the data of a PostgreSQL cluster from a backup
+		Long: `Restore the data of a PostgreSQL cluster from a backup either by
+using the current "spec.backups.pgbackrest.restore" settings on the PostgreSQL
+cluster or by using flags to write your settings. Overwriting those settings
+may require the --force-conflicts flags.
 
 ### RBAC Requirements
     Resources                                           Verbs
@@ -190,6 +193,9 @@ func (config pgBackRestRestore) Run(ctx context.Context) error {
 		config.PostgresCluster, types.ApplyPatchType, patch,
 		config.Patch.PatchOptions(patchOptions))
 	if err != nil {
+		if strings.Contains(err.Error(), "conflict") {
+			fmt.Fprintf(config.Out, "SUGGESTION: The --force-conflicts flag may help in performing this operation.\n")
+		}
 		return err
 	}
 
