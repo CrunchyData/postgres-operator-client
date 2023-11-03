@@ -110,13 +110,3 @@ postgresclusters/hippo deleted`)
 
 	return cmd
 }
-
-// containsString returns true if slice contains element
-func containsString(slice []string, element string) bool {
-	for _, elem := range slice {
-		if elem == element {
-			return true
-		}
-	}
-	return false
-}

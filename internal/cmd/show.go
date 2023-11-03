@@ -27,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/utils/strings/slices"
 	"sigs.k8s.io/yaml"
 
 	"github.com/crunchydata/postgres-operator-client/internal"
@@ -353,7 +354,7 @@ func showUser(config *internal.Config, args []string, showSensitive bool) (strin
 		for i := 0; confirmed == nil && i < 10; i++ {
 			// retry 10 times or until a confirmation is given or denied,
 			// whichever comes first
-			confirmed = confirm(os.Stdin, os.Stdout)
+			confirmed = util.Confirm(os.Stdin, os.Stdout)
 		}
 
 		if confirmed == nil || !*confirmed {
@@ -420,7 +421,7 @@ func userData(fields []string, list *corev1.SecretList) (string, error) {
 			if err != nil {
 				return output, err
 			}
-			if containsString(fields, k) {
+			if slices.Contains(fields, k) {
 				output += fmt.Sprintf("  %s: %s\n", strings.ToUpper(k), string(d))
 			}
 		}
