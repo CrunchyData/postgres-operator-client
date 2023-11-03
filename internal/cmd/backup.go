@@ -16,10 +16,10 @@ package cmd
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
@@ -129,7 +129,7 @@ postgresclusters/hippo backup initiated`)
 		)
 
 		if err != nil {
-			if strings.Contains(err.Error(), "conflict") {
+			if apierrors.IsConflict(err) {
 				cmd.Printf("SUGGESTION: The --force-conflicts flag may help in performing this operation.")
 			}
 			cmd.Printf("\nError requesting update: %s\n", err)
