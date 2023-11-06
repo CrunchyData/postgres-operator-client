@@ -3,7 +3,7 @@ kind: PostgresCluster
 metadata:
   name: delete-cluster
 spec:
-  postgresVersion: 15
+  postgresVersion: 14
   instances:
     - name: instance1
       dataVolumeClaimSpec:
