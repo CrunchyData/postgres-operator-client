@@ -22,7 +22,8 @@ jobs:
   generate-matrix:
     runs-on: ubuntu-latest
     steps:
-      - run: echo ::set-output name=matrix::[v1.27, v1.21]
+      - run: |
+          echo "::set-output name=matrix::[v1.27, v1.21]"
 
   kuttl-test:
     runs-on: ubuntu-latest
