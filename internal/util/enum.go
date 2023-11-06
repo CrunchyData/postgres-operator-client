@@ -59,6 +59,10 @@ func (e *patroniFormat) Type() string {
 
 // 'pgbackrest info' output format options
 // - https://pgbackrest.org/command.html#command-info
+// `pgbackrest info` does return an error if the output is not an accepted format
+// but without this enum, that error is unclear:
+// Without this enum code: `Error: command terminated with exit code 32`
+// With this enum code: `Error: invalid argument "jsob" for "-o, --output" flag: must be one of "text", "json"`
 type pgbackrestFormat string
 
 const (
