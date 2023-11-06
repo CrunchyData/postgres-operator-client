@@ -43,6 +43,10 @@ commands:
     # check that the pgbackrest info file exists and is not empty
     check_file "pgbackrest-info"
 
+    # check that the plugin list file exists and is not empty
+    # the file will at least include kubectl-pgo
+    check_file "plugin-list"
+
     # check for expected gzip compression level
     FILE_INFO=$(file ./crunchy_k8s_support_export_*.tar.gz)
     [[ "${FILE_INFO}" == *'gzip compressed data, max compression'* ]] || {

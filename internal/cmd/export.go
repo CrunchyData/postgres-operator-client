@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -232,6 +233,7 @@ kubectl pgo support export daisy --monitoring-namespace another-namespace --outp
 | The support export tool will collect information that is
 | commonly necessary for troubleshooting a PostgresCluster.
 | Note: No data or k8s secrets are collected.
+| However, kubectl is used to list plugins on the user's machine.
 └────────────────────────────────────────────────────────────────
 Collecting PGO CLI version...
 Collecting names and namespaces for PostgresClusters...
@@ -262,6 +264,7 @@ Collecting Patroni info...
 Collecting pgBackRest info...
 Collecting processes...
 Collecting system times from containers...
+Collecting list of kubectl plugins...
 Collecting PGO CLI logs...
 ┌────────────────────────────────────────────────────────────────
 | Archive file size: 0.02 MiB
@@ -449,6 +452,11 @@ Collecting PGO CLI logs...
 			err = gatherSystemTime(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
 		}
 
+		if err == nil {
+			writeInfo(cmd, "Collecting list of kubectl plugins...")
+			err = gatherPluginList(clusterName, tw, cmd)
+		}
+
 		// Print cli output
 		writeInfo(cmd, "Collecting PGO CLI logs...")
 		path := clusterName + "/logs/cli"
@@ -469,6 +477,22 @@ Collecting PGO CLI logs...
 	}
 
 	return cmd
+}
+
+func gatherPluginList(clusterName string, tw *tar.Writer, cmd *cobra.Command) error {
+	ex := exec.Command("kubectl", "plugin", "list")
+	msg, err := ex.Output()
+
+	if err != nil {
+		// Capture error message when kubectl is not found in $PATH.
+		msg = append(msg, err.Error()...)
+	}
+	path := clusterName + "/plugin-list"
+	if err := writeTar(tw, msg, path, cmd); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // exportSizeReport defines the message displayed when a support export archive
