@@ -18,7 +18,7 @@ commands:
      fi
 
      # Verify the error when the Postgres version is not an integer.
-     NOT_INT=$(kubectl-pgo create postgrescluster --pg-major-version=15.1 notint 2>&1)
+     NOT_INT=$(kubectl-pgo create postgrescluster --pg-major-version=14.1 notint 2>&1)
      if [[ "${NOT_INT}" != "Error: invalid argument"* ]]; then
       printf 'Expected invalid argument error, got %q\n' "${NOT_INT}"
       exit 1

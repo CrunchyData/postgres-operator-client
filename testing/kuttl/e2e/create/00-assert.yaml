@@ -22,7 +22,7 @@ spec:
           requests:
             storage: 1Gi
       replicas: 1
-  postgresVersion: 15
+  postgresVersion: 14
 status:
   instances:
     - name: "00"

@@ -24,6 +24,9 @@ import "errors"
 
 // 'patroni list' output format options
 // - https://patroni.readthedocs.io/en/latest/patronictl.html#patronictl-list
+// Note: Patroni has been updated to restrict the input of `--format`,
+// so we can remove this when our lowest supported version of Patroni has this fix.
+// - https://github.com/zalando/patroni/commit/8adddb3467f3c43ddf4ff723a2381e0cf6e2a31b
 type patroniFormat string
 
 const (
@@ -56,6 +59,10 @@ func (e *patroniFormat) Type() string {
 
 // 'pgbackrest info' output format options
 // - https://pgbackrest.org/command.html#command-info
+// `pgbackrest info` does return an error if the output is not an accepted format
+// but without this enum, that error is unclear:
+// Without this enum code: `Error: command terminated with exit code 32`
+// With this enum code: `Error: invalid argument "jsob" for "-o, --output" flag: must be one of "text", "json"`
 type pgbackrestFormat string
 
 const (
