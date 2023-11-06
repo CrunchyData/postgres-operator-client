@@ -23,7 +23,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          echo "::set-output name=matrix::[v1.27, v1.21]"
+          echo "matrix=[v1.27, v1.21]" >> "$GITHUB_ENV"
+
+  print-matrix:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          printf '%s\n' "$matrix"
 
   kuttl-test:
     runs-on: ubuntu-latest
