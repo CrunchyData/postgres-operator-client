@@ -24,6 +24,9 @@ import "errors"
 
 // 'patroni list' output format options
 // - https://patroni.readthedocs.io/en/latest/patronictl.html#patronictl-list
+// Note: Patroni has been updated to restrict the input of `--format`,
+// so we can remove this when our lowest supported version of Patroni has this fix.
+// - https://github.com/zalando/patroni/commit/8adddb3467f3c43ddf4ff723a2381e0cf6e2a31b
 type patroniFormat string
 
 const (
