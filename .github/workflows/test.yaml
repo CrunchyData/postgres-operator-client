@@ -19,25 +19,13 @@ jobs:
       - run: make check
       - run: make check-cli-docs
 
-  generate-matrix:
-    runs-on: ubuntu-latest
-    steps:
-      - run: |
-          echo "matrix=[v1.27, v1.21]" >> "$GITHUB_ENV"
-
-  print-matrix:
-    runs-on: ubuntu-latest
-    steps:
-      - run: |
-          printf '%s\n' "$matrix"
-
   kuttl-test:
     runs-on: ubuntu-latest
     needs: [go-test]
     strategy:
       fail-fast: false
       matrix:
-        kubernetes: ${{ needs.metadata.outputs.matrix }} 
+        kubernetes: [v1.27, v1.24, v1.21]
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v3
