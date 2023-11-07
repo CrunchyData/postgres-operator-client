@@ -28,6 +28,7 @@ import (
 
 	"github.com/crunchydata/postgres-operator-client/internal"
 	"github.com/crunchydata/postgres-operator-client/internal/apis/postgres-operator.crunchydata.com/v1beta1"
+	"github.com/crunchydata/postgres-operator-client/internal/util"
 )
 
 func newRestoreCommand(config *internal.Config) *cobra.Command {
@@ -232,11 +233,10 @@ func (config pgBackRestRestore) Run(ctx context.Context) error {
 
 func (config pgBackRestRestore) confirm(attempts int) *bool {
 	for i := 0; i < attempts; i++ {
-		if confirmed := confirm(config.In, config.Out); confirmed != nil {
+		if confirmed := util.Confirm(config.In, config.Out); confirmed != nil {
 			return confirmed
 		}
 	}
-
 	return nil
 }
 

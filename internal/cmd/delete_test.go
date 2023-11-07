@@ -21,6 +21,8 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+
+	"github.com/crunchydata/postgres-operator-client/internal/util"
 )
 
 func TestConfirmDelete(t *testing.T) {
@@ -50,7 +52,7 @@ func TestConfirmDelete(t *testing.T) {
 		t.Run("input is "+tc.input, func(t *testing.T) {
 			var reader io.Reader = strings.NewReader(tc.input)
 			var writer bytes.Buffer
-			confirmed := confirm(reader, &writer)
+			confirmed := util.Confirm(reader, &writer)
 			if tc.invalidResponse {
 				assert.Assert(t, confirmed == nil)
 				response, err := writer.ReadString(':')
