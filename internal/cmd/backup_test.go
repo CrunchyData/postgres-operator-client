@@ -22,9 +22,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/crunchydata/postgres-operator-client/internal"
-	"github.com/crunchydata/postgres-operator-client/internal/apis/postgres-operator.crunchydata.com/v1beta1"
-	"github.com/crunchydata/postgres-operator-client/internal/testing/cmp"
 	"github.com/spf13/cobra"
 	"gotest.tools/v3/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -34,6 +31,10 @@ import (
 	"k8s.io/client-go/dynamic/fake"
 	k8stesting "k8s.io/client-go/testing"
 	"sigs.k8s.io/yaml"
+
+	"github.com/crunchydata/postgres-operator-client/internal"
+	"github.com/crunchydata/postgres-operator-client/internal/apis/postgres-operator.crunchydata.com/v1beta1"
+	"github.com/crunchydata/postgres-operator-client/internal/testing/cmp"
 )
 
 func TestPGBackRestBackupModifyIntent(t *testing.T) {
