@@ -15,15 +15,25 @@
 package cmd
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/crunchydata/postgres-operator-client/internal"
+	"github.com/crunchydata/postgres-operator-client/internal/apis/postgres-operator.crunchydata.com/v1beta1"
+	"github.com/crunchydata/postgres-operator-client/internal/testing/cmp"
+	"github.com/spf13/cobra"
 	"gotest.tools/v3/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/dynamic/fake"
+	k8stesting "k8s.io/client-go/testing"
 	"sigs.k8s.io/yaml"
-
-	"github.com/crunchydata/postgres-operator-client/internal/testing/cmp"
 )
 
 func TestPGBackRestBackupModifyIntent(t *testing.T) {
@@ -168,4 +178,43 @@ spec:
 		assert.ErrorContains(t, err, ".spec.backups")
 		assert.ErrorContains(t, err, "is not a map")
 	})
+}
+
+func TestBackupRun(t *testing.T) {
+	cf := genericclioptions.NewConfigFlags(true)
+	nsd := "test"
+	cf.Namespace = &nsd
+	config := &internal.Config{
+		ConfigFlags: cf,
+		IOStreams: genericclioptions.IOStreams{
+			In:     os.Stdin,
+			Out:    os.Stdout,
+			ErrOut: os.Stderr},
+		Patch: internal.PatchConfig{FieldManager: filepath.Base(os.Args[0])},
+	}
+
+	scheme := runtime.NewScheme()
+	client := fake.NewSimpleDynamicClient(scheme)
+	// Set up dynamicResourceClient with `fake` client
+	gvk := v1beta1.GroupVersion.WithKind("PostgresCluster")
+	gvr := schema.GroupVersionResource{Group: gvk.Group, Version: gvk.Version, Resource: "postgresclusters"}
+	drc := client.Resource(gvr)
+	cmd := &cobra.Command{}
+
+	t.Run("PassesThroughError", func(t *testing.T) {
+		// Have the client return an error on get
+		client.PrependReactor("get",
+			"postgresclusters",
+			func(action k8stesting.Action) (bool, runtime.Object, error) {
+				return true, nil, fmt.Errorf("whoops")
+			})
+
+		backup := pgBackRestBackup{
+			Config: config,
+		}
+
+		err := backup.Run(drc, cmd, "name")
+		assert.Error(t, err, "whoops", "Error from PGO API should be passed through")
+	})
+
 }

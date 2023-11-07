@@ -21,6 +21,7 @@
 * Check the annotation on the cluster
 * No backup occurs
 
-(6) 10-11
+(6) 10-12
 * Update the spec through KUTTL, changing the ownership of that field
 * Call the backup CLI with different flags, and see a conflict
+* Call the backup CLI with different flags and the `--force-conflict` flag, see no conflict
