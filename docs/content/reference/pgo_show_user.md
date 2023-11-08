@@ -3,11 +3,15 @@ title: pgo show user
 ---
 ## pgo show user
 
-Show pguser Secret details for a PostgresCluster.
+Show details for a PostgresCluster user.
 
 ### Synopsis
 
-Show pguser Secret details for a PostgresCluster.
+Show details for a PostgresCluster user. Only shows
+details for the default user for a PostgresCluster
+or for users defined on the PostgresCluster spec.
+Use the "--show-connection-info" flag to get the
+connection info, including password.
 
 #### RBAC Requirements
     Resources  Verbs
@@ -17,35 +21,46 @@ Show pguser Secret details for a PostgresCluster.
 ### Usage
 
 ```
-pgo show user CLUSTER_NAME [flags]
+pgo show user USER_NAME --cluster CLUSTER_NAME [flags]
 ```
 
 ### Examples
 
 ```
-# Show non-sensitive contents of 'pguser' Secret
-pgo show user hippo
+# Show non-sensitive contents of users for "hippo" cluster
+pgo show user --cluster hippo
 
-# Show contents of 'pguser' Secret, including sensitive fields
-pgo show user hippo --show-sensitive-fields
+# Show non-sensitive contents of user "rhino" for "hippo" cluster
+pgo show user rhino --cluster hippo
+
+# Show connection info for user "rhino" for "hippo" cluster,
+# including sensitive password info
+pgo show user rhino --cluster hippo --show-connection-info
 
 ```
 ### Example output
 ```
-pgo show user hippo
-SECRET: hippo-pguser-hippo
-  DBNAME: hippo
-  HOST: hippo-primary.postgres-operator.svc
-  PORT: 5432
-  USER: hippo
-    
+# Showing all the users of the "hippo" cluster
+CLUSTER  USERNAME
+hippo    hippo
+hippo    rhino
+
+# Showing the connection info for user "hippo" of cluster "hippo"
+WARNING: This command will show sensitive password information.
+Are you sure you want to continue? (yes/no): yes
+
+Connection information for hippo for hippo cluster
+Connection info string:
+    dbname=hippo host=hippo-primary.postgres-operator.svc port=5432 user=hippo password=<password>
+Connection URL:
+    postgres://<password>@hippo-primary.postgres-operator.svc:5432/hippo
 ```
 
 ### Options
 
 ```
-  -h, --help                    help for user
-  -f, --show-sensitive-fields   show sensitive user fields
+  -h, --help                   help for user
+      --show-connection-info   show sensitive user fields
 ```
 
 ### Options inherited from parent commands

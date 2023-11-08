@@ -88,5 +88,5 @@ HA
 * [pgo](/reference/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
 * [pgo show backup](/reference/pgo_show_backup/)	 - Show backup information for a PostgresCluster
 * [pgo show ha](/reference/pgo_show_ha/)	 - Show 'patronictl list' for a PostgresCluster.
-* [pgo show user](/reference/pgo_show_user/)	 - Show pguser Secret details for a PostgresCluster.
+* [pgo show user](/reference/pgo_show_user/)	 - Show details for a PostgresCluster user.
 

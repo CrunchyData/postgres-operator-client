@@ -10,7 +10,7 @@ commands:
     )
 
     CLI_USER=$(
-        kubectl-pgo --namespace "${NAMESPACE}" show user show-cluster
+        kubectl-pgo --namespace "${NAMESPACE}" show user --cluster show-cluster
     )
 
     status=$?
@@ -20,24 +20,31 @@ commands:
     fi
 
     # expected output
-    SHOW_USER_OUTPUT="SECRET: show-cluster-pguser-show-cluster
-      DBNAME: show-cluster
-      HOST: show-cluster-primary.${NAMESPACE}.svc
-      PORT: 5432
-      USER: show-cluster"
+    SHOW_USER_OUTPUT="
+    CLUSTER       USERNAME
+    show-cluster  show-cluster"
 
     # check command output is not empty and equals the expected output
-    if [[ -z $CLI_USER && "$CLI_USER" != "$SHOW_USER_OUTPUT" ]]; then
+    if [[ -z ${CLI_USER} || (! -z ${CLI_USER} && "${CLI_USER}" != "${SHOW_USER_OUTPUT}") ]]; then
+        echo "pgo command output unexpected: expected ${SHOW_USER_OUTPUT} got ${CLI_USER}"
         exit 1
     fi
 
     CLI_USER_SENSITIVE=$(
-        echo yes | kubectl-pgo --namespace "${NAMESPACE}" show user show-cluster --show-sensitive-fields
+        echo yes | kubectl-pgo --namespace "${NAMESPACE}" show user --cluster show-cluster show-cluster --show-connection-info
     )
 
-    # check command output is not empty and contains the password field
-    if [[ -n $CLI_USER_SENSITIVE && "$CLI_USER_SENSITIVE" == *"PASSWORD:"* ]]; then
+    SECRET_DATA=$(kubectl get secret -n "${NAMESPACE}" show-cluster-pguser-show-cluster -o jsonpath={.data})
+
+    PASSWORD=$(echo "${SECRET_DATA}" | jq -r .password | base64 -d)
+    USER=$(echo "${SECRET_DATA}" | jq -r .user | base64 -d)
+    HOST=$(echo "${SECRET_DATA}" | jq -r .host | base64 -d)
+    PORT=$(echo "${SECRET_DATA}" | jq -r .port | base64 -d)
+
+    # check command output is not empty and contains the connection URL field
+    if [[ -n $CLI_USER_SENSITIVE && "$CLI_USER_SENSITIVE" == *"postgres://${USER}:${PASSWORD}@${HOST}:${PORT}/show-cluster"* ]]; then
         exit 0
     fi
 
+    echo "pgo command output for connection info unexpected: got ${CLI_USER_SENSITIVE}"
     exit 1
