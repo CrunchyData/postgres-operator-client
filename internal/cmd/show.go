@@ -15,20 +15,18 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"os"
-	"sort"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/utils/strings/slices"
-	"sigs.k8s.io/yaml"
 
 	"github.com/crunchydata/postgres-operator-client/internal"
 	"github.com/crunchydata/postgres-operator-client/internal/util"
@@ -289,9 +287,13 @@ func showHA(
 func newShowUserCommand(config *internal.Config) *cobra.Command {
 
 	cmdShowUser := &cobra.Command{
-		Use:   "user CLUSTER_NAME",
-		Short: "Show pguser Secret details for a PostgresCluster.",
-		Long: `Show pguser Secret details for a PostgresCluster.
+		Use:   "user USER_NAME --cluster CLUSTER_NAME",
+		Short: "Show details for a PostgresCluster user.",
+		Long: `Show details for a PostgresCluster user. Only shows
+details for the default user for a PostgresCluster
+or for users defined on the PostgresCluster spec.
+Use the "--show-connection-info" flag to get the
+connection info, including password.
 
 #### RBAC Requirements
     Resources  Verbs
@@ -300,133 +302,182 @@ func newShowUserCommand(config *internal.Config) *cobra.Command {
 
 ### Usage`}
 
-	cmdShowUser.Example = internal.FormatExample(`# Show non-sensitive contents of 'pguser' Secret
-pgo show user hippo
+	cmdShowUser.Example = internal.FormatExample(`# Show non-sensitive contents of users for "hippo" cluster
+pgo show user --cluster hippo
 
-# Show contents of 'pguser' Secret, including sensitive fields
-pgo show user hippo --show-sensitive-fields
+# Show non-sensitive contents of user "rhino" for "hippo" cluster
+pgo show user rhino --cluster hippo
+
+# Show connection info for user "rhino" for "hippo" cluster,
+# including sensitive password info
+pgo show user rhino --cluster hippo --show-connection-info
 
 ### Example output
-pgo show user hippo
-SECRET: hippo-pguser-hippo
-  DBNAME: hippo
-  HOST: hippo-primary.postgres-operator.svc
-  PORT: 5432
-  USER: hippo
-	`)
+# Showing all the users of the "hippo" cluster
+CLUSTER  USERNAME
+hippo    hippo
+hippo    rhino
+
+# Showing the connection info for user "hippo" of cluster "hippo"
+WARNING: This command will show sensitive password information.
+Are you sure you want to continue? (yes/no): yes
+
+Connection information for hippo for hippo cluster
+Connection info string:
+    dbname=hippo host=hippo-primary.postgres-operator.svc port=5432 user=hippo password=<password>
+Connection URL:
+    postgres://<password>@hippo-primary.postgres-operator.svc:5432/hippo`)
 
 	var fields bool
-	cmdShowUser.Flags().BoolVarP(&fields, "show-sensitive-fields", "f", false, "show sensitive user fields")
+	cmdShowUser.Flags().BoolVar(&fields, "show-connection-info", false, "show sensitive user fields")
 
-	// Limit the number of args, that is, only one cluster name
-	cmdShowUser.Args = cobra.ExactArgs(1)
+	var cluster string
+	cmdShowUser.Flags().StringVarP(&cluster, "cluster", "c", "", "Set the Postgres cluster name (required)")
+	cobra.CheckErr(cmdShowUser.MarkFlagRequired("cluster"))
+
+	// Limit the number of args to at most one pguser name
+	cmdShowUser.Args = cobra.MaximumNArgs(1)
 
 	// Define the 'show backup' command
 	cmdShowUser.RunE = func(cmd *cobra.Command, args []string) error {
 
-		stdout, err := showUser(config, args, fields)
+		// configure client
+		rest, err := config.ToRESTConfig()
+		if err != nil {
+			return err
+		}
+		client, err := v1.NewForConfig(rest)
 		if err != nil {
 			return err
 		}
 
-		cmd.Print(stdout)
+		secretList, err := showUsers(client, config, cluster, args)
+		if err != nil {
+			return err
+		}
 
-		return nil
+		// If no user info found, exit early
+		if len(secretList.Items) == 0 {
+			notFoundMessage := "No user information found for cluster " + cluster
+			if len(args) > 0 {
+				notFoundMessage = notFoundMessage + " / user " + args[0]
+			}
+			cmd.Print(notFoundMessage + "\n")
+			return nil
+		}
+
+		// If user info found, print
+		return printUsers(cmd, secretList, fields, cluster)
 	}
 
 	return cmdShowUser
 }
 
-// showUser returns a string with the decoded contents of the cluster's user Secrets.
-func showUser(config *internal.Config, args []string, showSensitive bool) (string, error) {
-
-	// break out keys based on whether sensitive information is included
-	var fields = []string{"dbname", "host", "pgbouncer-host", "pgbouncer-port", "port", "user"}
-	var sensitive = []string{"jdbc-uri", "password", "pgbouncer-jdbc-uri", "pgbouncer-uri", "uri", "verifier"}
-
-	if showSensitive {
-		fields = append(fields, sensitive...)
-
-		fmt.Print("WARNING: This command will show sensitive password information." +
-			"\nAre you sure you want to continue? (yes/no): ")
-
-		var confirmed *bool
-		for i := 0; confirmed == nil && i < 10; i++ {
-			// retry 10 times or until a confirmation is given or denied,
-			// whichever comes first
-			confirmed = util.Confirm(os.Stdin, os.Stdout)
-		}
-
-		if confirmed == nil || !*confirmed {
-			return "", nil
-		}
-	}
-
-	// configure client
+// showUsers returns a string with the decoded contents of the cluster's users' Secrets.
+func showUsers(client *v1.CoreV1Client,
+	config *internal.Config,
+	cluster string,
+	args []string,
+) (*corev1.SecretList, error) {
 	ctx := context.Background()
-	rest, err := config.ToRESTConfig()
-	if err != nil {
-		return "", err
-	}
-	client, err := v1.NewForConfig(rest)
-	if err != nil {
-		return "", err
-	}
 
 	// Get the namespace. This will either be from the Kubernetes configuration
 	// or from the --namespace (-n) flag.
 	configNamespace, err := config.Namespace()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	list, err := client.Secrets(configNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: util.PostgresUserSecretLabels(args[0]),
+	// Set up the labels for listing the secrets; add the user label is present in args
+	labelSelector := util.PostgresUserSecretLabels(cluster)
+	if len(args) > 0 {
+		labelSelector = labelSelector +
+			",postgres-operator.crunchydata.com/pguser=" + args[0]
+	}
+
+	return client.Secrets(configNamespace).List(ctx, metav1.ListOptions{
+		LabelSelector: labelSelector,
 	})
-	if err != nil {
-		return "", err
-	}
-
-	return userData(fields, list)
 }
 
-// userData returns the requested user data from the provided Secret List.
-// If the Secret List is empty, return a message stating that.
-func userData(fields []string, list *corev1.SecretList) (string, error) {
+func printUsers(cmd *cobra.Command,
+	secretList *corev1.SecretList,
+	showSensitive bool,
+	clusterName string,
+) error {
 
-	var output string
-
-	if len(list.Items) == 0 {
-		output += fmt.Sprintln("No user Secrets found.")
+	// If the user is asking for connection strings, we use the alternate printer.
+	if showSensitive {
+		return printUserConnectionStrings(cmd, secretList, clusterName)
 	}
 
-	for _, secret := range list.Items {
-		output += fmt.Sprintf("SECRET: %s\n", secret.Name)
-
-		// sort keys
-		keys := make([]string, 0, len(secret.Data))
-		for k := range secret.Data {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-
-		// decode and print keys and values from Secret
-		for _, k := range keys {
-			b, err := yaml.Marshal(secret.Data[k])
-			if err != nil {
-				return output, err
-			}
-			d := make([]byte, base64.StdEncoding.EncodedLen(len(b)))
-			_, err = base64.StdEncoding.Decode(d, b)
-			if err != nil {
-				return output, err
-			}
-			if slices.Contains(fields, k) {
-				output += fmt.Sprintf("  %s: %s\n", strings.ToUpper(k), string(d))
-			}
+	// Set up a tabwriter that writes to stdout
+	writer := tabwriter.NewWriter(cmd.OutOrStdout(), 10, 2, 2, ' ', 0)
+	if _, err := writer.Write([]byte("\nCLUSTER\tUSERNAME\n")); err != nil {
+		return err
+	}
+	for _, secret := range secretList.Items {
+		var buf bytes.Buffer
+		fmt.Fprintf(&buf, "%s\t%s\n", clusterName, string(secret.Data["user"]))
+		if _, err := writer.Write(buf.Bytes()); err != nil {
+			return err
 		}
 	}
-	return output, nil
+	if _, err := writer.Write([]byte("\n")); err != nil {
+		return err
+	}
+
+	return writer.Flush()
+}
+
+func printUserConnectionStrings(cmd *cobra.Command,
+	secretList *corev1.SecretList,
+	clusterName string,
+) error {
+	fmt.Print("WARNING: This command will show sensitive password information." +
+		"\nAre you sure you want to continue? (yes/no): ")
+
+	var confirmed *bool
+	for i := 0; confirmed == nil && i < 10; i++ {
+		// retry 10 times or until a confirmation is given or denied,
+		// whichever comes first
+		confirmed = util.Confirm(os.Stdin, os.Stdout)
+	}
+
+	if confirmed == nil || !*confirmed {
+		return nil
+	}
+
+	cmd.Println()
+	for _, secret := range secretList.Items {
+		cmd.Printf("Connection information for %s for %s cluster\n", string(secret.Data["user"]), clusterName)
+		cmd.Println("Connection info string:")
+		dbname := string(secret.Data["user"])
+		if dbnameSet, ok := secret.Data["dbname"]; ok {
+			dbname = string(dbnameSet)
+		}
+		cmd.Println("    dbname=" + dbname +
+			" host=" + string(secret.Data["host"]) +
+			" port=" + string(secret.Data["port"]) +
+			" user=" + string(secret.Data["user"]) +
+			" password=" + string(secret.Data["password"]))
+		cmd.Println("Connection URL:")
+		cmd.Println("    postgres://" + string(secret.Data["user"]) +
+			":" + string(secret.Data["password"]) +
+			"@" + string(secret.Data["host"]) +
+			":" + string(secret.Data["port"]) +
+			"/" + dbname)
+		if uri, ok := secret.Data["pgbouncer-uri"]; ok {
+			cmd.Println("PgBouncer connection URL:")
+			cmd.Println("    " + string(uri))
+
+			cmd.Println("JDBC PgBouncer connection URL:")
+			cmd.Println("    " + string(secret.Data["pgbouncer-jdbc-uri"]))
+		}
+		cmd.Println()
+	}
+
+	return nil
 }
 
 // getPrimaryExec returns a executor function for the primary Pod to allow for
