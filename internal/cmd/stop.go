@@ -30,7 +30,7 @@ func newStopCommand(config *internal.Config) *cobra.Command {
 	cmdStop := &cobra.Command{
 		Use:   "stop CLUSTER_NAME",
 		Short: "Stop cluster",
-		Long: `Stop allows you to stop a PostgreSQL cluster.
+		Long: `Stop sets the spec.shutdown field to true, allowing you to stop a PostgreSQL cluster.
 The --force-conflicts flag may be required if the spec.shutdown field has been used before.
 
 ### RBAC Requirements
@@ -47,7 +47,7 @@ pgo stop hippo
 pgo stop hippo --force-conflicts
 
 ### Example output
-postgresclusters/hippo backup initiated`)
+postgresclusters/hippo stop initiated`)
 
 	// Limit the number of args, that is, only one cluster name
 	cmdStop.Args = cobra.ExactArgs(1)
@@ -84,6 +84,7 @@ postgresclusters/hippo backup initiated`)
 			Config:           config,
 			DoNothingMsg:     "Cluster already Stopped. Nothing to do.\n",
 			ForceConflicts:   forceConflicts,
+			InitiatedMsg:     "stop initiated",
 			Namespace:        namespace,
 			NewShutdownValue: true,
 			Mapping:          mapping,

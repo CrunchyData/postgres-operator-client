@@ -35,6 +35,7 @@ type ShutdownRequestArgs struct {
 	Config           *internal.Config
 	DoNothingMsg     string
 	ForceConflicts   bool
+	InitiatedMsg     string
 	Namespace        string
 	NewShutdownValue bool
 	Mapping          *meta.RESTMapping
@@ -45,7 +46,7 @@ func newStartCommand(config *internal.Config) *cobra.Command {
 	cmdStart := &cobra.Command{
 		Use:   "start CLUSTER_NAME",
 		Short: "Start cluster",
-		Long: `Start allows you to start a PostgreSQL cluster.
+		Long: `Start sets the spec.shutdown field to false, allowing you to start a PostgreSQL cluster.
 The --force-conflicts flag may be required if the spec.shutdown field has been updated by another client.
 
 ### RBAC Requirements
@@ -62,7 +63,7 @@ pgo start hippo
 pgo start hippo --force-conflicts
 
 ### Example output
-postgresclusters/hippo backup initiated`)
+postgresclusters/hippo start initiated`)
 
 	// Limit the number of args, that is, only one cluster name
 	cmdStart.Args = cobra.ExactArgs(1)
@@ -84,6 +85,7 @@ postgresclusters/hippo backup initiated`)
 			Config:           config,
 			DoNothingMsg:     "Cluster already Started. Nothing to do.\n",
 			ForceConflicts:   forceConflicts,
+			InitiatedMsg:     "start initiated",
 			Namespace:        namespace,
 			NewShutdownValue: false,
 			Mapping:          mapping,
@@ -146,8 +148,8 @@ func patchClusterShutdown(cluster *unstructured.Unstructured, client dynamic.Nam
 		}
 		return err
 	}
-	fmt.Fprintf(args.Config.Out, "%s/%s patched\n",
-		args.Mapping.Resource.Resource, args.ClusterName)
+	fmt.Fprintf(args.Config.Out, "%s/%s %s\n",
+		args.Mapping.Resource.Resource, args.ClusterName, args.InitiatedMsg)
 	return nil
 }
 

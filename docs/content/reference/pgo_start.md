@@ -7,7 +7,7 @@ Start cluster
 
 ### Synopsis
 
-Start allows you to start a PostgreSQL cluster.
+Start sets the spec.shutdown field to false, allowing you to start a PostgreSQL cluster.
 The --force-conflicts flag may be required if the spec.shutdown field has been updated by another client.
 
 ### RBAC Requirements
@@ -33,7 +33,7 @@ pgo start hippo --force-conflicts
 ```
 ### Example output
 ```
-postgresclusters/hippo backup initiated
+postgresclusters/hippo start initiated
 ```
 
 ### Options

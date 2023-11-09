@@ -7,7 +7,7 @@ Stop cluster
 
 ### Synopsis
 
-Stop allows you to stop a PostgreSQL cluster.
+Stop sets the spec.shutdown field to true, allowing you to stop a PostgreSQL cluster.
 The --force-conflicts flag may be required if the spec.shutdown field has been used before.
 
 ### RBAC Requirements
@@ -33,7 +33,7 @@ pgo stop hippo --force-conflicts
 ```
 ### Example output
 ```
-postgresclusters/hippo backup initiated
+postgresclusters/hippo stop initiated
 ```
 
 ### Options
