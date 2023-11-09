@@ -23,7 +23,7 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func TestConfirmDelete(t *testing.T) {
+func TestConfirm(t *testing.T) {
 
 	testsCases := []struct {
 		input           string
