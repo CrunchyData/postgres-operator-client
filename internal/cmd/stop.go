@@ -56,7 +56,7 @@ postgresclusters/hippo stop initiated`)
 	cmdStop.Flags().BoolVar(&forceConflicts, "force-conflicts", false, "take ownership and overwrite the shutdown setting")
 	cmdStop.RunE = func(cmd *cobra.Command, args []string) error {
 		fmt.Print("WARNING: Stopping a postgrescluster is not destructive but " +
-			"it will take your database offline until you run start. \nAre you sure you want " +
+			"it will take your database offline until you restart it. \nAre you sure you want " +
 			"to continue? (yes/no): ")
 		var confirmed *bool
 		for i := 0; confirmed == nil && i < 10; i++ {
