@@ -95,7 +95,10 @@ postgresclusters/hippo start initiated`)
 			return err
 		}
 
-		err = patchClusterShutdown(cluster, client, requestArgs)
+		msg, err := patchClusterShutdown(cluster, client, requestArgs)
+		if msg != "" {
+			cmd.Printf(msg)
+		}
 		if err != nil {
 			return err
 		}
@@ -105,31 +108,29 @@ postgresclusters/hippo start initiated`)
 	return cmdStart
 }
 
-func patchClusterShutdown(cluster *unstructured.Unstructured, client dynamic.NamespaceableResourceInterface, args ShutdownRequestArgs) error {
+func patchClusterShutdown(cluster *unstructured.Unstructured, client dynamic.NamespaceableResourceInterface, args ShutdownRequestArgs) (string, error) {
 	ctx := context.Background()
 
 	currShutdownVal, found, err := unstructured.NestedBool(cluster.Object, "spec", "shutdown")
 	if err != nil {
-		return err
+		return "", err
 	}
 	// If the shutdown status is equal to the intent of the command, do nothing.
 	if found && currShutdownVal == args.NewShutdownValue {
-		fmt.Fprintf(args.Config.Out, args.DoNothingMsg)
-		return nil
+		return args.DoNothingMsg, nil
 	}
 
 	// Construct the payload.
 	intent := new(unstructured.Unstructured)
 	if err := internal.ExtractFieldsInto(cluster, intent, args.Config.Patch.FieldManager); err != nil {
-		return err
+		return "", err
 	}
 	if err := unstructured.SetNestedField(intent.Object, args.NewShutdownValue, "spec", "shutdown"); err != nil {
-		fmt.Fprint(args.Config.Out, err.Error())
-		return err
+		return "", err
 	}
 	patch, err := intent.MarshalJSON()
 	if err != nil {
-		return err
+		return "", err
 	}
 	patchOptions := metav1.PatchOptions{}
 	if args.ForceConflicts {
@@ -143,13 +144,12 @@ func patchClusterShutdown(cluster *unstructured.Unstructured, client dynamic.Nam
 		args.Config.Patch.PatchOptions(patchOptions))
 	if err != nil {
 		if apierrors.IsConflict(err) {
-			fmt.Fprintf(args.Config.Out, "SUGGESTION: The --force-conflicts flag may help in performing this operation.\n")
+			return "SUGGESTION: The --force-conflicts flag may help in performing this operation.\n", err
 		}
-		return err
+		return "", err
 	}
-	fmt.Fprintf(args.Config.Out, "%s/%s %s\n",
-		args.Mapping.Resource.Resource, args.ClusterName, args.InitiatedMsg)
-	return nil
+
+	return fmt.Sprintf("%s/%s %s\n", args.Mapping.Resource.Resource, args.ClusterName, args.InitiatedMsg), err
 }
 
 func getPostgresCluster(client dynamic.NamespaceableResourceInterface, args ShutdownRequestArgs) (*unstructured.Unstructured, error) {
