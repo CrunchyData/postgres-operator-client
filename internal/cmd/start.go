@@ -73,7 +73,6 @@ postgresclusters/hippo start initiated`)
 	cmdStart.RunE = func(cmd *cobra.Command, args []string) error {
 		mapping, client, err := v1beta1.NewPostgresClusterClient(config)
 		if err != nil {
-			fmt.Fprint(config.Out, err.Error())
 			return err
 		}
 		namespace, err := config.Namespace()
