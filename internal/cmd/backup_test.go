@@ -15,23 +15,33 @@
 package cmd
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"gotest.tools/v3/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/dynamic/fake"
+	k8stesting "k8s.io/client-go/testing"
 	"sigs.k8s.io/yaml"
 
+	"github.com/crunchydata/postgres-operator-client/internal"
+	"github.com/crunchydata/postgres-operator-client/internal/apis/postgres-operator.crunchydata.com/v1beta1"
 	"github.com/crunchydata/postgres-operator-client/internal/testing/cmp"
 )
 
-func TestPGBackRestBackupModifyIntent(t *testing.T) {
+func TestPGBackRestBackupArgsModifyIntent(t *testing.T) {
 	now := time.Date(2020, 4, 5, 6, 7, 8, 99, time.FixedZone("ZONE", -11))
 
 	for _, tt := range []struct {
 		Name, Before, After string
-		Backup              pgBackRestBackup
+		Backup              pgBackRestBackupArgs
 	}{
 		{
 			Name: "Zero",
@@ -43,7 +53,7 @@ metadata:
 		},
 		{
 			Name: "Options",
-			Backup: pgBackRestBackup{
+			Backup: pgBackRestBackupArgs{
 				Options: []string{"--quoth=raven --midnight=dreary", "--ever=never"},
 			},
 			After: strings.TrimSpace(`
@@ -61,7 +71,7 @@ spec:
 		},
 		{
 			Name:   "RepoName",
-			Backup: pgBackRestBackup{RepoName: "testRepo"},
+			Backup: pgBackRestBackupArgs{RepoName: "testRepo"},
 			After: strings.TrimSpace(`
 metadata:
   annotations:
@@ -94,7 +104,7 @@ metadata:
 		},
 		{
 			Name:   "NewRepoButOptions",
-			Backup: pgBackRestBackup{RepoName: "testRepo"},
+			Backup: pgBackRestBackupArgs{RepoName: "testRepo"},
 			Before: strings.TrimSpace(`
 metadata:
   annotations:
@@ -119,7 +129,7 @@ spec:
 		},
 		{
 			Name:   "NewOptionsButRepo",
-			Backup: pgBackRestBackup{Options: []string{"a", "b c"}},
+			Backup: pgBackRestBackupArgs{Options: []string{"a", "b c"}},
 			Before: strings.TrimSpace(`
 metadata:
   annotations:
@@ -160,12 +170,51 @@ spec:
 			[]byte(`{ spec: { backups: 1234 } }`), &intent.Object,
 		))
 
-		err := pgBackRestBackup{Options: []string{"a"}}.modifyIntent(&intent, now)
+		err := pgBackRestBackupArgs{Options: []string{"a"}}.modifyIntent(&intent, now)
 		assert.ErrorContains(t, err, ".spec.backups")
 		assert.ErrorContains(t, err, "is not a map")
 
-		err = pgBackRestBackup{RepoName: "b"}.modifyIntent(&intent, now)
+		err = pgBackRestBackupArgs{RepoName: "b"}.modifyIntent(&intent, now)
 		assert.ErrorContains(t, err, ".spec.backups")
 		assert.ErrorContains(t, err, "is not a map")
 	})
+}
+
+func TestBackupRun(t *testing.T) {
+	cf := genericclioptions.NewConfigFlags(true)
+	nsd := "test"
+	cf.Namespace = &nsd
+	config := &internal.Config{
+		ConfigFlags: cf,
+		IOStreams: genericclioptions.IOStreams{
+			In:     os.Stdin,
+			Out:    os.Stdout,
+			ErrOut: os.Stderr},
+		Patch: internal.PatchConfig{FieldManager: filepath.Base(os.Args[0])},
+	}
+
+	scheme := runtime.NewScheme()
+	client := fake.NewSimpleDynamicClient(scheme)
+	// Set up dynamicResourceClient with `fake` client
+	gvk := v1beta1.GroupVersion.WithKind("PostgresCluster")
+	gvr := schema.GroupVersionResource{Group: gvk.Group, Version: gvk.Version, Resource: "postgresclusters"}
+	drc := client.Resource(gvr)
+
+	t.Run("PassesThroughError", func(t *testing.T) {
+		// Have the client return an error on get
+		client.PrependReactor("get",
+			"postgresclusters",
+			func(action k8stesting.Action) (bool, runtime.Object, error) {
+				return true, nil, fmt.Errorf("whoops")
+			})
+
+		backup := pgBackRestBackupArgs{
+			ClusterName: "name",
+		}
+
+		msg, err := backup.Run(drc, config)
+		assert.Equal(t, "", msg) // No special message is passed through on get fails
+		assert.Error(t, err, "whoops", "Error from PGO API should be passed through")
+	})
+
 }

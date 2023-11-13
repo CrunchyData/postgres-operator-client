@@ -23,6 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/dynamic"
 
 	"github.com/crunchydata/postgres-operator-client/internal"
 	"github.com/crunchydata/postgres-operator-client/internal/apis/postgres-operator.crunchydata.com/v1beta1"
@@ -47,6 +48,8 @@ the --force-conflicts flag.
     postgresclusters.postgres-operator.crunchydata.com  [get patch]
 
 ### Usage`,
+		// Limit the number of args, that is, only one cluster name
+		Args: cobra.ExactArgs(1),
 	}
 
 	cmdBackup.Example = internal.FormatExample(`# Trigger a backup on the 'hippo' postgrescluster using the current spec options
@@ -63,13 +66,10 @@ pgo backup hippo --force-conflicts
 ### Example output
 postgresclusters/hippo backup initiated`)
 
-	// Limit the number of args, that is, only one cluster name
-	cmdBackup.Args = cobra.ExactArgs(1)
-
 	// `backup` command accepts `repoName`, `force-conflicts` and `options` flags;
 	// multiple options flags can be used, with each becoming a new line
 	// in the options array on the spec
-	backup := pgBackRestBackup{}
+	backup := pgBackRestBackupArgs{}
 	cmdBackup.Flags().BoolVar(&backup.ForceConflicts, "force-conflicts", false, "take ownership and overwrite the backup settings")
 	cmdBackup.Flags().StringVar(&backup.RepoName, "repoName", "", "repoName to backup to")
 	cmdBackup.Flags().StringArrayVar(&backup.Options, "options", []string{},
@@ -79,80 +79,39 @@ postgresclusters/hippo backup initiated`)
 	cmdBackup.RunE = func(cmd *cobra.Command, args []string) error {
 
 		// configure client
-		ctx := context.Background()
 		mapping, client, err := v1beta1.NewPostgresClusterClient(config)
 		if err != nil {
 			return err
 		}
 
-		// Get the namespace. This will either be from the Kubernetes configuration
-		// or from the --namespace (-n) flag.
-		configNamespace, err := config.Namespace()
-		if err != nil {
-			return err
+		// Pass args[0] as the name of the cluster object, limited to one through `ExactArgs(1)`
+		backup.ClusterName = args[0]
+
+		msg, err := backup.Run(client, config)
+		if msg != "" {
+			cmd.Println(msg)
+		}
+		if err == nil {
+			// Our `backup` command initiates a job, but does not signal to the user
+			// that a backup has finished; consider a `--wait` flag to wait until the
+			// backup is done.
+			cmd.Printf("%s/%s backup initiated\n", mapping.Resource.Resource, backup.ClusterName)
 		}
 
-		cluster, err := client.Namespace(configNamespace).Get(ctx,
-			args[0], // the name of the cluster object, limited to one name through `ExactArgs(1)`
-			metav1.GetOptions{},
-		)
-		if err != nil {
-			return err
-		}
-
-		intent := new(unstructured.Unstructured)
-		if err := internal.ExtractFieldsInto(cluster, intent, config.Patch.FieldManager); err != nil {
-			return err
-		}
-		if err := backup.modifyIntent(intent, time.Now()); err != nil {
-			return err
-		}
-
-		patch, err := intent.MarshalJSON()
-		if err != nil {
-			cmd.Printf("\nError packaging payload: %s\n", err)
-			return err
-		}
-
-		// Update the spec/annotate
-		// TODO(benjaminjb): Would we want to allow a dry-run option here?
-		patchOptions := metav1.PatchOptions{}
-		if backup.ForceConflicts {
-			b := true
-			patchOptions.Force = &b
-		}
-		_, err = client.Namespace(configNamespace).Patch(ctx,
-			args[0], // the name of the cluster object, limited to one name through `ExactArgs(1)`
-			types.ApplyPatchType,
-			patch,
-			config.Patch.PatchOptions(patchOptions),
-		)
-
-		if err != nil {
-			if apierrors.IsConflict(err) {
-				cmd.Printf("SUGGESTION: The --force-conflicts flag may help in performing this operation.")
-			}
-			cmd.Printf("\nError requesting update: %s\n", err)
-			return err
-		}
-
-		// Print the output received.
-		// TODO(benjaminjb): consider a more informative output
-		cmd.Printf("%s/%s backup initiated\n", mapping.Resource.Resource, args[0])
-
-		return nil
+		return err
 	}
 
 	return cmdBackup
 }
 
-type pgBackRestBackup struct {
+type pgBackRestBackupArgs struct {
+	ClusterName    string
+	ForceConflicts bool
 	Options        []string
 	RepoName       string
-	ForceConflicts bool
 }
 
-func (config pgBackRestBackup) modifyIntent(
+func (backup pgBackRestBackupArgs) modifyIntent(
 	intent *unstructured.Unstructured, now time.Time,
 ) error {
 	intent.SetAnnotations(internal.MergeStringMaps(
@@ -160,7 +119,7 @@ func (config pgBackRestBackup) modifyIntent(
 			"postgres-operator.crunchydata.com/pgbackrest-backup": now.UTC().Format(time.RFC3339),
 		}))
 
-	if value, path := config.Options, []string{
+	if value, path := backup.Options, []string{
 		"spec", "backups", "pgbackrest", "manual", "options",
 	}; len(value) == 0 {
 		unstructured.RemoveNestedField(intent.Object, path...)
@@ -170,7 +129,7 @@ func (config pgBackRestBackup) modifyIntent(
 		return err
 	}
 
-	if value, path := config.RepoName, []string{
+	if value, path := backup.RepoName, []string{
 		"spec", "backups", "pgbackrest", "manual", "repoName",
 	}; len(value) == 0 {
 		unstructured.RemoveNestedField(intent.Object, path...)
@@ -184,4 +143,64 @@ func (config pgBackRestBackup) modifyIntent(
 		"spec", "backups", "pgbackrest", "manual")
 
 	return nil
+}
+
+func (backup pgBackRestBackupArgs) Run(client dynamic.NamespaceableResourceInterface,
+	config *internal.Config) (string, error) {
+
+	var (
+		cluster   *unstructured.Unstructured
+		err       error
+		namespace string
+		patch     []byte
+	)
+
+	ctx := context.Background()
+
+	// Get the namespace. This will either be from the Kubernetes configuration
+	// or from the --namespace (-n) flag.
+	if namespace, err = config.Namespace(); err != nil {
+		return "", err
+	}
+
+	if cluster, err = client.Namespace(namespace).Get(ctx,
+		backup.ClusterName,
+		metav1.GetOptions{},
+	); err != nil {
+		return "", err
+	}
+
+	intent := new(unstructured.Unstructured)
+	if err = internal.ExtractFieldsInto(
+		cluster, intent, config.Patch.FieldManager); err != nil {
+		return "", err
+	}
+	if err = backup.modifyIntent(intent, time.Now()); err != nil {
+		return "", err
+	}
+
+	if patch, err = intent.MarshalJSON(); err != nil {
+		return "Error packaging payload", err
+	}
+
+	// Update the spec/annotate
+	// TODO(benjaminjb): Would we want to allow a dry-run option here?
+	patchOptions := metav1.PatchOptions{}
+	if backup.ForceConflicts {
+		b := true
+		patchOptions.Force = &b
+	}
+	if _, err = client.Namespace(namespace).Patch(ctx,
+		backup.ClusterName,
+		types.ApplyPatchType,
+		patch,
+		config.Patch.PatchOptions(patchOptions),
+	); err != nil {
+		if apierrors.IsConflict(err) {
+			return "SUGGESTION: The --force-conflicts flag may help in performing this operation.", err
+		}
+		return "Error requesting update", err
+	}
+
+	return "", err
 }

@@ -174,11 +174,11 @@ spec:
 			[]byte(`{ spec: { backups: 1234 } }`), &intent.Object,
 		))
 
-		err := pgBackRestBackup{Options: []string{"a"}}.modifyIntent(&intent, now)
+		err := pgBackRestBackupArgs{Options: []string{"a"}}.modifyIntent(&intent, now)
 		assert.ErrorContains(t, err, ".spec.backups")
 		assert.ErrorContains(t, err, "is not a map")
 
-		err = pgBackRestBackup{RepoName: "b"}.modifyIntent(&intent, now)
+		err = pgBackRestBackupArgs{RepoName: "b"}.modifyIntent(&intent, now)
 		assert.ErrorContains(t, err, ".spec.backups")
 		assert.ErrorContains(t, err, "is not a map")
 	})
