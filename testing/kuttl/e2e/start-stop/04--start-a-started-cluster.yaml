@@ -1,0 +1,11 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    RESULT=$(kubectl-pgo --namespace $NAMESPACE start start-stop-cluster)
+
+    [[ "${RESULT}" == 'Cluster already Started. Nothing to do.'* ]] || {
+      echo "Expected do nothing, got:"
+      echo "${RESULT}"
+      exit 1
+    }

@@ -1,20 +1,49 @@
 ---
-title: Command Reference
-aliases:
-- /reference/pgo
-weight: 100
+title: pgo start
 ---
-## pgo
+## pgo start
 
-pgo is a kubectl plugin for PGO, the open source Postgres Operator
+Start cluster
 
 ### Synopsis
 
-pgo is a kubectl plugin for PGO, the open source Postgres Operator from Crunchy Data.
+Start sets the spec.shutdown field to false, allowing you to start a PostgreSQL cluster.
+The --force-conflicts flag may be required if the spec.shutdown field has been updated by another client.
 
-	https://github.com/CrunchyData/postgres-operator
+### RBAC Requirements
+    Resources                                           Verbs
+    ---------                                           -----
+    postgresclusters.postgres-operator.crunchydata.com  [get patch]
+
+### Usage
+
+```
+pgo start CLUSTER_NAME [flags]
+```
+
+### Examples
+
+```
+# Start a 'hippo' postgrescluster.
+pgo start hippo
+
+# Resolve ownership conflict
+pgo start hippo --force-conflicts
+
+```
+### Example output
+```
+postgresclusters/hippo start initiated
+```
 
 ### Options
+
+```
+      --force-conflicts   take ownership and overwrite the shutdown setting
+  -h, --help              help for start
+```
+
+### Options inherited from parent commands
 
 ```
       --as string                      Username to impersonate for the operation. User could be a regular user or a service account in a namespace.
@@ -26,7 +55,6 @@ pgo is a kubectl plugin for PGO, the open source Postgres Operator from Crunchy 
       --client-key string              Path to a client key file for TLS
       --cluster string                 The name of the kubeconfig cluster to use
       --context string                 The name of the kubeconfig context to use
-  -h, --help                           help for pgo
       --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string              Path to the kubeconfig file to use for CLI requests.
   -n, --namespace string               If present, the namespace scope for this CLI request
@@ -39,13 +67,5 @@ pgo is a kubectl plugin for PGO, the open source Postgres Operator from Crunchy 
 
 ### SEE ALSO
 
-* [pgo backup](/reference/pgo_backup/)	 - Backup cluster
-* [pgo create](/reference/pgo_create/)	 - Create a resource
-* [pgo delete](/reference/pgo_delete/)	 - Delete a resource
-* [pgo restore](/reference/pgo_restore/)	 - Restore cluster
-* [pgo show](/reference/pgo_show/)	 - Show PostgresCluster details
-* [pgo start](/reference/pgo_start/)	 - Start cluster
-* [pgo stop](/reference/pgo_stop/)	 - Stop cluster
-* [pgo support](/reference/pgo_support/)	 - Crunchy Support commands for PGO
-* [pgo version](/reference/pgo_version/)	 - PGO client and operator versions
+* [pgo](/reference/)	 - pgo is a kubectl plugin for PGO, the open source Postgres Operator
 

@@ -133,6 +133,8 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
 	root.AddCommand(newShowCommand(config))
 	root.AddCommand(newSupportCommand(config))
 	root.AddCommand(newVersionCommand(config))
+	root.AddCommand(newStopCommand(config))
+	root.AddCommand(newStartCommand(config))
 
 	return root
 }

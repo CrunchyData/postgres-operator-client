@@ -15,10 +15,8 @@
 package cmd
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"io"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -26,6 +24,7 @@ import (
 
 	"github.com/crunchydata/postgres-operator-client/internal"
 	"github.com/crunchydata/postgres-operator-client/internal/apis/postgres-operator.crunchydata.com/v1beta1"
+	"github.com/crunchydata/postgres-operator-client/internal/util"
 )
 
 // newDeleteCommand returns the delete subcommand of the PGO plugin.
@@ -80,7 +79,7 @@ postgresclusters/hippo deleted`)
 		for i := 0; confirmed == nil && i < 10; i++ {
 			// retry 10 times or until a confirmation is given or denied,
 			// whichever comes first
-			confirmed = confirm(os.Stdin, os.Stdout)
+			confirmed = util.Confirm(os.Stdin, os.Stdout)
 		}
 
 		if confirmed == nil || !*confirmed {
@@ -110,38 +109,6 @@ postgresclusters/hippo deleted`)
 	}
 
 	return cmd
-}
-
-// confirm uses a Scanner to parse user input. A user must type in "yes" or "no"
-// and then press enter. It has fuzzy matching, so "y", "Y", "yes", "YES",
-// and "Yes" all count as confirmations and return 'true'. Similarly, "n", "N",
-// "no", "No", "NO" all deny confirmation and return 'false'. If the input is not
-// recognized, nil is returned.
-func confirm(reader io.Reader, writer io.Writer) *bool {
-	var response string
-	var boolVar bool
-
-	scanner := bufio.NewScanner(reader)
-	if scanner.Scan() {
-		response = scanner.Text()
-	}
-
-	if scanner.Err() != nil || response == "" {
-		fmt.Fprint(writer, "Please type yes or no and then press enter: ")
-		return nil
-	}
-
-	yesResponses := []string{"y", "Y", "yes", "Yes", "YES"}
-	noResponses := []string{"n", "N", "no", "No", "NO"}
-	if containsString(yesResponses, response) {
-		boolVar = true
-		return &boolVar
-	} else if containsString(noResponses, response) {
-		return &boolVar
-	} else {
-		fmt.Fprint(writer, "Please type yes or no and then press enter: ")
-		return nil
-	}
 }
 
 // containsString returns true if slice contains element
