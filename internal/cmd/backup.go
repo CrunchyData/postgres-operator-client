@@ -69,9 +69,7 @@ postgresclusters/hippo backup initiated`)
 	// `backup` command accepts `repoName`, `force-conflicts` and `options` flags;
 	// multiple options flags can be used, with each becoming a new line
 	// in the options array on the spec
-	backup := pgBackRestBackup{
-		Config: config,
-	}
+	backup := pgBackRestBackupArgs{}
 	cmdBackup.Flags().BoolVar(&backup.ForceConflicts, "force-conflicts", false, "take ownership and overwrite the backup settings")
 	cmdBackup.Flags().StringVar(&backup.RepoName, "repoName", "", "repoName to backup to")
 	cmdBackup.Flags().StringArrayVar(&backup.Options, "options", []string{},
@@ -87,11 +85,15 @@ postgresclusters/hippo backup initiated`)
 		}
 
 		// Pass args[0] as the name of the cluster object, limited to one through `ExactArgs(1)`
-		err = backup.Run(client, cmd, args[0])
+		backup.ClusterName = args[0]
 
+		msg, err := backup.Run(client, config)
+		if msg != "" {
+			cmd.Println(msg)
+		}
 		if err == nil {
 			// Consider a `--wait` flag
-			cmd.Printf("%s/%s backup initiated\n", mapping.Resource.Resource, args[0])
+			cmd.Printf("%s/%s backup initiated\n", mapping.Resource.Resource, backup.ClusterName)
 		}
 
 		return err
@@ -100,15 +102,14 @@ postgresclusters/hippo backup initiated`)
 	return cmdBackup
 }
 
-type pgBackRestBackup struct {
-	Config *internal.Config
-
+type pgBackRestBackupArgs struct {
+	ClusterName    string
 	ForceConflicts bool
 	Options        []string
 	RepoName       string
 }
 
-func (backup pgBackRestBackup) modifyIntent(
+func (backup pgBackRestBackupArgs) modifyIntent(
 	intent *unstructured.Unstructured, now time.Time,
 ) error {
 	intent.SetAnnotations(internal.MergeStringMaps(
@@ -142,9 +143,8 @@ func (backup pgBackRestBackup) modifyIntent(
 	return nil
 }
 
-func (backup pgBackRestBackup) Run(client dynamic.NamespaceableResourceInterface,
-	cmd *cobra.Command,
-	clusterName string) error {
+func (backup pgBackRestBackupArgs) Run(client dynamic.NamespaceableResourceInterface,
+	config *internal.Config) (string, error) {
 
 	var (
 		cluster   *unstructured.Unstructured
@@ -157,29 +157,28 @@ func (backup pgBackRestBackup) Run(client dynamic.NamespaceableResourceInterface
 
 	// Get the namespace. This will either be from the Kubernetes configuration
 	// or from the --namespace (-n) flag.
-	if namespace, err = backup.Config.Namespace(); err != nil {
-		return err
+	if namespace, err = config.Namespace(); err != nil {
+		return "", err
 	}
 
 	if cluster, err = client.Namespace(namespace).Get(ctx,
-		clusterName,
+		backup.ClusterName,
 		metav1.GetOptions{},
 	); err != nil {
-		return err
+		return "", err
 	}
 
 	intent := new(unstructured.Unstructured)
 	if err = internal.ExtractFieldsInto(
-		cluster, intent, backup.Config.Patch.FieldManager); err != nil {
-		return err
+		cluster, intent, config.Patch.FieldManager); err != nil {
+		return "", err
 	}
 	if err = backup.modifyIntent(intent, time.Now()); err != nil {
-		return err
+		return "", err
 	}
 
 	if patch, err = intent.MarshalJSON(); err != nil {
-		cmd.Printf("\nError packaging payload: %s\n", err)
-		return err
+		return "Error packaging payload", err
 	}
 
 	// Update the spec/annotate
@@ -190,18 +189,16 @@ func (backup pgBackRestBackup) Run(client dynamic.NamespaceableResourceInterface
 		patchOptions.Force = &b
 	}
 	if _, err = client.Namespace(namespace).Patch(ctx,
-		clusterName,
+		backup.ClusterName,
 		types.ApplyPatchType,
 		patch,
-		backup.Config.Patch.PatchOptions(patchOptions),
+		config.Patch.PatchOptions(patchOptions),
 	); err != nil {
 		if apierrors.IsConflict(err) {
-			cmd.Printf("SUGGESTION: The --force-conflicts flag may help in performing this operation.")
-			return err
+			return "SUGGESTION: The --force-conflicts flag may help in performing this operation.", err
 		}
-		cmd.Printf("\nError requesting update: %s\n", err)
-		return err
+		return "Error requesting update", err
 	}
 
-	return err
+	return "", err
 }
