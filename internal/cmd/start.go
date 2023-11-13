@@ -92,7 +92,7 @@ postgresclusters/hippo start initiated`)
 
 		msg, err := patchClusterShutdown(cluster, client, requestArgs)
 		if msg != "" {
-			cmd.Printf(msg)
+			cmd.Print(msg)
 		}
 		if err != nil {
 			return err

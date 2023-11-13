@@ -69,12 +69,10 @@ postgresclusters/hippo stop initiated`)
 
 		mapping, client, err := v1beta1.NewPostgresClusterClient(config)
 		if err != nil {
-			fmt.Fprint(config.Out, err.Error())
 			return err
 		}
 		namespace, err := config.Namespace()
 		if err != nil {
-			fmt.Fprint(config.Out, err.Error())
 			return err
 		}
 
