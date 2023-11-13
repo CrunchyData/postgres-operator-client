@@ -92,7 +92,9 @@ postgresclusters/hippo backup initiated`)
 			cmd.Println(msg)
 		}
 		if err == nil {
-			// Consider a `--wait` flag
+			// Our `backup` command initiates a job, but does not signal to the user
+			// that a backup has finished; consider a `--wait` flag to wait until the
+			// backup is done.
 			cmd.Printf("%s/%s backup initiated\n", mapping.Resource.Resource, backup.ClusterName)
 		}
 
