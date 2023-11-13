@@ -33,16 +33,13 @@ import (
 type ShutdownRequestArgs struct {
 	ClusterName      string
 	Config           *internal.Config
-	DoNothingMsg     string
 	ForceConflicts   bool
-	InitiatedMsg     string
 	Namespace        string
 	NewShutdownValue bool
 	Mapping          *meta.RESTMapping
 }
 
 func newStartCommand(config *internal.Config) *cobra.Command {
-
 	cmdStart := &cobra.Command{
 		Use:   "start CLUSTER_NAME",
 		Short: "Start cluster",
@@ -82,9 +79,7 @@ postgresclusters/hippo start initiated`)
 		requestArgs := ShutdownRequestArgs{
 			ClusterName:      args[0],
 			Config:           config,
-			DoNothingMsg:     "Cluster already Started. Nothing to do.\n",
 			ForceConflicts:   forceConflicts,
-			InitiatedMsg:     "start initiated",
 			Namespace:        namespace,
 			NewShutdownValue: false,
 			Mapping:          mapping,
@@ -117,7 +112,11 @@ func patchClusterShutdown(cluster *unstructured.Unstructured, client dynamic.Nam
 	}
 	// If the shutdown status is equal to the intent of the command, do nothing.
 	if found && currShutdownVal == args.NewShutdownValue {
-		return args.DoNothingMsg, nil
+		// If NewShutdownValue == true, we intend to stop the cluster.
+		if args.NewShutdownValue {
+			return "Cluster already Stopped. Nothing to do.\n", nil
+		}
+		return "Cluster already Started. Nothing to do.\n", nil
 	}
 
 	// Construct the payload.
@@ -148,8 +147,14 @@ func patchClusterShutdown(cluster *unstructured.Unstructured, client dynamic.Nam
 		}
 		return "", err
 	}
-
-	return fmt.Sprintf("%s/%s %s\n", args.Mapping.Resource.Resource, args.ClusterName, args.InitiatedMsg), err
+	var initiatedMsg string
+	// If NewShutdownValue == true, we intend to stop the cluster.
+	if args.NewShutdownValue {
+		initiatedMsg = "stop initiated"
+	} else {
+		initiatedMsg = "start initiated"
+	}
+	return fmt.Sprintf("%s/%s %s\n", args.Mapping.Resource.Resource, args.ClusterName, initiatedMsg), err
 }
 
 func getPostgresCluster(client dynamic.NamespaceableResourceInterface, args ShutdownRequestArgs) (*unstructured.Unstructured, error) {

@@ -26,7 +26,6 @@ import (
 )
 
 func newStopCommand(config *internal.Config) *cobra.Command {
-
 	cmdStop := &cobra.Command{
 		Use:   "stop CLUSTER_NAME",
 		Short: "Stop cluster",
@@ -82,9 +81,7 @@ postgresclusters/hippo stop initiated`)
 		requestArgs := ShutdownRequestArgs{
 			ClusterName:      args[0],
 			Config:           config,
-			DoNothingMsg:     "Cluster already Stopped. Nothing to do.\n",
 			ForceConflicts:   forceConflicts,
-			InitiatedMsg:     "stop initiated",
 			Namespace:        namespace,
 			NewShutdownValue: true,
 			Mapping:          mapping,
