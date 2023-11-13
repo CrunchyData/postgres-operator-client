@@ -92,7 +92,7 @@ HA
 
 		// Print the pgbackrest info output received.
 		cmd.Printf("BACKUP\n\n")
-		if stdout, stderr, err := showBackup(config, args, "text", ""); err != nil {
+		if stdout, stderr, err := getBackup(config, args, "text", ""); err != nil {
 			return err
 		} else {
 			cmd.Printf(stdout)
@@ -103,7 +103,7 @@ HA
 
 		// Print the patronictl list output received.
 		cmd.Printf("\nHA\n\n")
-		if stdout, stderr, err := showHA(config, args, "pretty"); err != nil {
+		if stdout, stderr, err := getHA(config, args, "pretty"); err != nil {
 			return err
 		} else {
 			cmd.Printf(stdout)
@@ -182,7 +182,7 @@ stanza: db
 		// handle validation.
 		repoNum := strings.TrimPrefix(repoName, "repo")
 
-		stdout, stderr, err := showBackup(config, args, outputEnum.String(), repoNum)
+		stdout, stderr, err := getBackup(config, args, outputEnum.String(), repoNum)
 
 		if err == nil {
 			cmd.Printf(stdout)
@@ -197,9 +197,9 @@ stanza: db
 	return cmdShowBackup
 }
 
-// showBackup execs into the primary Pod, runs the 'pgbackrest info' command and
+// getBackup execs into the primary Pod, runs the 'pgbackrest info' command and
 // returns the command output and/or error
-func showBackup(
+func getBackup(
 	config *internal.Config,
 	args []string,
 	output string,
@@ -254,7 +254,7 @@ pgo show ha hippo --output json
 	// Define the 'show backup' command
 	cmdShowHA.RunE = func(cmd *cobra.Command, args []string) error {
 
-		stdout, stderr, err := showHA(config, args, outputEnum.String())
+		stdout, stderr, err := getHA(config, args, outputEnum.String())
 
 		if err == nil {
 			cmd.Printf(stdout)
@@ -269,9 +269,9 @@ pgo show ha hippo --output json
 	return cmdShowHA
 }
 
-// showHA execs into the primary Pod, runs the 'patronictl list' command and
+// getHA execs into the primary Pod, runs the 'patronictl list' command and
 // returns the command output and/or error
-func showHA(
+func getHA(
 	config *internal.Config,
 	args []string,
 	output string) (string, string, error) {
@@ -351,7 +351,7 @@ Connection URL:
 			return err
 		}
 
-		secretList, err := showUsers(client, config, cluster, args)
+		secretList, err := getUsers(client, config, cluster, args)
 		if err != nil {
 			return err
 		}
@@ -373,8 +373,8 @@ Connection URL:
 	return cmdShowUser
 }
 
-// showUsers returns a string with the decoded contents of the cluster's users' Secrets.
-func showUsers(client *v1.CoreV1Client,
+// getUsers returns a string with the decoded contents of the cluster's users' Secrets.
+func getUsers(client *v1.CoreV1Client,
 	config *internal.Config,
 	cluster string,
 	args []string,
