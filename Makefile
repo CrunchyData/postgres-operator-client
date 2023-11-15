@@ -80,3 +80,11 @@ cli-docs: ## generate cli documenation
 check-cli-docs: cli-docs 
 	git diff --exit-code -- docs/content/reference/
 
+.PHONY: prep-release
+prep-release:
+	@echo "Replace $(OLD_VERSION) with $(NEW_VERSION)"
+	sed -i "s/$${OLD_VERSION}/$${NEW_VERSION}/" internal/cmd/client_version.go docs/config.toml
+	touch docs/content/releases/$(NEW_VERSION).md
+
+prep-release-docs: prep-release cli-docs
+

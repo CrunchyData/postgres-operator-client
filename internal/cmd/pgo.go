@@ -29,9 +29,6 @@ import (
 	"github.com/crunchydata/postgres-operator-client/internal"
 )
 
-// store the current PGO CLI version
-const clientVersion = "v0.4.0"
-
 // NewPGOCommand returns the root command of the PGO plugin. This command
 // prints the same information as its --help flag: the available subcommands
 // and their short descriptions.
