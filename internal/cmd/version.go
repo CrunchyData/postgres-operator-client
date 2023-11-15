@@ -50,7 +50,7 @@ func newVersionCommand(config *internal.Config) *cobra.Command {
 pgo version
 
 ### Example output
-Client Version: v0.3.0
+Client Version: v0.4.0
 Operator Version: v5.5.0`)
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
