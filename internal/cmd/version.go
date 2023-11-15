@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/spf13/cobra"
 	v1 "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
@@ -46,12 +47,12 @@ func newVersionCommand(config *internal.Config) *cobra.Command {
 	// No arguments for 'version'
 	cmd.Args = cobra.NoArgs
 
-	cmd.Example = internal.FormatExample(`# Request the version of the client and the operator
+	cmd.Example = internal.FormatExample(fmt.Sprintf(`# Request the version of the client and the operator
 pgo version
 
 ### Example output
-Client Version: v0.3.0
-Operator Version: v5.5.0`)
+Client Version: %s
+Operator Version: v5.5.0`, clientVersion))
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 
