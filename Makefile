@@ -88,3 +88,11 @@ prep-release:
 
 prep-release-docs: prep-release cli-docs
 
+tag:
+	@echo "Tagging and pushing as v$(NEW_VERSION)"
+	@echo -n "Are you sure? [y/N] " && read ans && [ $${ans:-N} = y ]
+	git tag "v$(NEW_VERSION)"
+	git push origin "v$(NEW_VERSION)"
+	git tag "d$(NEW_VERSION)"
+	git push origin "d$(NEW_VERSION)"
+	@echo "Make release from tag "v$(NEW_VERSION)"
