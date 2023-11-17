@@ -86,8 +86,10 @@ prep-release:
 	sed -i "s/$${OLD_VERSION}/$${NEW_VERSION}/" internal/cmd/client_version.go docs/config.toml
 	touch docs/content/releases/$(NEW_VERSION).md
 
+.PHONY: prep-release-docs
 prep-release-docs: prep-release cli-docs
 
+.PHONY: tag
 tag:
 	@echo "Tagging and pushing as v$(NEW_VERSION)"
 	@echo -n "Are you sure? [y/N] " && read ans && [ $${ans:-N} = y ]
