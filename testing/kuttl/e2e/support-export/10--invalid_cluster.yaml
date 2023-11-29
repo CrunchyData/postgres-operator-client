@@ -4,7 +4,7 @@ kind: TestStep
 commands:
 - script: |
     kubectl-pgo --namespace $NAMESPACE support export invalid -o .
-    if [ $? ==  0 ]
+    if [ $? =  0 ]
     then
       echo "expected command to fail"
       exit 1;

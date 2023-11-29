@@ -16,13 +16,13 @@ commands:
     CURRENT=$(pgbackrest_backup_annotation)
 
     if [ "${CURRENT}" = "${PRIOR}" ]; then
-      printf 'Expected annotation to change, got %q' "${CURRENT}"
+      printf 'Expected annotation to change, got %s' "${CURRENT}"
       exit 1
     fi
 
     echo "RESULT from taking backup: ${RESULT}"
 
-    if [[ -n $RESULT && "$RESULT" == "postgresclusters/backup-cluster backup initiated" ]]; then
+    if [ -n "$RESULT" ] && [ "$RESULT" = "postgresclusters/backup-cluster backup initiated" ]; then
         exit 0
     fi
 

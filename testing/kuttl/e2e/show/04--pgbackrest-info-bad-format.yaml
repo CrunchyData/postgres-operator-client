@@ -2,6 +2,7 @@ apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
 - script: |
+
     PRIMARY=$(
         kubectl get pod --namespace "${NAMESPACE}" \
           --output name --selector '
@@ -14,14 +15,21 @@ commands:
     )
 
     status=$?
-    if [ $status -ne 1 ]; then
+    if [ "$status" -ne 1 ]; then
         echo "expected bad format to fail"
         exit 1
     fi
 
-    # check command output is not empty and equals the expected error
-    if [[ -n $CLI_HA && "$CLI_HA" == *"must be one of \"text\", \"json\""* ]]; then
+    # check command output is not empty and contains the expected error
+    # Note: case is used as it allows for the use of a wildcard (*)
+    # and is POSIX compliant
+    case "$CLI_HA" in
+    "")
+        exit 1
+        ;;
+    *"must be one of \"text\", \"json\""*)
         exit 0
-    fi
+        ;;
+    esac
 
     exit 1

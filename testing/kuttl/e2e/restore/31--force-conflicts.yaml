@@ -21,7 +21,7 @@ commands:
       exit 0
     fi
 
-    printf 'Expected annotation to change, got PRIOR %q CURRENT %q' "${PRIOR}" "${CURRENT}"
+    printf 'Expected annotation to change, got PRIOR %s CURRENT %s' "${PRIOR}" "${CURRENT}"
     echo "RESULT from taking restore: ${RESULT}"
 
     exit 1

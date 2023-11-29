@@ -19,13 +19,13 @@ commands:
     )
 
     status=$?
-    if [ $status -ne 0 ]; then
+    if [ "$status" -ne 0 ]; then
         echo "pgo command unsuccessful"
         exit 1
     fi
 
     # check command output is not empty and equals 'exec' output
-    if [[ -n $CLI_HA && "$EXEC_INFO" == "$CLI_HA" ]]; then
+    if [ -n "$CLI_HA" ] && [ "$EXEC_INFO" = "$CLI_HA" ]; then
         exit 0
     fi
 

@@ -5,24 +5,28 @@ commands:
     RESULT=$(kubectl-pgo --namespace "${NAMESPACE}" restore disable restore-cluster)
     STATUS=$?
 
-    [[ "${STATUS}" -eq 0 ]] || {
+    [ "${STATUS}" -eq 0 ] || {
       echo "Expected success, got ${STATUS}"
       echo "STDOUT: ${RESULT}"
       exit 1
     }
 
-    [[ "${RESULT}" == *'patched'* ]] || {
-      echo "Expected to patch, got:"
-      echo "${RESULT}"
-      exit 1
-    }
+    case "${RESULT}" in
+    *'patched'*)
+        ;;
+    *)
+        echo "Expected to patch, got:"
+        echo "${RESULT}"
+        exit 1
+        ;;
+    esac
 
     RESTORE=$(
       kubectl --namespace "${NAMESPACE}" get postgrescluster/restore-cluster \
         --output 'jsonpath-as-json={.spec.backups.pgbackrest.restore}'
     )
 
-    [[ "${RESTORE}" == '[]' ]] || {
+    [ "${RESTORE}" = '[]' ] || {
       echo "Expected restore section to be empty, got:"
       echo "${RESTORE}"
       exit 1
