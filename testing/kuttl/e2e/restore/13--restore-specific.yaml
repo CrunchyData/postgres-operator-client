@@ -12,52 +12,57 @@ commands:
     )
     STATUS=$?
 
-    [[ "${STATUS}" -eq 0 ]] || {
+    [ "${STATUS}" -eq 0 ] || {
       echo "Expected success, got ${STATUS}"
       echo "STDOUT: ${RESULT}"
       exit 1
     }
 
-    [[
-      "${RESULT}" == 'WARNING: You are about to restore from pgBackRest'* &&
-      "${RESULT}" == *'options:[--buffer-size=8MiB --io-timeout=120 --process-max=2]'* &&
-      "${RESULT}" == *'repoName:repo1'*
-    ]] || {
-      echo "Expected a warning, got:"
-      echo "${RESULT}"
-      exit 1
-    }
+    case "${RESULT}" in
+    'WARNING:'*'restore from pgBackRest'*'{options:[--buffer-size=8MiB --io-timeout=120 --process-max=2] repoName:repo1'*)
+        ;;
+    *)
+        echo "Expected a warning, got:"
+        echo "${RESULT}"
+        exit 1
+        ;;
+    esac
 
-    [[ "${RESULT}" == *'patched'* ]] || {
-      echo "Expected to patch, got:"
-      echo "${RESULT}"
-      exit 1
-    }
+    case "${RESULT}" in
+    *'patched'*)
+        ;;
+    *)
+        echo "Expected to patch, got:"
+        echo "${RESULT}"
+        exit 1
+        ;;
+    esac
 
     RESTORE=$(
       kubectl --namespace "${NAMESPACE}" get postgrescluster/restore-cluster \
         --output "jsonpath-as-json={.metadata.annotations['postgres-operator\.crunchydata\.com/pgbackrest-restore']}"
     )
 
-    [[ "${RESTORE}" != '[]' ]] || {
+    [ "${RESTORE}" != '[]' ] || {
       echo "Expected restore annotation to be populated, got:"
       echo "${RESTORE}"
       exit 1
     }
 
     # Wait for the restore process to be reflected in status.
-    for _ in {1..15}; do
+    i=1; while [ $i -le 15 ]; do
       STATUS=$(
         kubectl --namespace "${NAMESPACE}" get postgrescluster/restore-cluster \
           --output "jsonpath-as-json={.status.pgbackrest.restore.id}"
       )
 
-      [[ "${STATUS}" == "${RESTORE}" ]] && break
+      [ "${STATUS}" = "${RESTORE}" ] && break
 
       sleep 1
+      i=$(( i + 1 ))
     done
 
-    [[ "${STATUS}" == "${RESTORE}" ]] || {
+    [ "${STATUS}" = "${RESTORE}" ] || {
       echo "Expected restore request to be processed, got ${STATUS} != ${RESTORE}"
       exit 1
     }

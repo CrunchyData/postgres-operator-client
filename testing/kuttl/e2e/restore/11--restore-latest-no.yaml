@@ -10,30 +10,36 @@ commands:
     )
     STATUS=$?
 
-    [[ "${STATUS}" -eq 0 ]] || {
+    [ "${STATUS}" -eq 0 ] || {
       echo "Expected success, got ${STATUS}"
       echo "STDOUT: ${RESULT}"
       exit 1
     }
 
-    [[ "${RESULT}" == 'WARNING: You are about to restore from pgBackRest'* ]] || {
-      echo "Expected a warning, got:"
-      echo "${RESULT}"
-      exit 1
-    }
+    case "${RESULT}" in
+    'WARNING: You are about to restore from pgBackRest'*)
+        ;;
+    *)
+        echo "Expected a warning, got:"
+        echo "${RESULT}"
+        exit 1
+        ;;
+    esac
 
-    [[ "${RESULT}" != *'patched'* ]] || {
-      echo "Expected no patch, got:"
-      echo "${RESULT}"
-      exit 1
-    }
+    case "${RESULT}" in
+    *'patched'*)
+        echo "Expected no patch, got:"
+        echo "${RESULT}"
+        exit 1
+        ;;
+    esac
 
     RESTORE=$(
       kubectl --namespace "${NAMESPACE}" get postgrescluster/restore-cluster \
         --output 'jsonpath-as-json={.spec.backups.pgbackrest.restore}'
     )
 
-    [[ "${RESTORE}" == '[]' ]] || {
+    [ "${RESTORE}" = '[]' ] || {
       echo "Expected restore section to be empty, got ${RESTORE}"
       exit 1
     }

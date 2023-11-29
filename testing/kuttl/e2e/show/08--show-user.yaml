@@ -14,7 +14,7 @@ commands:
     )
 
     status=$?
-    if [ $status -ne 0 ]; then
+    if [ "$status" -ne 0 ]; then
         echo "pgo command unsuccessful"
         exit 1
     fi
@@ -25,7 +25,7 @@ commands:
     show-cluster  show-cluster"
 
     # check command output is not empty and equals the expected output
-    if [[ -z ${CLI_USER} || (! -z ${CLI_USER} && "${CLI_USER}" != "${SHOW_USER_OUTPUT}") ]]; then
+    if [ -z ${CLI_USER} ] || [ "${CLI_USER}" != "${SHOW_USER_OUTPUT}" ]; then
         echo "pgo command output unexpected: expected ${SHOW_USER_OUTPUT} got ${CLI_USER}"
         exit 1
     fi
@@ -42,9 +42,16 @@ commands:
     PORT=$(echo "${SECRET_DATA}" | jq -r .port | base64 -d)
 
     # check command output is not empty and contains the connection URL field
-    if [[ -n $CLI_USER_SENSITIVE && "$CLI_USER_SENSITIVE" == *"postgres://${USER}:${PASSWORD}@${HOST}:${PORT}/show-cluster"* ]]; then
+    # Note: case is used as it allows for the use of a wildcard (*)
+    # and is POSIX compliant
+    case "$CLI_USER_SENSITIVE" in
+    "")
+        exit 1
+        ;;
+    *"postgres://${USER}:${PASSWORD}@${HOST}:${PORT}/show-cluster"*)
         exit 0
-    fi
+        ;;
+    esac
 
     echo "pgo command output for connection info unexpected: got ${CLI_USER_SENSITIVE}"
     exit 1

@@ -6,7 +6,7 @@ commands:
 
     echo "RESULT from taking backup: ${RESULT}"
 
-    if [[ -n $RESULT && "$RESULT" == "postgresclusters/backup-cluster backup initiated" ]]; then
+    if [ -n "$RESULT" ] && [ "$RESULT" = "postgresclusters/backup-cluster backup initiated" ]; then
         exit 0
     fi
 

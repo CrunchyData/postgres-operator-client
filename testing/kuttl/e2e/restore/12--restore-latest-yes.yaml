@@ -10,30 +10,38 @@ commands:
     )
     STATUS=$?
 
-    [[ "${STATUS}" -eq 0 ]] || {
+    [ "${STATUS}" -eq 0 ] || {
       echo "Expected success, got ${STATUS}"
       echo "STDOUT: ${RESULT}"
       exit 1
     }
 
-    [[ "${RESULT}" == 'WARNING: You are about to restore from pgBackRest'* ]] || {
-      echo "Expected a warning, got:"
-      echo "${RESULT}"
-      exit 1
-    }
+    case "${RESULT}" in
+    'WARNING: You are about to restore from pgBackRest'*)
+        ;;
+    *)
+        echo "Expected a warning, got:"
+        echo "${RESULT}"
+        exit 1
+        ;;
+    esac
 
-    [[ "${RESULT}" == *'patched'* ]] || {
-      echo "Expected to patch, got:"
-      echo "${RESULT}"
-      exit 1
-    }
+    case "${RESULT}" in
+    *'patched'*)
+        ;;
+    *)
+        echo "Expected to patch, got:"
+        echo "${RESULT}"
+        exit 1
+        ;;
+    esac
 
     RESTORE=$(
       kubectl --namespace "${NAMESPACE}" get postgrescluster/restore-cluster \
         --output "jsonpath-as-json={.metadata.annotations['postgres-operator\.crunchydata\.com/pgbackrest-restore']}"
     )
 
-    [[ "${RESTORE}" != '[]' ]] || {
+    [ "${RESTORE}" != '[]' ] || {
       echo "Expected restore annotation to be populated, got ${RESTORE}"
       exit 1
     }

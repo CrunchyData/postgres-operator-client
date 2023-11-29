@@ -12,7 +12,17 @@ commands:
       exit 1
     fi
 
-    if [[ "${RESULT,,}" != *conflict* || "${RESULT}" != *repoName* ]]; then
-      printf 'Expected conflict on repoName, got %q\n' "${RESULT}"
-      exit 1
+    # get lowercase for result
+    lower=$(echo "$RESULT" | tr '[:upper:]' '[:lower:]')
+
+    # check for the substring using POSIX compliant parameter-expansion.
+    # If the variable contains the substring after the '%', it does not return
+    # the entire string content, leading to a mismatch. If both substrings are found,
+    # the test passes.
+    # - https://www.gnu.org/software/bash/manual/html_node/Shell-Parameter-Expansion.html
+    if [ "${lower}" != "${lower%"conflict"*}" ] && [ "${RESULT}" != "${RESULT%"repoName"*}" ]; then
+      exit 0
     fi
+
+    printf 'Expected conflict on repoName, got %s\n' "${RESULT}"
+    exit 1

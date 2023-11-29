@@ -1,7 +1,7 @@
 apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
-- script: |    
+- script: |
     pgbackrest_backup_annotation() {
       kubectl get --namespace "${NAMESPACE}" postgrescluster/backup-cluster \
         --output 'go-template={{ index .metadata.annotations "postgres-operator.crunchydata.com/pgbackrest-backup" }}'
@@ -14,13 +14,13 @@ commands:
     CURRENT=$(pgbackrest_backup_annotation)
 
     if [ "${CURRENT}" = "${PRIOR}" ]; then
-      printf 'Expected annotation to change, got %q\n' "${CURRENT}"
+      printf 'Expected annotation to change, got %s\n' "${CURRENT}"
       exit 1
     fi
 
     echo "RESULT from taking backup: ${RESULT}"
 
-    if [[ -n $RESULT && "$RESULT" == "postgresclusters/backup-cluster backup initiated" ]]; then
+    if [ -n "$RESULT" ] && [ "$RESULT" = "postgresclusters/backup-cluster backup initiated" ]; then
         exit 0
     fi
 

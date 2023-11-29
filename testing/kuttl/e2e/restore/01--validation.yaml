@@ -8,24 +8,28 @@ commands:
     RESULT=$( 2>&1 kubectl-pgo --namespace "${NAMESPACE}" restore restore-cluster )
     STATUS=$?
 
-    [[ "${STATUS}" -ne 0 ]] || {
+    [ "${STATUS}" -ne 0 ] || {
       echo "Expected failure, got ${STATUS}"
       echo "STDOUT+STDERR: ${RESULT}"
       exit 1
     }
 
-    [[ "${RESULT}" == *'Error:'*'repoName: Required value' ]] || {
-      echo "Expected an error message, got:"
-      echo "${RESULT}"
-      exit 1
-    }
+    case "${RESULT}" in
+    *'Error:'*'repoName: Required value')
+        ;;
+    *)
+        echo "Expected an error message, got:"
+        echo "${RESULT}"
+        exit 1
+        ;;
+    esac
 
     RESTORE=$(
       kubectl --namespace "${NAMESPACE}" get postgrescluster/restore-cluster \
         --output 'jsonpath-as-json={.spec.backups.pgbackrest.restore}'
     )
 
-    [[ "${RESTORE}" == '[]' ]] || {
+    [ "${RESTORE}" = '[]' ] || {
       echo "Expected restore section to be empty, got ${RESTORE}"
       exit 1
     }

@@ -3,10 +3,8 @@ apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
 - script: kubectl-pgo --namespace $NAMESPACE support export kuttl-support-cluster -o .
-- script: tar -xf ./crunchy_k8s_support_export_*.tar.gz
+- script: tar -xzf ./crunchy_k8s_support_export_*.tar.gz
 - script: |
-    #!/bin/bash
-
     CLEANUP="rm -r ./kuttl-support-cluster ./crunchy_k8s_support_export_*.tar.gz"
 
     # LimitRange directory and list file path
@@ -15,7 +13,7 @@ commands:
 
     # check for limitrange object name
     LRO=$(awk 'NR==2 {print $1}' "${LR_LIST}")
-    [[ "${LRO}" == 'kuttl-test-limitrange' ]] || {
+    [ "${LRO}" = 'kuttl-test-limitrange' ] || {
       echo "Expected 'kuttl-test-limitrange' limitrange, got:"
       echo "${LRO}"
       eval "$CLEANUP"
@@ -38,7 +36,7 @@ commands:
 
     # check for ingress object name
     IO=$(awk 'NR==2 {print $1}' ${I_LIST})
-    [[ "${IO}" == 'kuttl-test-ingress' ]] || {
+    [ "${IO}" = 'kuttl-test-ingress' ] || {
       echo "Expected 'kuttl-test-ingress' ingress, got:"
       echo "${IO}"
       eval "$CLEANUP"

@@ -25,22 +25,23 @@ commands:
     )
     STATUS=$?
 
-    [[ "${STATUS}" -ne 0 ]] || {
+    [ "${STATUS}" -ne 0 ] || {
       echo "Expected failure, got ${STATUS}"
       echo "STDOUT+STDERR: ${RESULT}"
       echo "Managed Fields: ${BEFORE}"
       exit 1
     }
 
-    [[
-        "${RESULT}" == *'Error: Apply failed'*'2 conflicts'* &&
-        "${RESULT}" == *'.metadata.annotations.'*'/pgbackrest-restore'* &&
-        "${RESULT}" == *'.spec.backups.pgbackrest.restore.enabled'
-    ]] || {
-      echo "Expected an error message, got:"
-      echo "${RESULT}"
-      exit 1
-    }
+    case "${RESULT}" in
+    *'Error: Apply failed'*'2 conflicts'*'.metadata.annotations.'*'/pgbackrest-restore'*'.spec.backups.pgbackrest.restore.enabled')
+        ;;
+    *)
+        echo "Expected an error message, got:"
+        echo "${RESULT}"
+        exit 1
+        ;;
+    esac
+
 
     # Remove the annotation.
     kubectl --namespace "${NAMESPACE}" annotate postgrescluster/restore-cluster \
