@@ -15,4 +15,4 @@
 package cmd
 
 // store the current PGO CLI version
-const clientVersion = "v0.4.0"
+const clientVersion = "v0.4.1"

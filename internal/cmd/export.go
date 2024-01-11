@@ -180,7 +180,7 @@ PostgresCluster.
     services                                            [list]
     statefulsets.apps                                   [list]
 
-    Note: This RBAC needs to be cluster-scoped to retrieve information on nodes.
+    Note: This RBAC needs to be cluster-scoped to retrieve information on nodes and postgresclusters.
 
 ### Event Capture
     Support export captures all Events in the PostgresCluster's Namespace.
@@ -529,6 +529,10 @@ func gatherPostgresClusterNames(clusterName string, ctx context.Context, cmd *co
 	result, err := client.List(ctx, metav1.ListOptions{})
 
 	if err != nil {
+		if apierrors.IsForbidden(err) {
+			writeInfo(cmd, err.Error())
+			return nil
+		}
 		return err
 	}
 

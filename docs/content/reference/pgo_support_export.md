@@ -34,7 +34,7 @@ PostgresCluster.
     services                                            [list]
     statefulsets.apps                                   [list]
 
-    Note: This RBAC needs to be cluster-scoped to retrieve information on nodes.
+    Note: This RBAC needs to be cluster-scoped to retrieve information on nodes and postgresclusters.
 
 ### Event Capture
     Support export captures all Events in the PostgresCluster's Namespace.
