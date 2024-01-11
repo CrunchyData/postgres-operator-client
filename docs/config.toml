@@ -15,7 +15,7 @@ defaultContentLanguageInSubdir= false
 enableMissingTranslationPlaceholders = false
 
 [params]
-clientVersion = "0.4.0"
+clientVersion = "0.4.1"
 
 # crunchy-hugo-theme params
 editURL = "https://github.com/CrunchyData/postgres-operator/edit/master/docs/content/"
