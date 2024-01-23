@@ -47,6 +47,9 @@ func newVersionCommand(config *internal.Config) *cobra.Command {
 	// No arguments for 'version'
 	cmd.Args = cobra.NoArgs
 
+	var clientOnly bool
+	cmd.Flags().BoolVar(&clientOnly, "client", false, "If true, shows client version only (no server required).")
+
 	cmd.Example = internal.FormatExample(fmt.Sprintf(`# Request the version of the client and the operator
 pgo version
 
@@ -57,6 +60,9 @@ Operator Version: v5.5.0`, clientVersion))
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 
 		cmd.Printf("Client Version: %s\n", clientVersion)
+		if clientOnly {
+			return nil
+		}
 
 		ctx := context.Background()
 		restConfig, err := config.ToRESTConfig()

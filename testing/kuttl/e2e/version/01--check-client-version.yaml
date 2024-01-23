@@ -1,0 +1,14 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+# The following test should check that the client version output is returned
+# when a kubernetes cluster is not available
+- script: |
+    contains() { bash -ceu '[[ "$1" == *"$2"* ]]' - "$@"; }
+
+    VERSION_OUTPUT=$(KUBECONFIG=blah kubectl pgo version --client)
+
+    { contains "${VERSION_OUTPUT}" "Client Version:"; } || {
+      echo ${VERSION_OUTPUT}
+      exit 1
+    }
