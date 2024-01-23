@@ -38,7 +38,8 @@ Operator Version: v5.5.0
 ### Options
 
 ```
-  -h, --help   help for version
+      --client   If true, shows client version only (no server required).
+  -h, --help     help for version
 ```
 
 ### Options inherited from parent commands
