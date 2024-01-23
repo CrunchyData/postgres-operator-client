@@ -2,25 +2,16 @@ apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
 - script: |
+    contains() { bash -ceu '[[ "$1" == *"$2"* ]]' - "$@"; }
+
     VERSION_OUTPUT=$(kubectl pgo version)
-    CLI_VERSION=$(kubectl pgo version | awk '{print $3}')
-
-    # the CLI version isn't empty and the CLI version output follows the expected format
-    if [ -z "$CLI_VERSION" ]; then
-      echo "Client version output is empty."
+    { contains "${VERSION_OUTPUT}" "Client Version:"; } || {
+      echo ${VERSION_OUTPUT}
       exit 1
-    fi
-
-    case "${VERSION_OUTPUT}" in
-    *"Client Version: "*)
-        ;;
-    *)
-        echo "Version output is: "
-        echo "$VERSION_OUTPUT"
-        exit 1
-        ;;
-    esac
+    }
 - script: |
+    contains() { bash -ceu '[[ "$1" == *"$2"* ]]' - "$@"; }
+
     OPERATOR_VERSION=$(
         kubectl get crd postgresclusters.postgres-operator.crunchydata.com \
           -o go-template='{{ index .metadata.labels "app.kubernetes.io/version" }}'
@@ -28,19 +19,8 @@ commands:
 
     VERSION_OUTPUT=$(kubectl pgo version)
 
-    # the operator version isn't empty and the version output matches the CRD value
-    if [ -z "$OPERATOR_VERSION" ]; then
-      echo "Operator version output is empty."
+    { contains "${VERSION_OUTPUT}" "Operator Version: v${OPERATOR_VERSION}"; } || {
+      echo ${VERSION_OUTPUT}
+      echo ${OPERATOR_VERSION}
       exit 1
-    fi
-
-    case "${VERSION_OUTPUT}" in
-    *"Operator Version: v$OPERATOR_VERSION"*)
-        ;;
-    *)
-        echo "Version output is: "
-        echo "$VERSION_OUTPUT"
-        echo "Expected: v$OPERATOR_VERSION"
-        exit 1
-        ;;
-    esac
+    }
