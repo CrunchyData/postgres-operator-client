@@ -6,7 +6,8 @@ commands:
 
     VERSION_OUTPUT=$(kubectl pgo version)
     { contains "${VERSION_OUTPUT}" "Client Version:"; } || {
-      echo ${VERSION_OUTPUT}
+      echo "Expected: Client Version:*"
+      echo "Actual: ${VERSION_OUTPUT}"
       exit 1
     }
 - script: |
@@ -20,7 +21,7 @@ commands:
     VERSION_OUTPUT=$(kubectl pgo version)
 
     { contains "${VERSION_OUTPUT}" "Operator Version: v${OPERATOR_VERSION}"; } || {
-      echo ${VERSION_OUTPUT}
-      echo ${OPERATOR_VERSION}
+      echo "Expected: ${OPERATOR_VERSION}"
+      echo "Actual: ${VERSION_OUTPUT}"
       exit 1
     }
