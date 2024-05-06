@@ -31,6 +31,9 @@ const (
 
 	// LabelMonitoring is used to identify monitoring Pods
 	LabelMonitoring = "app.kubernetes.io/name=postgres-operator-monitoring"
+
+	// LabelOperator is used to identify operator Pods
+	LabelOperator = "postgres-operator.crunchydata.com/control-plane"
 )
 
 const (

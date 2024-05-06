@@ -38,7 +38,9 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/duration"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/client-go/discovery"
@@ -124,6 +126,14 @@ var clusterNamespacedResources = []schema.GroupVersionResource{{
 	Group:    corev1.SchemeGroupVersion.Group,
 	Version:  corev1.SchemeGroupVersion.Version,
 	Resource: "serviceaccounts",
+}}
+
+// Resources specifically for the operator;
+// currenly only pods, but leaving as is to allow expansion as requested.
+var operatorNamespacedResources = []schema.GroupVersionResource{{
+	Group:    corev1.SchemeGroupVersion.Group,
+	Version:  corev1.SchemeGroupVersion.Version,
+	Resource: "pods",
 }}
 
 // These "removed" GVRs are for making our CLI backwards compatible with older PGO versions.
@@ -215,6 +225,9 @@ PostgresCluster.
 	var monitoringNamespace string
 	cmd.Flags().StringVarP(&monitoringNamespace, "monitoring-namespace", "", "", "Monitoring namespace override")
 
+	var operatorNamespace string
+	cmd.Flags().StringVarP(&operatorNamespace, "operator-namespace", "", "", "Operator namespace override")
+
 	cmd.Args = cobra.ExactArgs(1)
 
 	cmd.Example = internal.FormatExample(`# Short Flags
@@ -226,6 +239,11 @@ kubectl pgo support export daisy --output . --pg-logs-count 2
 # Monitoring namespace override
 # This is only required when monitoring is not deployed in the PostgresCluster's namespace.
 kubectl pgo support export daisy --monitoring-namespace another-namespace --output .
+
+# Operator namespace override
+# This is only required when the Operator is not deployed in the PostgresCluster's namespace.
+# This is used for getting the logs and specs for the operator pod(s).
+kubectl pgo support export daisy --operator-namespace another-namespace --output .
 
 ### Example output
 ┌────────────────────────────────────────────────────────────────
@@ -260,6 +278,7 @@ Collecting events...
 Collecting Postgres logs...
 Collecting PostgresCluster pod logs...
 Collecting monitoring pod logs...
+Collecting operator pod logs...
 Collecting Patroni info...
 Collecting pgBackRest info...
 Collecting processes...
@@ -287,6 +306,7 @@ Collecting PGO CLI logs...
 		writeDebug(cmd, fmt.Sprintf("Flag - Output Directory: %s\n", outputDir))
 		writeDebug(cmd, fmt.Sprintf("Flag - Num Logs: %d\n", numLogs))
 		writeDebug(cmd, fmt.Sprintf("Flag - Monitoring Namespace: %s\n", monitoringNamespace))
+		writeDebug(cmd, fmt.Sprintf("Flag - Operator Namespace: %s\n", operatorNamespace))
 
 		namespace, err := config.Namespace()
 		if err != nil {
@@ -431,6 +451,29 @@ Collecting PGO CLI logs...
 		if err == nil {
 			writeInfo(cmd, "Collecting monitoring pod logs...")
 			err = gatherPodLogs(ctx, clientset, monitoringNamespace, util.LabelMonitoring, "monitoring", tw, cmd)
+		}
+
+		// get operator Pod logs and descriptions
+		if operatorNamespace == "" {
+			operatorNamespace = namespace
+		}
+		// Operator and Operator upgrade pods should have
+		// "postgres-operator.crunchydata.com/control-plane" label
+		// but with different values
+		if err == nil {
+			req, _ := labels.NewRequirement(util.LabelOperator,
+				selection.Exists, []string{},
+			)
+			nsListOpts := metav1.ListOptions{
+				LabelSelector: req.String(),
+			}
+			err = gatherNamespacedAPIResources(ctx, dynamicClient,
+				operatorNamespace, "operator", operatorNamespacedResources,
+				nsListOpts, tw, cmd)
+		}
+		if err == nil {
+			writeInfo(cmd, "Collecting operator pod logs...")
+			err = gatherPodLogs(ctx, clientset, operatorNamespace, util.LabelOperator, "operator", tw, cmd)
 		}
 
 		// Exec resources
