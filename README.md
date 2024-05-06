@@ -64,3 +64,10 @@ The `pgo` CLI supports all actively maintained versions of PGO v5+.
 
 For more about PGO, please see the
 [PGO Documentation](https://access.crunchydata.com/documentation/postgres-operator/).
+
+## Testing the Client
+
+The PGO client has several KUTTL tests that run through some common scenarios.
+In order to run these tests, we need a PGO operator or the equivalent running, i.e., `make deploy-dev`.
+
+Note: the `support export` test requires a PGO operator running in the `postgres-operator` namespace.

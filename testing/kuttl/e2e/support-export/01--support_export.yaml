@@ -2,7 +2,7 @@
 apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
-- script: kubectl-pgo --namespace $NAMESPACE --operator-names postgres-operator support export kuttl-support-cluster -o .
+- script: kubectl-pgo --namespace $NAMESPACE --operator-namespace postgres-operator support export kuttl-support-cluster -o .
 - script: tar -xzf ./crunchy_k8s_support_export_*.tar.gz
 - script: |
     CLEANUP="rm -r ./kuttl-support-cluster ./crunchy_k8s_support_export_*.tar.gz"
