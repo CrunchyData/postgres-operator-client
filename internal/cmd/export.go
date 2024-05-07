@@ -190,7 +190,7 @@ PostgresCluster.
     jobs.batch                                          [list]
     limitranges                                         [list]
     namespaces                                          [get]
-	networkpolicies.networking.k8s.io                   [list]
+    networkpolicies.networking.k8s.io                   [list]
     nodes                                               [list]
     persistentvolumeclaims                              [list]
     poddisruptionbudgets.policy                         [list]
