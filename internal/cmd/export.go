@@ -131,6 +131,14 @@ var clusterNamespacedResources = []schema.GroupVersionResource{{
 // Resources specifically for the operator;
 // currently only pods, but leaving as is to allow expansion as requested.
 var operatorNamespacedResources = []schema.GroupVersionResource{{
+	Group:    appsv1.SchemeGroupVersion.Group,
+	Version:  appsv1.SchemeGroupVersion.Version,
+	Resource: "deployments",
+}, {
+	Group:    appsv1.SchemeGroupVersion.Group,
+	Version:  appsv1.SchemeGroupVersion.Version,
+	Resource: "replicasets",
+}, {
 	Group:    corev1.SchemeGroupVersion.Group,
 	Version:  corev1.SchemeGroupVersion.Version,
 	Resource: "pods",
@@ -152,6 +160,10 @@ var otherNamespacedResources = []schema.GroupVersionResource{{
 	Group:    networkingv1.SchemeGroupVersion.Group,
 	Version:  networkingv1.SchemeGroupVersion.Version,
 	Resource: "ingresses",
+}, {
+	Group:    networkingv1.SchemeGroupVersion.Group,
+	Version:  networkingv1.SchemeGroupVersion.Version,
+	Resource: "networkpolicies",
 }, {
 	Group:    corev1.SchemeGroupVersion.Group,
 	Version:  corev1.SchemeGroupVersion.Version,
@@ -178,6 +190,7 @@ PostgresCluster.
     jobs.batch                                          [list]
     limitranges                                         [list]
     namespaces                                          [get]
+	networkpolicies.networking.k8s.io                   [list]
     nodes                                               [list]
     persistentvolumeclaims                              [list]
     poddisruptionbudgets.policy                         [list]
@@ -273,6 +286,7 @@ Collecting services...
 Collecting endpoints...
 Collecting serviceaccounts...
 Collecting ingresses...
+Collecting networkpolicies...
 Collecting limitranges...
 Collecting events...
 Collecting Postgres logs...
