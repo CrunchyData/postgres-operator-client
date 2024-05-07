@@ -48,7 +48,9 @@ commands:
     check_file "kuttl-support-cluster/plugin-list"
     
     # check that the operator file exists and is not empty
-    # the list file will not be empty
+    # the list file will not be empty for the requested Kubernetes types
+    check_file "operator/deployments/list"
+    check_file "operator/replicasets/list"
     check_file "operator/pods/list"
 
     # check for expected gzip compression level
