@@ -12,9 +12,9 @@ jobs:
   go-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
-        with: { go-version: 1.x }
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: stable }
 
       - run: make check
       - run: make check-cli-docs
@@ -27,9 +27,9 @@ jobs:
       matrix:
         kubernetes: [v1.27, v1.24, v1.21]
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
-        with: { go-version: 1.x }
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: stable }
 
       - name: Start k3s
         uses: ./.github/actions/k3d
