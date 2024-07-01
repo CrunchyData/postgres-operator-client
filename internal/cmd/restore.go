@@ -196,12 +196,12 @@ func (config pgBackRestRestore) Run(ctx context.Context) error {
 		config.Patch.PatchOptions(patchOptions))
 	if err != nil {
 		if apierrors.IsConflict(err) {
-			fmt.Fprintf(config.Out, "SUGGESTION: The --force-conflicts flag may help in performing this operation.\n")
+			_, _ = fmt.Fprintf(config.Out, "SUGGESTION: The --force-conflicts flag may help in performing this operation.\n")
 		}
 		return err
 	}
 
-	fmt.Fprintf(config.Out,
+	_, _ = fmt.Fprintf(config.Out,
 		"WARNING: You are about to restore from pgBackRest with %+v\n"+
 			"WARNING: This action is destructive and PostgreSQL will be"+
 			" unavailable while its data is restored.\n\n"+
@@ -224,7 +224,7 @@ func (config pgBackRestRestore) Run(ctx context.Context) error {
 		config.Patch.PatchOptions(patchOptions))
 
 	if err == nil {
-		fmt.Fprintf(config.Out, "%s/%s patched\n",
+		_, _ = fmt.Fprintf(config.Out, "%s/%s patched\n",
 			mapping.Resource.Resource, config.PostgresCluster)
 	}
 
@@ -318,7 +318,7 @@ func (config pgBackRestRestoreDisable) Run(ctx context.Context) error {
 	}
 
 	if err == nil {
-		fmt.Fprintf(config.Out, "%s/%s patched\n",
+		_, _ = fmt.Fprintf(config.Out, "%s/%s patched\n",
 			mapping.Resource.Resource, config.PostgresCluster)
 	}
 
