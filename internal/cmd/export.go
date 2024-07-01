@@ -669,9 +669,12 @@ func gatherNodes(ctx context.Context,
 
 	var buf bytes.Buffer
 	w := tabwriter.NewWriter(&buf, 10, 1, 1, ' ', tabwriter.Debug)
-	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t\n", "NAME",
-		"STATUS", "ROLES", "AGE", "VERSION", "INTERNAL-IP", "EXTERNAL-IP",
-		"OS-IMAGE", "KERNEL-VERSION", "CONTAINER-RUNTIME")
+	if _, err := fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		"NAME", "STATUS", "ROLES", "AGE", "VERSION", "INTERNAL-IP", "EXTERNAL-IP",
+		"OS-IMAGE", "KERNEL-VERSION", "CONTAINER-RUNTIME",
+	); err != nil {
+		return err
+	}
 
 	for _, item := range list.Items {
 
@@ -685,38 +688,28 @@ func gatherNodes(ctx context.Context,
 			return err
 		}
 
-		// NAME
-		fmt.Fprintf(w, "%s\t", item.GetName())
-
-		// STATUS
+		var status string
 		for _, c := range item.Status.Conditions {
 			if c.Type == "Ready" {
 				if c.Status == "True" {
-					fmt.Fprintf(w, "%s\t", "Ready")
+					status = "Ready"
 				} else {
-					fmt.Fprintf(w, "%s\t", "Not Ready")
+					status = "Not Ready"
 				}
 			}
 		}
 
-		// ROLES
 		rolePrefix := "node-role.kubernetes.io/"
+		var roles string
 		for k := range item.Labels {
 			if strings.Contains(k, rolePrefix) {
 				sa := strings.Split(k, rolePrefix)
 				if len(sa) > 1 {
-					fmt.Fprintf(w, "%s\t", sa[1])
+					roles = sa[1]
 				}
 			}
 		}
 
-		// AGE
-		fmt.Fprintf(w, "%s\t", translateTimestampSince(item.CreationTimestamp))
-
-		// VERSION
-		fmt.Fprintf(w, "%s\t", item.Status.NodeInfo.KubeletVersion)
-
-		// INTERNAL-IP and EXTERNAL-IP
 		var internalIP = "<none>"
 		var externalIP = "<none>"
 		for _, a := range item.Status.Addresses {
@@ -727,18 +720,18 @@ func gatherNodes(ctx context.Context,
 				externalIP = a.Address
 			}
 		}
-		fmt.Fprintf(w, "%s\t", internalIP)
-		fmt.Fprintf(w, "%s\t", externalIP)
 
-		// OS-IMAGE
-		fmt.Fprintf(w, "%s\t", item.Status.NodeInfo.OSImage)
-
-		// KERNEL-VERSION
-		fmt.Fprintf(w, "%s\t", item.Status.NodeInfo.KernelVersion)
-
-		// CONTAINER-RUNTIME
-		fmt.Fprintf(w, "%s\t\n", item.Status.NodeInfo.ContainerRuntimeVersion)
-
+		if _, err := fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			item.GetName(), status, roles,
+			translateTimestampSince(item.CreationTimestamp),
+			item.Status.NodeInfo.KubeletVersion,
+			internalIP, externalIP,
+			item.Status.NodeInfo.OSImage,
+			item.Status.NodeInfo.KernelVersion,
+			item.Status.NodeInfo.ContainerRuntimeVersion,
+		); err != nil {
+			return err
+		}
 	}
 	if err := w.Flush(); err != nil {
 		return err
@@ -907,7 +900,9 @@ func gatherEvents(ctx context.Context,
 	// https://github.com/kubernetes/kubectl/blob/release-1.24/pkg/cmd/events/events.go#L262-L292
 	var buf bytes.Buffer
 	p := printers.GetNewTabWriter(&buf)
-	fmt.Fprintf(p, "Last Seen\tTYPE\tREASON\tOBJECT\tMESSAGE\n")
+	if _, err := fmt.Fprintf(p, "Last Seen\tTYPE\tREASON\tOBJECT\tMESSAGE\n"); err != nil {
+		return err
+	}
 	for _, event := range list.Items {
 		var interval string
 		firstTimestampSince := translateMicroTimestampSince(event.EventTime)
@@ -920,13 +915,15 @@ func gatherEvents(ctx context.Context,
 			interval = firstTimestampSince
 		}
 
-		fmt.Fprintf(p, "%s\t%s\t%s\t%s/%s\t%v\n",
+		if _, err := fmt.Fprintf(p, "%s\t%s\t%s\t%s/%s\t%v\n",
 			interval,
 			event.Type,
 			event.Reason,
 			event.InvolvedObject.Kind, event.InvolvedObject.Name,
 			strings.TrimSpace(event.Message),
-		)
+		); err != nil {
+			return err
+		}
 	}
 	if err := p.Flush(); err != nil {
 		return err
