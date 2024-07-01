@@ -37,7 +37,7 @@ func Confirm(reader io.Reader, writer io.Writer) *bool {
 	}
 
 	if scanner.Err() != nil || response == "" {
-		fmt.Fprint(writer, "Please type yes or no and then press enter: ")
+		_, _ = fmt.Fprint(writer, "Please type yes or no and then press enter: ")
 		return nil
 	}
 
@@ -49,7 +49,7 @@ func Confirm(reader io.Reader, writer io.Writer) *bool {
 	} else if slices.Contains(noResponses, response) {
 		return &boolVar
 	} else {
-		fmt.Fprint(writer, "Please type yes or no and then press enter: ")
+		_, _ = fmt.Fprint(writer, "Please type yes or no and then press enter: ")
 		return nil
 	}
 }
