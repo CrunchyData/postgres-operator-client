@@ -4,7 +4,7 @@ kind: PostgresCluster
 metadata:
   name: restore-cluster
 spec:
-  postgresVersion: 14
+  postgresVersion: 16
   instances:
     - name: instance1
       dataVolumeClaimSpec:
