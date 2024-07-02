@@ -15,7 +15,7 @@ commands:
     }
 
     case "${RESULT}" in
-    *'Error:'*'repoName: Required value')
+    *'Error:'*'repoName: Required value'*)
         ;;
     *)
         echo "Expected an error message, got:"
