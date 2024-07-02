@@ -2,4 +2,4 @@
 apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
-- script: kubectl-pgo --namespace $NAMESPACE create postgrescluster --pg-major-version 14 kuttl-support-cluster
+- script: kubectl-pgo --namespace $NAMESPACE create postgrescluster --pg-major-version 16 kuttl-support-cluster

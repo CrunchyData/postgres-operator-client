@@ -4,7 +4,7 @@ metadata:
   name: start-stop-cluster
 spec:
   shutdown: false
-  postgresVersion: 14
+  postgresVersion: 16
   instances:
     - name: instance1
       dataVolumeClaimSpec:
