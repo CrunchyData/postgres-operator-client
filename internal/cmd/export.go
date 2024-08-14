@@ -446,10 +446,27 @@ Collecting PGO CLI logs...
 		}
 
 		// Logs
+		// if numLogs > 0 {
+		// 	if err == nil {
+		// 		err = gatherPostgresqlLogs(ctx, clientset, restConfig, namespace, clusterName, numLogs, tw, cmd)
+		// 	}
+		// }
+
+		// All Postgres Logs on the Postgres Instances (primary and replicas)
 		if numLogs > 0 {
 			if err == nil {
-				err = gatherPostgresqlLogs(ctx, clientset, restConfig, namespace, clusterName, numLogs, tw, cmd)
+				err = gatherAllPostgresLogs(ctx, clientset, restConfig, namespace, clusterName, numLogs, tw, cmd)
 			}
+		}
+
+		// All pgBackRest Logs on the Postgres Instances
+		if err == nil {
+			err = gatherDbBackrestLogs(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
+		}
+
+		// All pgBackRest Logs on the Repo Host
+		if err == nil {
+			err = gatherRepoHostLogs(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
 		}
 
 		// get PostgresCluster Pod logs
@@ -1018,6 +1035,364 @@ func gatherPostgresqlLogs(ctx context.Context,
 	return nil
 }
 
+// gatherAllPostgresLogs take a client and writes logs from primary and replicas
+// to a buffer
+func gatherAllPostgresLogs(ctx context.Context,
+	clientset *kubernetes.Clientset,
+	config *rest.Config,
+	namespace string,
+	clusterName string,
+	numLogs int,
+	tw *tar.Writer,
+	cmd *cobra.Command,
+) error {
+	writeInfo(cmd, "Collecting Postgres logs...")
+
+	// The Primary Pod instance - there should be only one, but there may be none.
+	primaryPods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: util.PrimaryInstanceLabels(clusterName),
+	})
+
+	if err != nil {
+		if apierrors.IsForbidden(err) {
+			writeInfo(cmd, err.Error())
+			return nil
+		}
+		return err
+	}
+
+	if len(primaryPods.Items) == 0 {
+		writeDebug(cmd, "No primary instance pod found for gathering logs")
+	}
+
+	writeDebug(cmd, fmt.Sprintf("Found %d Primary Pod\n", len(primaryPods.Items)))
+
+	// The Replica Pod instance - there may be zero or more.
+	replicaPods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: util.ReplicaInstanceLabels(clusterName),
+	})
+
+	if err != nil {
+		if apierrors.IsForbidden(err) {
+			writeInfo(cmd, err.Error())
+			return nil
+		}
+		return err
+	}
+
+	writeDebug(cmd, fmt.Sprintf("Found %d Replica Pods\n", len(replicaPods.Items)))
+
+	var pods = primaryPods.Items
+	pods = append(pods, replicaPods.Items...)
+
+	if len(pods) == 0 {
+		writeDebug(cmd, "No pods found for gathering logs")
+		return nil
+	}
+
+	for _, pod := range pods {
+		writeDebug(cmd, fmt.Sprintf("Pod Name is %s\n", pod.Name))
+
+		podExec, err := util.NewPodExecutor(config)
+		if err != nil {
+			return err
+		}
+
+		exec := func(stdin io.Reader, stdout, stderr io.Writer, command ...string,
+		) error {
+			return podExec(namespace, pod.Name, util.ContainerDatabase,
+				stdin, stdout, stderr, command...)
+		}
+
+		// Get Postgres Log Files
+		stdout, stderr, err := Executor(exec).listPGLogFiles(numLogs)
+		if err != nil {
+			if apierrors.IsForbidden(err) {
+				writeInfo(cmd, err.Error())
+				return nil
+			}
+			return err
+		}
+		if stderr != "" {
+			writeInfo(cmd, stderr)
+		}
+
+		logFiles := strings.Split(strings.TrimSpace(stdout), "\n")
+		for _, logFile := range logFiles {
+			var buf bytes.Buffer
+
+			stdout, stderr, err := Executor(exec).catFile(logFile)
+			if err != nil {
+				if apierrors.IsForbidden(err) {
+					writeInfo(cmd, err.Error())
+					// Continue and output errors for each log file
+					// Allow the user to see and address all issues at once
+					continue
+				}
+				return err
+			}
+
+			buf.Write([]byte(stdout))
+			if stderr != "" {
+				str := fmt.Sprintf("\nError returned: %s\n", stderr)
+				buf.Write([]byte(str))
+			}
+
+			path := clusterName + fmt.Sprintf("/logs/%s/", pod.Name) + logFile
+			if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
+				return err
+			}
+		}
+
+		// Get Postgres Conf Files
+		stdout, stderr, err = Executor(exec).listPGConfFiles()
+		if err != nil {
+			if apierrors.IsForbidden(err) {
+				writeInfo(cmd, err.Error())
+				return nil
+			}
+			return err
+		}
+		if stderr != "" {
+			writeInfo(cmd, stderr)
+		}
+
+		logFiles = strings.Split(strings.TrimSpace(stdout), "\n")
+		for _, logFile := range logFiles {
+			var buf bytes.Buffer
+
+			stdout, stderr, err := Executor(exec).catFile(logFile)
+			if err != nil {
+				if apierrors.IsForbidden(err) {
+					writeInfo(cmd, err.Error())
+					// Continue and output errors for each log file
+					// Allow the user to see and address all issues at once
+					continue
+				}
+				return err
+			}
+
+			buf.Write([]byte(stdout))
+			if stderr != "" {
+				str := fmt.Sprintf("\nError returned: %s\n", stderr)
+				buf.Write([]byte(str))
+			}
+
+			path := clusterName + fmt.Sprintf("/logs/%s/", pod.Name) + logFile
+			if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
+				return err
+			}
+		}
+
+	}
+	return nil
+}
+
+func gatherDbBackrestLogs(ctx context.Context,
+	clientset *kubernetes.Clientset,
+	config *rest.Config,
+	namespace string,
+	clusterName string,
+	tw *tar.Writer,
+	cmd *cobra.Command,
+) error {
+	writeInfo(cmd, "Collecting pgBackRest logs...")
+
+	primaryPods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: util.PrimaryInstanceLabels(clusterName),
+	})
+
+	if err != nil {
+		if apierrors.IsForbidden(err) {
+			writeInfo(cmd, err.Error())
+			return nil
+		}
+		return err
+	}
+
+	if len(primaryPods.Items) == 0 {
+		writeDebug(cmd, "No primary instance pod found for gathering logs")
+	}
+
+	writeDebug(cmd, fmt.Sprintf("Found %d Primary Pod\n", len(primaryPods.Items)))
+
+	replicaPods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: util.ReplicaInstanceLabels(clusterName),
+	})
+
+	if err != nil {
+		if apierrors.IsForbidden(err) {
+			writeInfo(cmd, err.Error())
+			return nil
+		}
+		return err
+	}
+
+	writeDebug(cmd, fmt.Sprintf("Found %d Replica Pods\n", len(replicaPods.Items)))
+
+	var pods = primaryPods.Items
+	pods = append(pods, replicaPods.Items...)
+
+	if len(pods) == 0 {
+		writeDebug(cmd, "No pods found for gathering logs")
+		return nil
+	}
+
+	for _, pod := range pods {
+		writeDebug(cmd, fmt.Sprintf("Pod Name is %s\n", pod.Name))
+
+		podExec, err := util.NewPodExecutor(config)
+		if err != nil {
+			return err
+		}
+
+		exec := func(stdin io.Reader, stdout, stderr io.Writer, command ...string,
+		) error {
+			return podExec(namespace, pod.Name, util.ContainerDatabase,
+				stdin, stdout, stderr, command...)
+		}
+
+		stdout, stderr, err := Executor(exec).listBackrestLogFiles()
+
+		if err != nil {
+			writeInfo(cmd, err.Error())
+			if strings.Contains(stderr, "No such file or directory") {
+				writeDebug(cmd, "Cannot find any Backrest log files. This is acceptable in some configurations.\n")
+			}
+			if apierrors.IsForbidden(err) {
+				writeInfo(cmd, err.Error())
+				return nil
+			}
+			continue
+		}
+		if stderr != "" {
+			writeInfo(cmd, stderr)
+		}
+
+		logFiles := strings.Split(strings.TrimSpace(stdout), "\n")
+		for _, logFile := range logFiles {
+			writeDebug(cmd, fmt.Sprintf("LOG FILE: %s\n", logFile))
+			var buf bytes.Buffer
+
+			stdout, stderr, err := Executor(exec).catFile(logFile)
+			if err != nil {
+				if apierrors.IsForbidden(err) {
+					writeInfo(cmd, err.Error())
+					// Continue and output errors for each log file
+					// Allow the user to see and address all issues at once
+					continue
+				}
+				return err
+			}
+
+			buf.Write([]byte(stdout))
+			if stderr != "" {
+				str := fmt.Sprintf("\nError returned: %s\n", stderr)
+				buf.Write([]byte(str))
+			}
+
+			path := clusterName + fmt.Sprintf("/logs/%s/", pod.Name) + logFile
+			if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
+				return err
+			}
+		}
+
+	}
+	return nil
+}
+
+func gatherRepoHostLogs(ctx context.Context,
+	clientset *kubernetes.Clientset,
+	config *rest.Config,
+	namespace string,
+	clusterName string,
+	tw *tar.Writer,
+	cmd *cobra.Command,
+) error {
+	writeInfo(cmd, "Collecting pgBackRest Repo Host logs...")
+
+	repoHostPods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: util.RepoHostInstanceLabels(clusterName),
+	})
+
+	if err != nil {
+		if apierrors.IsForbidden(err) {
+			writeInfo(cmd, err.Error())
+			return nil
+		}
+		return err
+	}
+
+	if len(repoHostPods.Items) == 0 {
+		writeDebug(cmd, "No Repo Host pod found for gathering logs")
+	}
+
+	writeDebug(cmd, fmt.Sprintf("Found %d Repo Host Pod\n", len(repoHostPods.Items)))
+
+	var pods = repoHostPods.Items
+
+	if len(pods) == 0 {
+		writeDebug(cmd, "No pods found for gathering logs")
+		return nil
+	}
+
+	for _, pod := range pods {
+		writeDebug(cmd, fmt.Sprintf("Pod Name is %s\n", pod.Name))
+
+		podExec, err := util.NewPodExecutor(config)
+		if err != nil {
+			return err
+		}
+
+		exec := func(stdin io.Reader, stdout, stderr io.Writer, command ...string,
+		) error {
+			return podExec(namespace, pod.Name, util.ContainerPGBackrest,
+				stdin, stdout, stderr, command...)
+		}
+
+		stdout, stderr, err := Executor(exec).listBackrestRepoHostLogFiles()
+		if err != nil {
+			if apierrors.IsForbidden(err) {
+				writeInfo(cmd, err.Error())
+				return nil
+			}
+			return err
+		}
+		if stderr != "" {
+			writeInfo(cmd, stderr)
+		}
+
+		logFiles := strings.Split(strings.TrimSpace(stdout), "\n")
+		for _, logFile := range logFiles {
+			var buf bytes.Buffer
+
+			stdout, stderr, err := Executor(exec).catFile(logFile)
+			if err != nil {
+				if apierrors.IsForbidden(err) {
+					writeInfo(cmd, err.Error())
+					// Continue and output errors for each log file
+					// Allow the user to see and address all issues at once
+					continue
+				}
+				return err
+			}
+
+			buf.Write([]byte(stdout))
+			if stderr != "" {
+				str := fmt.Sprintf("\nError returned: %s\n", stderr)
+				buf.Write([]byte(str))
+			}
+
+			path := clusterName + fmt.Sprintf("/logs/%s/", pod.Name) + logFile
+			if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
+				return err
+			}
+		}
+
+	}
+	return nil
+}
+
 // gatherPodLogs uses the clientset to gather logs from each container in every
 // pod
 func gatherPodLogs(ctx context.Context,
@@ -1071,7 +1446,7 @@ func gatherPodLogs(ctx context.Context,
 			}
 
 			path := rootDir + "/logs/" +
-				pod.GetName() + "_" + container.Name + ".log"
+				pod.GetName() + "/containers/" + container.Name + ".log"
 			if err := writeTar(tw, b, path, cmd); err != nil {
 				return err
 			}
