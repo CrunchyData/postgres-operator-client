@@ -41,6 +41,9 @@ const (
 
 	// DataPostgres is a LabelData value that indicates the object has PostgreSQL data.
 	DataPostgres = "postgres"
+
+	// DataBackrest is a LabelData value that indicate the object is a Repo Host.
+	DataBackrest = "pgbackrest"
 )
 
 const (
@@ -49,6 +52,10 @@ const (
 	// RolePatroniLeader is the LabelRole that Patroni sets on the Pod that is
 	// currently the leader.
 	RolePatroniLeader = "master"
+
+	// RolePatroniReplica is the LabelRole that Patroni sets on the Pod that is
+	// currently a replica.
+	RolePatroniReplica = "replica"
 
 	// RolePostgresUser is the LabelRole applied to PostgreSQL user secrets.
 	RolePostgresUser = "pguser"
@@ -60,6 +67,8 @@ const (
 	// ContainerDatabase is the name of the container running PostgreSQL and
 	// supporting tools: Patroni, pgBackRest, etc.
 	ContainerDatabase = "database"
+
+	ContainerPGBackrest = "pgbackrest"
 )
 
 // PrimaryInstanceLabels provides labels for a PostgreSQL cluster primary instance
@@ -67,6 +76,19 @@ func PrimaryInstanceLabels(clusterName string) string {
 	return LabelCluster + "=" + clusterName + "," +
 		LabelData + "=" + DataPostgres + "," +
 		LabelRole + "=" + RolePatroniLeader
+}
+
+// ReplicaInstanceLabels provides labels for a PostgreSQL cluster replica instances
+func ReplicaInstanceLabels(clusterName string) string {
+	return LabelCluster + "=" + clusterName + "," +
+		LabelData + "=" + DataPostgres + "," +
+		LabelRole + "=" + RolePatroniReplica
+}
+
+// RepoHostInstanceLabels provides labels for a Backrest Repo Host instances
+func RepoHostInstanceLabels(clusterName string) string {
+	return LabelCluster + "=" + clusterName + "," +
+		LabelData + "=" + DataBackrest
 }
 
 // PostgresUserSecretLabels provides labels for the Postgres user Secret
