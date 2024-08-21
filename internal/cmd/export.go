@@ -446,12 +446,6 @@ Collecting PGO CLI logs...
 		}
 
 		// Logs
-		// if numLogs > 0 {
-		// 	if err == nil {
-		// 		err = gatherPostgresqlLogs(ctx, clientset, restConfig, namespace, clusterName, numLogs, tw, cmd)
-		// 	}
-		// }
-
 		// All Postgres Logs on the Postgres Instances (primary and replicas)
 		if numLogs > 0 {
 			if err == nil {
@@ -949,87 +943,6 @@ func gatherEvents(ctx context.Context,
 	path := clusterName + "/events"
 	if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
 		return err
-	}
-
-	return nil
-}
-
-// gatherLogs takes a client and buffer to write logs to a buffer
-func gatherPostgresqlLogs(ctx context.Context,
-	clientset *kubernetes.Clientset,
-	config *rest.Config,
-	namespace string,
-	clusterName string,
-	numLogs int,
-	tw *tar.Writer,
-	cmd *cobra.Command,
-) error {
-	writeInfo(cmd, "Collecting Postgres logs...")
-	// Get the primary instance Pod by its labels
-	pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
-		// TODO(jmckulk): should we be getting replica logs?
-		LabelSelector: util.PrimaryInstanceLabels(clusterName),
-	})
-	if err != nil {
-		if apierrors.IsForbidden(err) {
-			writeInfo(cmd, err.Error())
-			return nil
-		}
-		return err
-	}
-	if len(pods.Items) != 1 {
-		writeInfo(cmd, "No primary instance pod found for gathering logs")
-		return nil
-	}
-
-	podExec, err := util.NewPodExecutor(config)
-	if err != nil {
-		return err
-	}
-
-	exec := func(stdin io.Reader, stdout, stderr io.Writer, command ...string,
-	) error {
-		return podExec(namespace, pods.Items[0].GetName(), util.ContainerDatabase,
-			stdin, stdout, stderr, command...)
-	}
-
-	stdout, stderr, err := Executor(exec).listPGLogFiles(numLogs)
-	if err != nil {
-		if apierrors.IsForbidden(err) {
-			writeInfo(cmd, err.Error())
-			return nil
-		}
-		return err
-	}
-	if stderr != "" {
-		writeInfo(cmd, stderr)
-	}
-
-	logFiles := strings.Split(strings.TrimSpace(stdout), "\n")
-	for _, logFile := range logFiles {
-		var buf bytes.Buffer
-
-		stdout, stderr, err := Executor(exec).catFile(logFile)
-		if err != nil {
-			if apierrors.IsForbidden(err) {
-				writeInfo(cmd, err.Error())
-				// Continue and output errors for each log file
-				// Allow the user to see and address all issues at once
-				continue
-			}
-			return err
-		}
-
-		buf.Write([]byte(stdout))
-		if stderr != "" {
-			str := fmt.Sprintf("\nError returned: %s\n", stderr)
-			buf.Write([]byte(str))
-		}
-
-		path := clusterName + "/logs/postgresql/" + logFile
-		if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
-			return err
-		}
 	}
 
 	return nil
