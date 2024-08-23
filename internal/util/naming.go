@@ -71,18 +71,17 @@ const (
 	ContainerPGBackrest = "pgbackrest"
 )
 
+// DBInstanceLabels provides labels for a PostgreSQL cluster primary or replica instance
+func DBInstanceLabels(clusterName string) string {
+	return LabelCluster + "=" + clusterName + "," +
+		LabelData + "=" + DataPostgres
+}
+
 // PrimaryInstanceLabels provides labels for a PostgreSQL cluster primary instance
 func PrimaryInstanceLabels(clusterName string) string {
 	return LabelCluster + "=" + clusterName + "," +
 		LabelData + "=" + DataPostgres + "," +
 		LabelRole + "=" + RolePatroniLeader
-}
-
-// ReplicaInstanceLabels provides labels for a PostgreSQL cluster replica instances
-func ReplicaInstanceLabels(clusterName string) string {
-	return LabelCluster + "=" + clusterName + "," +
-		LabelData + "=" + DataPostgres + "," +
-		LabelRole + "=" + RolePatroniReplica
 }
 
 // RepoHostInstanceLabels provides labels for a Backrest Repo Host instances

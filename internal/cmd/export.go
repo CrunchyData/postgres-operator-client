@@ -961,9 +961,8 @@ func gatherAllPostgresLogs(ctx context.Context,
 ) error {
 	writeInfo(cmd, "Collecting Postgres logs...")
 
-	// The Primary Pod instance - there should be only one, but there may be none.
-	primaryPods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: util.PrimaryInstanceLabels(clusterName),
+	dbPods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: util.DBInstanceLabels(clusterName),
 	})
 
 	if err != nil {
@@ -974,36 +973,13 @@ func gatherAllPostgresLogs(ctx context.Context,
 		return err
 	}
 
-	if len(primaryPods.Items) == 0 {
-		writeDebug(cmd, "No primary instance pod found for gathering logs")
+	if len(dbPods.Items) == 0 {
+		writeDebug(cmd, "No database instance pod found for gathering logs")
 	}
 
-	writeDebug(cmd, fmt.Sprintf("Found %d Primary Pod\n", len(primaryPods.Items)))
+	writeDebug(cmd, fmt.Sprintf("Found %d Pods\n", len(dbPods.Items)))
 
-	// The Replica Pod instance - there may be zero or more.
-	replicaPods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: util.ReplicaInstanceLabels(clusterName),
-	})
-
-	if err != nil {
-		if apierrors.IsForbidden(err) {
-			writeInfo(cmd, err.Error())
-			return nil
-		}
-		return err
-	}
-
-	writeDebug(cmd, fmt.Sprintf("Found %d Replica Pods\n", len(replicaPods.Items)))
-
-	var pods = primaryPods.Items
-	pods = append(pods, replicaPods.Items...)
-
-	if len(pods) == 0 {
-		writeDebug(cmd, "No pods found for gathering logs")
-		return nil
-	}
-
-	for _, pod := range pods {
+	for _, pod := range dbPods.Items {
 		writeDebug(cmd, fmt.Sprintf("Pod Name is %s\n", pod.Name))
 
 		podExec, err := util.NewPodExecutor(config)
@@ -1101,6 +1077,8 @@ func gatherAllPostgresLogs(ctx context.Context,
 	return nil
 }
 
+// gatherDbBackrestLogs gathers all the file-based pgBackRest logs on the DB instance.
+// There may not be any logs depending upon pgBackRest's log-level-file.
 func gatherDbBackrestLogs(ctx context.Context,
 	clientset *kubernetes.Clientset,
 	config *rest.Config,
@@ -1111,8 +1089,8 @@ func gatherDbBackrestLogs(ctx context.Context,
 ) error {
 	writeInfo(cmd, "Collecting pgBackRest logs...")
 
-	primaryPods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: util.PrimaryInstanceLabels(clusterName),
+	dbPods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: util.DBInstanceLabels(clusterName),
 	})
 
 	if err != nil {
@@ -1123,35 +1101,13 @@ func gatherDbBackrestLogs(ctx context.Context,
 		return err
 	}
 
-	if len(primaryPods.Items) == 0 {
-		writeDebug(cmd, "No primary instance pod found for gathering logs")
+	if len(dbPods.Items) == 0 {
+		writeDebug(cmd, "No database instance pod found for gathering logs")
 	}
 
-	writeDebug(cmd, fmt.Sprintf("Found %d Primary Pod\n", len(primaryPods.Items)))
+	writeDebug(cmd, fmt.Sprintf("Found %d Pods\n", len(dbPods.Items)))
 
-	replicaPods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: util.ReplicaInstanceLabels(clusterName),
-	})
-
-	if err != nil {
-		if apierrors.IsForbidden(err) {
-			writeInfo(cmd, err.Error())
-			return nil
-		}
-		return err
-	}
-
-	writeDebug(cmd, fmt.Sprintf("Found %d Replica Pods\n", len(replicaPods.Items)))
-
-	var pods = primaryPods.Items
-	pods = append(pods, replicaPods.Items...)
-
-	if len(pods) == 0 {
-		writeDebug(cmd, "No pods found for gathering logs")
-		return nil
-	}
-
-	for _, pod := range pods {
+	for _, pod := range dbPods.Items {
 		writeDebug(cmd, fmt.Sprintf("Pod Name is %s\n", pod.Name))
 
 		podExec, err := util.NewPodExecutor(config)
@@ -1214,6 +1170,8 @@ func gatherDbBackrestLogs(ctx context.Context,
 	return nil
 }
 
+// gatherRepoHostLogs gathers all the file-based pgBackRest logs on the repo host.
+// There may not be any logs depending upon pgBackRest's log-level-file.
 func gatherRepoHostLogs(ctx context.Context,
 	clientset *kubernetes.Clientset,
 	config *rest.Config,
