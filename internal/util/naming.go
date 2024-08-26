@@ -34,6 +34,9 @@ const (
 
 	// LabelOperator is used to identify operator Pods
 	LabelOperator = "postgres-operator.crunchydata.com/control-plane"
+
+	// LabelPGBackRestDedicated is used to identify the Repo Host pod
+	LabelPGBackRestDedicated = labelPrefix + "pgbackrest-dedicated"
 )
 
 const (
@@ -87,7 +90,7 @@ func PrimaryInstanceLabels(clusterName string) string {
 // RepoHostInstanceLabels provides labels for a Backrest Repo Host instances
 func RepoHostInstanceLabels(clusterName string) string {
 	return LabelCluster + "=" + clusterName + "," +
-		LabelData + "=" + DataBackrest
+		LabelPGBackRestDedicated + "="
 }
 
 // PostgresUserSecretLabels provides labels for the Postgres user Secret
