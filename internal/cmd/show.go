@@ -95,7 +95,7 @@ HA
 		if stdout, stderr, err := getBackup(config, args, "text", ""); err != nil {
 			return err
 		} else {
-			cmd.Printf(stdout)
+			cmd.Printf("%s", stdout)
 			if stderr != "" {
 				cmd.Printf("\nError returned: %s\n", stderr)
 			}
@@ -106,7 +106,7 @@ HA
 		if stdout, stderr, err := getHA(config, args, "pretty"); err != nil {
 			return err
 		} else {
-			cmd.Printf(stdout)
+			cmd.Printf("%s", stdout)
 			if stderr != "" {
 				cmd.Printf("\nError returned: %s\n", stderr)
 			}
@@ -185,7 +185,7 @@ stanza: db
 		stdout, stderr, err := getBackup(config, args, outputEnum.String(), repoNum)
 
 		if err == nil {
-			cmd.Printf(stdout)
+			cmd.Printf("%s", stdout)
 			if stderr != "" {
 				cmd.Printf("\nError returned: %s\n", stderr)
 			}
@@ -257,7 +257,7 @@ pgo show ha hippo --output json
 		stdout, stderr, err := getHA(config, args, outputEnum.String())
 
 		if err == nil {
-			cmd.Printf(stdout)
+			cmd.Printf("%s", stdout)
 			if stderr != "" {
 				cmd.Printf("\nError returned: %s\n", stderr)
 			}

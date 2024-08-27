@@ -39,6 +39,7 @@ postgresclusters/hippo created
 ### Options
 
 ```
+      --disable-backups        Disable backups
   -h, --help                   help for postgrescluster
       --pg-major-version int   Set the Postgres major version
 ```
