@@ -1,0 +1,54 @@
+kubectl kuttl test --test create-without \
+		--config testing/kuttl/kuttl-test.yaml
+=== RUN   kuttl
+    harness.go:462: starting setup
+    harness.go:252: running tests using configured kubeconfig.
+    harness.go:275: Successful connection to cluster at: https://0.0.0.0:58939
+    harness.go:360: running tests
+    harness.go:73: going to run test suite with timeout of 300 seconds for each step
+    harness.go:372: testsuite: testing/kuttl/e2e/ has 9 tests
+=== RUN   kuttl/harness
+=== RUN   kuttl/harness/create-without-backups
+=== PAUSE kuttl/harness/create-without-backups
+=== CONT  kuttl/harness/create-without-backups
+    logger.go:42: 14:12:21 | create-without-backups | Creating namespace: kuttl-test-master-mako
+    logger.go:42: 14:12:21 | create-without-backups/0-00--create_cluster | starting test step 0-00--create_cluster
+    logger.go:42: 14:12:21 | create-without-backups/0-00--create_cluster | running command: [sh -c echo no | kubectl-pgo --namespace $NAMESPACE create postgrescluster --pg-major-version 16 --disable-backups created-without-backups]
+    logger.go:42: 14:12:21 | create-without-backups/0-00--create_cluster | WARNING: Running a production postgrescluster without backups is not recommended. 
+    logger.go:42: 14:12:21 | create-without-backups/0-00--create_cluster | Are you sure you want to continue without backups? (yes/no): 
+    logger.go:42: 14:12:21 | create-without-backups/0-00--create_cluster | test step completed 0-00--create_cluster
+    logger.go:42: 14:12:21 | create-without-backups/1-01--create_cluster | starting test step 1-01--create_cluster
+    logger.go:42: 14:12:21 | create-without-backups/1-01--create_cluster | running command: [sh -c echo yes | kubectl-pgo --namespace $NAMESPACE create postgrescluster --pg-major-version 16 --disable-backups created-without-backups]
+    logger.go:42: 14:12:21 | create-without-backups/1-01--create_cluster | WARNING: Running a production postgrescluster without backups is not recommended. 
+    logger.go:42: 14:12:21 | create-without-backups/1-01--create_cluster | Are you sure you want to continue without backups? (yes/no): postgresclusters/created-without-backups created
+    logger.go:42: 14:12:32 | create-without-backups/1-01--create_cluster | test step completed 1-01--create_cluster
+    logger.go:42: 14:12:32 | create-without-backups/2- | starting test step 2-
+    logger.go:42: 14:12:32 | create-without-backups/2- | test step completed 2-
+    logger.go:42: 14:12:32 | create-without-backups | create-without-backups events from ns kuttl-test-master-mako:
+    logger.go:42: 14:12:32 | create-without-backups | 2024-08-27 14:12:22 -0500 CDT	Normal	PersistentVolumeClaim created-without-backups-00-cfsr-pgdata		WaitForFirstConsumer	waiting for first consumer to be created before binding	persistentvolume-controller	
+    logger.go:42: 14:12:32 | create-without-backups | 2024-08-27 14:12:22 -0500 CDT	Normal	PersistentVolumeClaim created-without-backups-00-cfsr-pgdata		ExternalProvisioning	Waiting for a volume to be created either by the external provisioner 'rancher.io/local-path' or manually by the system administrator. If volume creation is delayed, please verify that the provisioner is running and correctly registered.	persistentvolume-controller	
+    logger.go:42: 14:12:32 | create-without-backups | 2024-08-27 14:12:22 -0500 CDT	Normal	PersistentVolumeClaim created-without-backups-00-cfsr-pgdata		Provisioning	External provisioner is provisioning volume for claim "kuttl-test-master-mako/created-without-backups-00-cfsr-pgdata"	rancher.io/local-path_local-path-provisioner-6795b5f9d8-mjpnj_711e44ba-851e-46c4-9d74-f4ad88c2e3db	
+    logger.go:42: 14:12:32 | create-without-backups | 2024-08-27 14:12:22 -0500 CDT	Normal	StatefulSet.apps created-without-backups-00-cfsr		SuccessfulCreate	create Pod created-without-backups-00-cfsr-0 in StatefulSet created-without-backups-00-cfsr successful	statefulset-controller	
+    logger.go:42: 14:12:32 | create-without-backups | 2024-08-27 14:12:24 -0500 CDT	Normal	PersistentVolumeClaim created-without-backups-00-cfsr-pgdata		ProvisioningSucceeded	Successfully provisioned volume pvc-dfbc6088-40dd-49ec-b262-6c93273a80d4	rancher.io/local-path_local-path-provisioner-6795b5f9d8-mjpnj_711e44ba-851e-46c4-9d74-f4ad88c2e3db	
+    logger.go:42: 14:12:32 | create-without-backups | 2024-08-27 14:12:25 -0500 CDT	Normal	Pod created-without-backups-00-cfsr-0	Binding	Scheduled	Successfully assigned kuttl-test-master-mako/created-without-backups-00-cfsr-0 to k3d-k3s-default-server-0	default-scheduler	
+    logger.go:42: 14:12:32 | create-without-backups | 2024-08-27 14:12:25 -0500 CDT	Normal	Pod created-without-backups-00-cfsr-0.spec.initContainers{postgres-startup}		Pulled	Container image "registry.developers.crunchydata.com/crunchydata/crunchy-postgres:ubi8-16.3-1" already present on machine	kubelet	
+    logger.go:42: 14:12:32 | create-without-backups | 2024-08-27 14:12:25 -0500 CDT	Normal	Pod created-without-backups-00-cfsr-0.spec.initContainers{postgres-startup}		Created	Created container postgres-startup	kubelet	
+    logger.go:42: 14:12:32 | create-without-backups | 2024-08-27 14:12:25 -0500 CDT	Normal	Pod created-without-backups-00-cfsr-0.spec.initContainers{postgres-startup}		Started	Started container postgres-startup	kubelet	
+    logger.go:42: 14:12:32 | create-without-backups | 2024-08-27 14:12:26 -0500 CDT	Normal	Pod created-without-backups-00-cfsr-0.spec.initContainers{nss-wrapper-init}		Pulled	Container image "registry.developers.crunchydata.com/crunchydata/crunchy-postgres:ubi8-16.3-1" already present on machine	kubelet	
+    logger.go:42: 14:12:32 | create-without-backups | 2024-08-27 14:12:26 -0500 CDT	Normal	Pod created-without-backups-00-cfsr-0.spec.initContainers{nss-wrapper-init}		Created	Created container nss-wrapper-init	kubelet	
+    logger.go:42: 14:12:32 | create-without-backups | 2024-08-27 14:12:26 -0500 CDT	Normal	Pod created-without-backups-00-cfsr-0.spec.initContainers{nss-wrapper-init}		Started	Started container nss-wrapper-init	kubelet	
+    logger.go:42: 14:12:32 | create-without-backups | 2024-08-27 14:12:27 -0500 CDT	Normal	Pod created-without-backups-00-cfsr-0.spec.containers{database}		Pulled	Container image "registry.developers.crunchydata.com/crunchydata/crunchy-postgres:ubi8-16.3-1" already present on machine	kubelet	
+    logger.go:42: 14:12:32 | create-without-backups | 2024-08-27 14:12:27 -0500 CDT	Normal	Pod created-without-backups-00-cfsr-0.spec.containers{database}		Created	Created container database	kubelet	
+    logger.go:42: 14:12:32 | create-without-backups | 2024-08-27 14:12:27 -0500 CDT	Normal	Pod created-without-backups-00-cfsr-0.spec.containers{database}		Started	Started container database	kubelet	
+    logger.go:42: 14:12:32 | create-without-backups | 2024-08-27 14:12:27 -0500 CDT	Normal	Pod created-without-backups-00-cfsr-0.spec.containers{replication-cert-copy}		Pulled	Container image "registry.developers.crunchydata.com/crunchydata/crunchy-postgres:ubi8-16.3-1" already present on machine	kubelet	
+    logger.go:42: 14:12:32 | create-without-backups | 2024-08-27 14:12:27 -0500 CDT	Normal	Pod created-without-backups-00-cfsr-0.spec.containers{replication-cert-copy}		Created	Created container replication-cert-copy	kubelet	
+    logger.go:42: 14:12:32 | create-without-backups | 2024-08-27 14:12:27 -0500 CDT	Normal	Pod created-without-backups-00-cfsr-0.spec.containers{replication-cert-copy}		Started	Started container replication-cert-copy	kubelet	
+    logger.go:42: 14:12:32 | create-without-backups | Deleting namespace: kuttl-test-master-mako
+=== CONT  kuttl
+    harness.go:405: run tests finished
+    harness.go:513: cleaning up
+    harness.go:570: removing temp folder: ""
+--- PASS: kuttl (22.28s)
+    --- PASS: kuttl/harness (0.00s)
+        --- PASS: kuttl/harness/create-without-backups (22.25s)
+PASS

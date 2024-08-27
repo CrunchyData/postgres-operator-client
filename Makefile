@@ -34,6 +34,7 @@ help: ## Display this help
 .PHONY: all
 all: check build
 
+bin/kubectl-pgo-%: ## Build the binary
 bin/kubectl-pgo-%: go.* $(shell ls -1 cmd/**/*.go internal/**/*.go)
 	GOOS=$(word 1,$(subst -, ,$*)) GOARCH=$(word 2,$(subst -, ,$*)) $(GO_BUILD) -o $@ ./cmd/kubectl-pgo
 
@@ -43,7 +44,7 @@ build: bin/kubectl-pgo-$(subst $(eval) ,-,$(shell $(GO) env GOOS GOARCH))
 	ln -fs $(notdir $<) ./bin/kubectl-pgo
 
 .PHONY: check
-check:
+check: ## Run tests
 	$(GO_TEST) -cover ./...
 
 # Expects operator to be running
