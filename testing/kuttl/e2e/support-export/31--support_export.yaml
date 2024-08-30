@@ -6,8 +6,8 @@ commands:
 - script: tar -xzf ./crunchy_k8s_support_export_*.tar.gz
 - script: |
     CLEANUP="rm -r ./kuttl-support-monitoring-cluster ./monitoring ./crunchy_k8s_support_export_*.tar.gz"
-    CLUSTER_DIR="./kuttl-support-monitoring-cluster/logs/"
-    MONITORING_DIR="./monitoring/logs/"
+    CLUSTER_DIR="./kuttl-support-monitoring-cluster/pods/"
+    MONITORING_DIR="./monitoring/pods/"
 
     # check for exporter, prometheus, grafana and alertmanager logs
     found=$(find ${CLUSTER_DIR} -name "*exporter.log" | wc -l)
