@@ -527,7 +527,7 @@ Collecting PGO CLI logs...
 
 		// Print cli output
 		writeInfo(cmd, "Collecting PGO CLI logs...")
-		path := clusterName + "/logs/cli"
+		path := clusterName + "/cli.log"
 		if logErr := writeTar(tw, cliOutput.Bytes(), path, cmd); logErr != nil {
 			return logErr
 		}
@@ -1033,7 +1033,7 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 				buf.Write([]byte(str))
 			}
 
-			path := clusterName + fmt.Sprintf("/logs/%s/", pod.Name) + logFile
+			path := clusterName + fmt.Sprintf("/pods/%s/", pod.Name) + logFile
 			if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
 				return err
 			}
@@ -1073,7 +1073,7 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 				buf.Write([]byte(str))
 			}
 
-			path := clusterName + fmt.Sprintf("/logs/%s/", pod.Name) + logFile
+			path := clusterName + fmt.Sprintf("/pods/%s/", pod.Name) + logFile
 			if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
 				return err
 			}
@@ -1167,7 +1167,7 @@ func gatherDbBackrestLogs(ctx context.Context,
 				buf.Write([]byte(str))
 			}
 
-			path := clusterName + fmt.Sprintf("/logs/%s/", pod.Name) + logFile
+			path := clusterName + fmt.Sprintf("/pods/%s/", pod.Name) + logFile
 			if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
 				return err
 			}
@@ -1260,7 +1260,7 @@ func gatherRepoHostLogs(ctx context.Context,
 				buf.Write([]byte(str))
 			}
 
-			path := clusterName + fmt.Sprintf("/logs/%s/", pod.Name) + logFile
+			path := clusterName + fmt.Sprintf("/pods/%s/", pod.Name) + logFile
 			if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
 				return err
 			}
@@ -1322,7 +1322,7 @@ func gatherPodLogs(ctx context.Context,
 				return err
 			}
 
-			path := rootDir + "/logs/" +
+			path := rootDir + "/pods/" +
 				pod.GetName() + "/containers/" + container.Name + ".log"
 			if err := writeTar(tw, b, path, cmd); err != nil {
 				return err
