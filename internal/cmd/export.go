@@ -449,7 +449,7 @@ Collecting PGO CLI logs...
 		// All Postgres Logs on the Postgres Instances (primary and replicas)
 		if numLogs > 0 {
 			if err == nil {
-				err = gatherAllPostgresLogs(ctx, clientset, restConfig, namespace, clusterName, numLogs, tw, cmd)
+				err = gatherPostgresLogsAndConfigs(ctx, clientset, restConfig, namespace, clusterName, numLogs, tw, cmd)
 			}
 		}
 
@@ -948,9 +948,9 @@ func gatherEvents(ctx context.Context,
 	return nil
 }
 
-// gatherAllPostgresLogs take a client and writes logs from primary and replicas
+// gatherPostgresLogsAndConfigs take a client and writes logs from primary and replicas
 // to a buffer
-func gatherAllPostgresLogs(ctx context.Context,
+func gatherPostgresLogsAndConfigs(ctx context.Context,
 	clientset *kubernetes.Clientset,
 	config *rest.Config,
 	namespace string,
@@ -974,7 +974,8 @@ func gatherAllPostgresLogs(ctx context.Context,
 	}
 
 	if len(dbPods.Items) == 0 {
-		writeDebug(cmd, "No database instance pod found for gathering logs")
+		writeInfo(cmd, "No database instance pod found for gathering logs and config")
+		return nil
 	}
 
 	writeDebug(cmd, fmt.Sprintf("Found %d Pods\n", len(dbPods.Items)))
@@ -996,18 +997,23 @@ func gatherAllPostgresLogs(ctx context.Context,
 		// Get Postgres Log Files
 		stdout, stderr, err := Executor(exec).listPGLogFiles(numLogs)
 		if err != nil {
+			if strings.Contains(stderr, "No such file or directory") {
+				writeDebug(cmd, "Cannot find any Postgres log files. This is acceptable in some configurations.\n")
+			}
 			if apierrors.IsForbidden(err) {
 				writeInfo(cmd, err.Error())
 				return nil
 			}
-			return err
+			continue
 		}
 		if stderr != "" {
-			writeInfo(cmd, stderr)
+			writeDebug(cmd, stderr)
+			continue
 		}
 
 		logFiles := strings.Split(strings.TrimSpace(stdout), "\n")
 		for _, logFile := range logFiles {
+			writeDebug(cmd, fmt.Sprintf("LOG FILE: %s\n", logFile))
 			var buf bytes.Buffer
 
 			stdout, stderr, err := Executor(exec).catFile(logFile)
@@ -1102,7 +1108,8 @@ func gatherDbBackrestLogs(ctx context.Context,
 	}
 
 	if len(dbPods.Items) == 0 {
-		writeDebug(cmd, "No database instance pod found for gathering logs")
+		writeInfo(cmd, "No database instance pod found for gathering logs")
+		return nil
 	}
 
 	writeDebug(cmd, fmt.Sprintf("Found %d Pods\n", len(dbPods.Items)))
@@ -1121,10 +1128,9 @@ func gatherDbBackrestLogs(ctx context.Context,
 				stdin, stdout, stderr, command...)
 		}
 
+		// Get pgBackRest Log Files
 		stdout, stderr, err := Executor(exec).listBackrestLogFiles()
-
 		if err != nil {
-			writeInfo(cmd, err.Error())
 			if strings.Contains(stderr, "No such file or directory") {
 				writeDebug(cmd, "Cannot find any Backrest log files. This is acceptable in some configurations.\n")
 			}
@@ -1135,7 +1141,8 @@ func gatherDbBackrestLogs(ctx context.Context,
 			continue
 		}
 		if stderr != "" {
-			writeInfo(cmd, stderr)
+			writeDebug(cmd, stderr)
+			continue
 		}
 
 		logFiles := strings.Split(strings.TrimSpace(stdout), "\n")
@@ -1195,19 +1202,12 @@ func gatherRepoHostLogs(ctx context.Context,
 	}
 
 	if len(repoHostPods.Items) == 0 {
-		writeDebug(cmd, "No Repo Host pod found for gathering logs")
+		writeInfo(cmd, "No Repo Host pod found for gathering logs")
 	}
 
 	writeDebug(cmd, fmt.Sprintf("Found %d Repo Host Pod\n", len(repoHostPods.Items)))
 
-	var pods = repoHostPods.Items
-
-	if len(pods) == 0 {
-		writeDebug(cmd, "No pods found for gathering logs")
-		return nil
-	}
-
-	for _, pod := range pods {
+	for _, pod := range repoHostPods.Items {
 		writeDebug(cmd, fmt.Sprintf("Pod Name is %s\n", pod.Name))
 
 		podExec, err := util.NewPodExecutor(config)
@@ -1221,20 +1221,26 @@ func gatherRepoHostLogs(ctx context.Context,
 				stdin, stdout, stderr, command...)
 		}
 
+		// Get BackRest Repo Host Log Files
 		stdout, stderr, err := Executor(exec).listBackrestRepoHostLogFiles()
 		if err != nil {
+			if strings.Contains(stderr, "No such file or directory") {
+				writeDebug(cmd, "Cannot find any Repo Host log files. This is acceptable in some configurations.\n")
+			}
 			if apierrors.IsForbidden(err) {
 				writeInfo(cmd, err.Error())
 				return nil
 			}
-			return err
+			continue
 		}
 		if stderr != "" {
-			writeInfo(cmd, stderr)
+			writeDebug(cmd, stderr)
+			continue
 		}
 
 		logFiles := strings.Split(strings.TrimSpace(stdout), "\n")
 		for _, logFile := range logFiles {
+			writeDebug(cmd, fmt.Sprintf("LOG FILE: %s\n", logFile))
 			var buf bytes.Buffer
 
 			stdout, stderr, err := Executor(exec).catFile(logFile)
