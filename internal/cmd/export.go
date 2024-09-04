@@ -948,8 +948,8 @@ func gatherEvents(ctx context.Context,
 	return nil
 }
 
-// gatherPostgresLogsAndConfigs take a client and writes logs from primary and replicas
-// to a buffer
+// gatherPostgresLogsAndConfigs take a client and writes logs and configs
+// from primary and replicas to a buffer
 func gatherPostgresLogsAndConfigs(ctx context.Context,
 	clientset *kubernetes.Clientset,
 	config *rest.Config,
