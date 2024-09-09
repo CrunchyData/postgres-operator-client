@@ -980,13 +980,13 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 
 	writeDebug(cmd, fmt.Sprintf("Found %d Pods\n", len(dbPods.Items)))
 
+	podExec, err := util.NewPodExecutor(config)
+	if err != nil {
+		return err
+	}
+
 	for _, pod := range dbPods.Items {
 		writeDebug(cmd, fmt.Sprintf("Pod Name is %s\n", pod.Name))
-
-		podExec, err := util.NewPodExecutor(config)
-		if err != nil {
-			return err
-		}
 
 		exec := func(stdin io.Reader, stdout, stderr io.Writer, command ...string,
 		) error {
@@ -996,18 +996,20 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 
 		// Get Postgres Log Files
 		stdout, stderr, err := Executor(exec).listPGLogFiles(numLogs)
-		if err != nil {
-			if strings.Contains(stderr, "No such file or directory") {
-				writeDebug(cmd, "Cannot find any Postgres log files. This is acceptable in some configurations.\n")
-			}
+
+		// Depending upon the list* function above, err may be non-nil or stderr may
+		// be non-empty, indicating an error has happened.
+		if err != nil || stderr != "" {
+
 			if apierrors.IsForbidden(err) {
 				writeInfo(cmd, err.Error())
 				return nil
 			}
-			continue
-		}
-		if stderr != "" {
-			writeDebug(cmd, stderr)
+
+			writeDebug(cmd, "Error getting PG logs\n")
+			if strings.Contains(stderr, "No such file or directory") {
+				writeDebug(cmd, "Cannot find any Postgres log files. This is acceptable in some configurations.\n")
+			}
 			continue
 		}
 
@@ -1114,13 +1116,13 @@ func gatherDbBackrestLogs(ctx context.Context,
 
 	writeDebug(cmd, fmt.Sprintf("Found %d Pods\n", len(dbPods.Items)))
 
+	podExec, err := util.NewPodExecutor(config)
+	if err != nil {
+		return err
+	}
+
 	for _, pod := range dbPods.Items {
 		writeDebug(cmd, fmt.Sprintf("Pod Name is %s\n", pod.Name))
-
-		podExec, err := util.NewPodExecutor(config)
-		if err != nil {
-			return err
-		}
 
 		exec := func(stdin io.Reader, stdout, stderr io.Writer, command ...string,
 		) error {
@@ -1130,18 +1132,20 @@ func gatherDbBackrestLogs(ctx context.Context,
 
 		// Get pgBackRest Log Files
 		stdout, stderr, err := Executor(exec).listBackrestLogFiles()
-		if err != nil {
-			if strings.Contains(stderr, "No such file or directory") {
-				writeDebug(cmd, "Cannot find any Backrest log files. This is acceptable in some configurations.\n")
-			}
+
+		// Depending upon the list* function above, err may be non-nil or stderr may
+		// be non-empty, indicating an error has happened.
+		if err != nil || stderr != "" {
+
 			if apierrors.IsForbidden(err) {
 				writeInfo(cmd, err.Error())
 				return nil
 			}
-			continue
-		}
-		if stderr != "" {
-			writeDebug(cmd, stderr)
+
+			writeDebug(cmd, "Error getting pgBackRest logs\n")
+			if strings.Contains(stderr, "No such file or directory") {
+				writeDebug(cmd, "Cannot find any pgBackRest log files. This is acceptable in some configurations.\n")
+			}
 			continue
 		}
 
@@ -1207,13 +1211,13 @@ func gatherRepoHostLogs(ctx context.Context,
 
 	writeDebug(cmd, fmt.Sprintf("Found %d Repo Host Pod\n", len(repoHostPods.Items)))
 
+	podExec, err := util.NewPodExecutor(config)
+	if err != nil {
+		return err
+	}
+
 	for _, pod := range repoHostPods.Items {
 		writeDebug(cmd, fmt.Sprintf("Pod Name is %s\n", pod.Name))
-
-		podExec, err := util.NewPodExecutor(config)
-		if err != nil {
-			return err
-		}
 
 		exec := func(stdin io.Reader, stdout, stderr io.Writer, command ...string,
 		) error {
@@ -1223,18 +1227,20 @@ func gatherRepoHostLogs(ctx context.Context,
 
 		// Get BackRest Repo Host Log Files
 		stdout, stderr, err := Executor(exec).listBackrestRepoHostLogFiles()
-		if err != nil {
-			if strings.Contains(stderr, "No such file or directory") {
-				writeDebug(cmd, "Cannot find any Repo Host log files. This is acceptable in some configurations.\n")
-			}
+
+		// Depending upon the list* function above, err may be non-nil or stderr may
+		// be non-empty, indicating an error has happened.
+		if err != nil || stderr != "" {
+
 			if apierrors.IsForbidden(err) {
 				writeInfo(cmd, err.Error())
 				return nil
 			}
-			continue
-		}
-		if stderr != "" {
-			writeDebug(cmd, stderr)
+
+			writeDebug(cmd, "Error getting pgBackRest logs\n")
+			if strings.Contains(stderr, "No such file or directory") {
+				writeDebug(cmd, "Cannot find any pgBackRest log files. This is acceptable in some configurations.\n")
+			}
 			continue
 		}
 
