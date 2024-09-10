@@ -1281,7 +1281,7 @@ func gatherRepoHostLogs(ctx context.Context,
 				writeDebug(cmd, fmt.Sprintf("%s\n", err.Error()))
 			}
 			if stderr != "" {
-				writeDebug(cmd, fmt.Sprintf("%s", stderr))
+				writeDebug(cmd, stderr)
 			}
 
 			if strings.Contains(stderr, "No such file or directory") {
