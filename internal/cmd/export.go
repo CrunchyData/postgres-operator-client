@@ -997,8 +997,10 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 		// Get Postgres Log Files
 		stdout, stderr, err := Executor(exec).listPGLogFiles(numLogs)
 
-		// Depending upon the list* function above, err may be non-nil or stderr may
-		// be non-empty, indicating an error has happened.
+		// Depending upon the list* function above:
+		// An error may happen when err is non-nil or stderr is non-empty.
+		// In both cases, we want to print helpful information and continue to the
+		// next iteration.
 		if err != nil || stderr != "" {
 
 			if apierrors.IsForbidden(err) {
@@ -1007,6 +1009,14 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 			}
 
 			writeDebug(cmd, "Error getting PG logs\n")
+
+			if err != nil {
+				writeDebug(cmd, fmt.Sprintf("%s\n", err.Error()))
+			}
+			if stderr != "" {
+				writeDebug(cmd, fmt.Sprintf("%s", stderr))
+			}
+
 			if strings.Contains(stderr, "No such file or directory") {
 				writeDebug(cmd, "Cannot find any Postgres log files. This is acceptable in some configurations.\n")
 			}
@@ -1043,15 +1053,31 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 
 		// Get Postgres Conf Files
 		stdout, stderr, err = Executor(exec).listPGConfFiles()
-		if err != nil {
+
+		// Depending upon the list* function above:
+		// An error may happen when err is non-nil or stderr is non-empty.
+		// In both cases, we want to print helpful information and continue to the
+		// next iteration.
+		if err != nil || stderr != "" {
+
 			if apierrors.IsForbidden(err) {
 				writeInfo(cmd, err.Error())
 				return nil
 			}
-			return err
-		}
-		if stderr != "" {
-			writeInfo(cmd, stderr)
+
+			writeDebug(cmd, "Error getting PG Conf files\n")
+
+			if err != nil {
+				writeDebug(cmd, fmt.Sprintf("%s\n", err.Error()))
+			}
+			if stderr != "" {
+				writeDebug(cmd, fmt.Sprintf("%s", stderr))
+			}
+
+			if strings.Contains(stderr, "No such file or directory") {
+				writeDebug(cmd, "Cannot find any PG Conf files. This is acceptable in some configurations.\n")
+			}
+			continue
 		}
 
 		logFiles = strings.Split(strings.TrimSpace(stdout), "\n")
@@ -1133,8 +1159,10 @@ func gatherDbBackrestLogs(ctx context.Context,
 		// Get pgBackRest Log Files
 		stdout, stderr, err := Executor(exec).listBackrestLogFiles()
 
-		// Depending upon the list* function above, err may be non-nil or stderr may
-		// be non-empty, indicating an error has happened.
+		// Depending upon the list* function above:
+		// An error may happen when err is non-nil or stderr is non-empty.
+		// In both cases, we want to print helpful information and continue to the
+		// next iteration.
 		if err != nil || stderr != "" {
 
 			if apierrors.IsForbidden(err) {
@@ -1143,6 +1171,14 @@ func gatherDbBackrestLogs(ctx context.Context,
 			}
 
 			writeDebug(cmd, "Error getting pgBackRest logs\n")
+
+			if err != nil {
+				writeDebug(cmd, fmt.Sprintf("%s\n", err.Error()))
+			}
+			if stderr != "" {
+				writeDebug(cmd, fmt.Sprintf("%s", stderr))
+			}
+
 			if strings.Contains(stderr, "No such file or directory") {
 				writeDebug(cmd, "Cannot find any pgBackRest log files. This is acceptable in some configurations.\n")
 			}
@@ -1228,8 +1264,10 @@ func gatherRepoHostLogs(ctx context.Context,
 		// Get BackRest Repo Host Log Files
 		stdout, stderr, err := Executor(exec).listBackrestRepoHostLogFiles()
 
-		// Depending upon the list* function above, err may be non-nil or stderr may
-		// be non-empty, indicating an error has happened.
+		// Depending upon the list* function above:
+		// An error may happen when err is non-nil or stderr is non-empty.
+		// In both cases, we want to print helpful information and continue to the
+		// next iteration.
 		if err != nil || stderr != "" {
 
 			if apierrors.IsForbidden(err) {
@@ -1238,6 +1276,14 @@ func gatherRepoHostLogs(ctx context.Context,
 			}
 
 			writeDebug(cmd, "Error getting pgBackRest logs\n")
+
+			if err != nil {
+				writeDebug(cmd, fmt.Sprintf("%s\n", err.Error()))
+			}
+			if stderr != "" {
+				writeDebug(cmd, fmt.Sprintf("%s", stderr))
+			}
+
 			if strings.Contains(stderr, "No such file or directory") {
 				writeDebug(cmd, "Cannot find any pgBackRest log files. This is acceptable in some configurations.\n")
 			}
