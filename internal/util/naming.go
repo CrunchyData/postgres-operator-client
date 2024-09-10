@@ -34,6 +34,9 @@ const (
 
 	// LabelOperator is used to identify operator Pods
 	LabelOperator = "postgres-operator.crunchydata.com/control-plane"
+
+	// LabelPGBackRestDedicated is used to identify the Repo Host pod
+	LabelPGBackRestDedicated = labelPrefix + "pgbackrest-dedicated"
 )
 
 const (
@@ -41,6 +44,9 @@ const (
 
 	// DataPostgres is a LabelData value that indicates the object has PostgreSQL data.
 	DataPostgres = "postgres"
+
+	// DataBackrest is a LabelData value that indicate the object is a Repo Host.
+	DataBackrest = "pgbackrest"
 )
 
 const (
@@ -49,6 +55,10 @@ const (
 	// RolePatroniLeader is the LabelRole that Patroni sets on the Pod that is
 	// currently the leader.
 	RolePatroniLeader = "master"
+
+	// RolePatroniReplica is the LabelRole that Patroni sets on the Pod that is
+	// currently a replica.
+	RolePatroniReplica = "replica"
 
 	// RolePostgresUser is the LabelRole applied to PostgreSQL user secrets.
 	RolePostgresUser = "pguser"
@@ -60,13 +70,27 @@ const (
 	// ContainerDatabase is the name of the container running PostgreSQL and
 	// supporting tools: Patroni, pgBackRest, etc.
 	ContainerDatabase = "database"
+
+	ContainerPGBackrest = "pgbackrest"
 )
+
+// DBInstanceLabels provides labels for a PostgreSQL cluster primary or replica instance
+func DBInstanceLabels(clusterName string) string {
+	return LabelCluster + "=" + clusterName + "," +
+		LabelData + "=" + DataPostgres
+}
 
 // PrimaryInstanceLabels provides labels for a PostgreSQL cluster primary instance
 func PrimaryInstanceLabels(clusterName string) string {
 	return LabelCluster + "=" + clusterName + "," +
 		LabelData + "=" + DataPostgres + "," +
 		LabelRole + "=" + RolePatroniLeader
+}
+
+// RepoHostInstanceLabels provides labels for a Backrest Repo Host instances
+func RepoHostInstanceLabels(clusterName string) string {
+	return LabelCluster + "=" + clusterName + "," +
+		LabelPGBackRestDedicated + "="
 }
 
 // PostgresUserSecretLabels provides labels for the Postgres user Secret

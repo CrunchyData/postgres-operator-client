@@ -446,10 +446,21 @@ Collecting PGO CLI logs...
 		}
 
 		// Logs
+		// All Postgres Logs on the Postgres Instances (primary and replicas)
 		if numLogs > 0 {
 			if err == nil {
-				err = gatherPostgresqlLogs(ctx, clientset, restConfig, namespace, clusterName, numLogs, tw, cmd)
+				err = gatherPostgresLogsAndConfigs(ctx, clientset, restConfig, namespace, clusterName, numLogs, tw, cmd)
 			}
+		}
+
+		// All pgBackRest Logs on the Postgres Instances
+		if err == nil {
+			err = gatherDbBackrestLogs(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
+		}
+
+		// All pgBackRest Logs on the Repo Host
+		if err == nil {
+			err = gatherRepoHostLogs(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
 		}
 
 		// get PostgresCluster Pod logs
@@ -516,7 +527,7 @@ Collecting PGO CLI logs...
 
 		// Print cli output
 		writeInfo(cmd, "Collecting PGO CLI logs...")
-		path := clusterName + "/logs/cli"
+		path := clusterName + "/cli.log"
 		if logErr := writeTar(tw, cliOutput.Bytes(), path, cmd); logErr != nil {
 			return logErr
 		}
@@ -937,8 +948,9 @@ func gatherEvents(ctx context.Context,
 	return nil
 }
 
-// gatherLogs takes a client and buffer to write logs to a buffer
-func gatherPostgresqlLogs(ctx context.Context,
+// gatherPostgresLogsAndConfigs take a client and writes logs and configs
+// from primary and replicas to a buffer
+func gatherPostgresLogsAndConfigs(ctx context.Context,
 	clientset *kubernetes.Clientset,
 	config *rest.Config,
 	namespace string,
@@ -948,11 +960,11 @@ func gatherPostgresqlLogs(ctx context.Context,
 	cmd *cobra.Command,
 ) error {
 	writeInfo(cmd, "Collecting Postgres logs...")
-	// Get the primary instance Pod by its labels
-	pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
-		// TODO(jmckulk): should we be getting replica logs?
-		LabelSelector: util.PrimaryInstanceLabels(clusterName),
+
+	dbPods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: util.DBInstanceLabels(clusterName),
 	})
+
 	if err != nil {
 		if apierrors.IsForbidden(err) {
 			writeInfo(cmd, err.Error())
@@ -960,23 +972,161 @@ func gatherPostgresqlLogs(ctx context.Context,
 		}
 		return err
 	}
-	if len(pods.Items) != 1 {
-		writeInfo(cmd, "No primary instance pod found for gathering logs")
+
+	if len(dbPods.Items) == 0 {
+		writeInfo(cmd, "No database instance pod found for gathering logs and config")
 		return nil
 	}
+
+	writeDebug(cmd, fmt.Sprintf("Found %d Pods\n", len(dbPods.Items)))
 
 	podExec, err := util.NewPodExecutor(config)
 	if err != nil {
 		return err
 	}
 
-	exec := func(stdin io.Reader, stdout, stderr io.Writer, command ...string,
-	) error {
-		return podExec(namespace, pods.Items[0].GetName(), util.ContainerDatabase,
-			stdin, stdout, stderr, command...)
-	}
+	for _, pod := range dbPods.Items {
+		writeDebug(cmd, fmt.Sprintf("Pod Name is %s\n", pod.Name))
 
-	stdout, stderr, err := Executor(exec).listPGLogFiles(numLogs)
+		exec := func(stdin io.Reader, stdout, stderr io.Writer, command ...string,
+		) error {
+			return podExec(namespace, pod.Name, util.ContainerDatabase,
+				stdin, stdout, stderr, command...)
+		}
+
+		// Get Postgres Log Files
+		stdout, stderr, err := Executor(exec).listPGLogFiles(numLogs)
+
+		// Depending upon the list* function above:
+		// An error may happen when err is non-nil or stderr is non-empty.
+		// In both cases, we want to print helpful information and continue to the
+		// next iteration.
+		if err != nil || stderr != "" {
+
+			if apierrors.IsForbidden(err) {
+				writeInfo(cmd, err.Error())
+				return nil
+			}
+
+			writeDebug(cmd, "Error getting PG logs\n")
+
+			if err != nil {
+				writeDebug(cmd, fmt.Sprintf("%s\n", err.Error()))
+			}
+			if stderr != "" {
+				writeDebug(cmd, stderr)
+			}
+
+			if strings.Contains(stderr, "No such file or directory") {
+				writeDebug(cmd, "Cannot find any Postgres log files. This is acceptable in some configurations.\n")
+			}
+			continue
+		}
+
+		logFiles := strings.Split(strings.TrimSpace(stdout), "\n")
+		for _, logFile := range logFiles {
+			writeDebug(cmd, fmt.Sprintf("LOG FILE: %s\n", logFile))
+			var buf bytes.Buffer
+
+			stdout, stderr, err := Executor(exec).catFile(logFile)
+			if err != nil {
+				if apierrors.IsForbidden(err) {
+					writeInfo(cmd, err.Error())
+					// Continue and output errors for each log file
+					// Allow the user to see and address all issues at once
+					continue
+				}
+				return err
+			}
+
+			buf.Write([]byte(stdout))
+			if stderr != "" {
+				str := fmt.Sprintf("\nError returned: %s\n", stderr)
+				buf.Write([]byte(str))
+			}
+
+			path := clusterName + fmt.Sprintf("/pods/%s/", pod.Name) + logFile
+			if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
+				return err
+			}
+		}
+
+		// Get Postgres Conf Files
+		stdout, stderr, err = Executor(exec).listPGConfFiles()
+
+		// Depending upon the list* function above:
+		// An error may happen when err is non-nil or stderr is non-empty.
+		// In both cases, we want to print helpful information and continue to the
+		// next iteration.
+		if err != nil || stderr != "" {
+
+			if apierrors.IsForbidden(err) {
+				writeInfo(cmd, err.Error())
+				return nil
+			}
+
+			writeDebug(cmd, "Error getting PG Conf files\n")
+
+			if err != nil {
+				writeDebug(cmd, fmt.Sprintf("%s\n", err.Error()))
+			}
+			if stderr != "" {
+				writeDebug(cmd, stderr)
+			}
+
+			if strings.Contains(stderr, "No such file or directory") {
+				writeDebug(cmd, "Cannot find any PG Conf files. This is acceptable in some configurations.\n")
+			}
+			continue
+		}
+
+		logFiles = strings.Split(strings.TrimSpace(stdout), "\n")
+		for _, logFile := range logFiles {
+			var buf bytes.Buffer
+
+			stdout, stderr, err := Executor(exec).catFile(logFile)
+			if err != nil {
+				if apierrors.IsForbidden(err) {
+					writeInfo(cmd, err.Error())
+					// Continue and output errors for each log file
+					// Allow the user to see and address all issues at once
+					continue
+				}
+				return err
+			}
+
+			buf.Write([]byte(stdout))
+			if stderr != "" {
+				str := fmt.Sprintf("\nError returned: %s\n", stderr)
+				buf.Write([]byte(str))
+			}
+
+			path := clusterName + fmt.Sprintf("/pods/%s/", pod.Name) + logFile
+			if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
+				return err
+			}
+		}
+
+	}
+	return nil
+}
+
+// gatherDbBackrestLogs gathers all the file-based pgBackRest logs on the DB instance.
+// There may not be any logs depending upon pgBackRest's log-level-file.
+func gatherDbBackrestLogs(ctx context.Context,
+	clientset *kubernetes.Clientset,
+	config *rest.Config,
+	namespace string,
+	clusterName string,
+	tw *tar.Writer,
+	cmd *cobra.Command,
+) error {
+	writeInfo(cmd, "Collecting pgBackRest logs...")
+
+	dbPods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: util.DBInstanceLabels(clusterName),
+	})
+
 	if err != nil {
 		if apierrors.IsForbidden(err) {
 			writeInfo(cmd, err.Error())
@@ -984,37 +1134,191 @@ func gatherPostgresqlLogs(ctx context.Context,
 		}
 		return err
 	}
-	if stderr != "" {
-		writeInfo(cmd, stderr)
+
+	if len(dbPods.Items) == 0 {
+		writeInfo(cmd, "No database instance pod found for gathering logs")
+		return nil
 	}
 
-	logFiles := strings.Split(strings.TrimSpace(stdout), "\n")
-	for _, logFile := range logFiles {
-		var buf bytes.Buffer
+	writeDebug(cmd, fmt.Sprintf("Found %d Pods\n", len(dbPods.Items)))
 
-		stdout, stderr, err := Executor(exec).catFile(logFile)
-		if err != nil {
+	podExec, err := util.NewPodExecutor(config)
+	if err != nil {
+		return err
+	}
+
+	for _, pod := range dbPods.Items {
+		writeDebug(cmd, fmt.Sprintf("Pod Name is %s\n", pod.Name))
+
+		exec := func(stdin io.Reader, stdout, stderr io.Writer, command ...string,
+		) error {
+			return podExec(namespace, pod.Name, util.ContainerDatabase,
+				stdin, stdout, stderr, command...)
+		}
+
+		// Get pgBackRest Log Files
+		stdout, stderr, err := Executor(exec).listBackrestLogFiles()
+
+		// Depending upon the list* function above:
+		// An error may happen when err is non-nil or stderr is non-empty.
+		// In both cases, we want to print helpful information and continue to the
+		// next iteration.
+		if err != nil || stderr != "" {
+
 			if apierrors.IsForbidden(err) {
 				writeInfo(cmd, err.Error())
-				// Continue and output errors for each log file
-				// Allow the user to see and address all issues at once
-				continue
+				return nil
 			}
-			return err
+
+			writeDebug(cmd, "Error getting pgBackRest logs\n")
+
+			if err != nil {
+				writeDebug(cmd, fmt.Sprintf("%s\n", err.Error()))
+			}
+			if stderr != "" {
+				writeDebug(cmd, stderr)
+			}
+
+			if strings.Contains(stderr, "No such file or directory") {
+				writeDebug(cmd, "Cannot find any pgBackRest log files. This is acceptable in some configurations.\n")
+			}
+			continue
 		}
 
-		buf.Write([]byte(stdout))
-		if stderr != "" {
-			str := fmt.Sprintf("\nError returned: %s\n", stderr)
-			buf.Write([]byte(str))
+		logFiles := strings.Split(strings.TrimSpace(stdout), "\n")
+		for _, logFile := range logFiles {
+			writeDebug(cmd, fmt.Sprintf("LOG FILE: %s\n", logFile))
+			var buf bytes.Buffer
+
+			stdout, stderr, err := Executor(exec).catFile(logFile)
+			if err != nil {
+				if apierrors.IsForbidden(err) {
+					writeInfo(cmd, err.Error())
+					// Continue and output errors for each log file
+					// Allow the user to see and address all issues at once
+					continue
+				}
+				return err
+			}
+
+			buf.Write([]byte(stdout))
+			if stderr != "" {
+				str := fmt.Sprintf("\nError returned: %s\n", stderr)
+				buf.Write([]byte(str))
+			}
+
+			path := clusterName + fmt.Sprintf("/pods/%s/", pod.Name) + logFile
+			if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
+				return err
+			}
 		}
 
-		path := clusterName + "/logs/postgresql/" + logFile
-		if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
-			return err
+	}
+	return nil
+}
+
+// gatherRepoHostLogs gathers all the file-based pgBackRest logs on the repo host.
+// There may not be any logs depending upon pgBackRest's log-level-file.
+func gatherRepoHostLogs(ctx context.Context,
+	clientset *kubernetes.Clientset,
+	config *rest.Config,
+	namespace string,
+	clusterName string,
+	tw *tar.Writer,
+	cmd *cobra.Command,
+) error {
+	writeInfo(cmd, "Collecting pgBackRest Repo Host logs...")
+
+	repoHostPods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: util.RepoHostInstanceLabels(clusterName),
+	})
+
+	if err != nil {
+		if apierrors.IsForbidden(err) {
+			writeInfo(cmd, err.Error())
+			return nil
 		}
+		return err
 	}
 
+	if len(repoHostPods.Items) == 0 {
+		writeInfo(cmd, "No Repo Host pod found for gathering logs")
+	}
+
+	writeDebug(cmd, fmt.Sprintf("Found %d Repo Host Pod\n", len(repoHostPods.Items)))
+
+	podExec, err := util.NewPodExecutor(config)
+	if err != nil {
+		return err
+	}
+
+	for _, pod := range repoHostPods.Items {
+		writeDebug(cmd, fmt.Sprintf("Pod Name is %s\n", pod.Name))
+
+		exec := func(stdin io.Reader, stdout, stderr io.Writer, command ...string,
+		) error {
+			return podExec(namespace, pod.Name, util.ContainerPGBackrest,
+				stdin, stdout, stderr, command...)
+		}
+
+		// Get BackRest Repo Host Log Files
+		stdout, stderr, err := Executor(exec).listBackrestRepoHostLogFiles()
+
+		// Depending upon the list* function above:
+		// An error may happen when err is non-nil or stderr is non-empty.
+		// In both cases, we want to print helpful information and continue to the
+		// next iteration.
+		if err != nil || stderr != "" {
+
+			if apierrors.IsForbidden(err) {
+				writeInfo(cmd, err.Error())
+				return nil
+			}
+
+			writeDebug(cmd, "Error getting pgBackRest logs\n")
+
+			if err != nil {
+				writeDebug(cmd, fmt.Sprintf("%s\n", err.Error()))
+			}
+			if stderr != "" {
+				writeDebug(cmd, stderr)
+			}
+
+			if strings.Contains(stderr, "No such file or directory") {
+				writeDebug(cmd, "Cannot find any pgBackRest log files. This is acceptable in some configurations.\n")
+			}
+			continue
+		}
+
+		logFiles := strings.Split(strings.TrimSpace(stdout), "\n")
+		for _, logFile := range logFiles {
+			writeDebug(cmd, fmt.Sprintf("LOG FILE: %s\n", logFile))
+			var buf bytes.Buffer
+
+			stdout, stderr, err := Executor(exec).catFile(logFile)
+			if err != nil {
+				if apierrors.IsForbidden(err) {
+					writeInfo(cmd, err.Error())
+					// Continue and output errors for each log file
+					// Allow the user to see and address all issues at once
+					continue
+				}
+				return err
+			}
+
+			buf.Write([]byte(stdout))
+			if stderr != "" {
+				str := fmt.Sprintf("\nError returned: %s\n", stderr)
+				buf.Write([]byte(str))
+			}
+
+			path := clusterName + fmt.Sprintf("/pods/%s/", pod.Name) + logFile
+			if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
+				return err
+			}
+		}
+
+	}
 	return nil
 }
 
@@ -1070,8 +1374,8 @@ func gatherPodLogs(ctx context.Context,
 				return err
 			}
 
-			path := rootDir + "/logs/" +
-				pod.GetName() + "_" + container.Name + ".log"
+			path := rootDir + "/pods/" +
+				pod.GetName() + "/containers/" + container.Name + ".log"
 			if err := writeTar(tw, b, path, cmd); err != nil {
 				return err
 			}

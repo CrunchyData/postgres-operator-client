@@ -128,7 +128,7 @@ commands:
     fi
 
     # check that the PGO CLI log file contains expected messages
-    CLI_LOG="./kuttl-support-cluster/logs/cli"
+    CLI_LOG="./kuttl-support-cluster/cli.log"
 
     # info output includes expected heading
     if ! grep -Fq -- "- INFO - | PGO CLI Support Export Tool" $CLI_LOG
