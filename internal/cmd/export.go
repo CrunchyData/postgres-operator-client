@@ -1518,6 +1518,21 @@ func gatherPgBackRestInfo(ctx context.Context,
 		buf.Write([]byte(stderr))
 	}
 
+	buf.Write([]byte("pgbackrest check\n"))
+	stdout, stderr, err = Executor(exec).pgBackRestCheck()
+	if err != nil {
+		if apierrors.IsForbidden(err) {
+			writeInfo(cmd, err.Error())
+			return nil
+		}
+		return err
+	}
+
+	buf.Write([]byte(stdout))
+	if stderr != "" {
+		buf.Write([]byte(stderr))
+	}
+
 	path := clusterName + "/pgbackrest-info"
 	return writeTar(tw, buf.Bytes(), path, cmd)
 }
