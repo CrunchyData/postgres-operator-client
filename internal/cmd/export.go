@@ -1107,6 +1107,47 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 			}
 		}
 
+		// We will execute several bash commands in the DB container
+		commands := []string{
+			"pg_controldata",
+			"df -h /pgdata",
+			"du -h /pgdata",
+			"df -h /pgwal",
+			"du -h /pgwal",
+			"df -h /tablespaces",
+			"du -h /tablespaces",
+			"ls /pg*/pg*_wal/archive_status/* | grep -E '*.ready' | wc",
+			"ls /pg*/pg*_wal/archive_status/* | grep -E '*.done' | wc",
+		}
+
+		var buf bytes.Buffer
+
+		for _, command := range commands {
+			stdout, stderr, err = Executor(exec).bashCommand(command)
+			if err != nil {
+				if apierrors.IsForbidden(err) {
+					writeInfo(cmd, err.Error())
+					return nil
+				}
+				writeDebug(cmd, fmt.Sprintf("Error executing %s\n", command))
+				writeDebug(cmd, fmt.Sprintf("%s\n", err.Error()))
+				writeDebug(cmd, "This is acceptable in some configurations.\n")
+				continue
+			}
+			buf.Write([]byte(fmt.Sprintf("%s\n", command)))
+			buf.Write([]byte(stdout))
+			if stderr != "" {
+				buf.Write([]byte(stderr))
+			}
+			buf.Write([]byte("\n\n"))
+		}
+
+		// Write the buffer to a file
+		path := clusterName + fmt.Sprintf("/pods/%s/", pod.Name) + "postgres-info"
+		if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
+			return err
+		}
+
 	}
 	return nil
 }
