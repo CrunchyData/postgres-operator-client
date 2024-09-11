@@ -39,6 +39,16 @@ func (exec Executor) pgBackRestInfo(output, repoNum string) (string, string, err
 	return stdout.String(), stderr.String(), err
 }
 
+// pgBackRestCheck defines a pgBackRest check command
+// Force log-level-console=detail to override if set elsewhere
+func (exec Executor) pgBackRestCheck() (string, string, error) {
+	var stdout, stderr bytes.Buffer
+	command := "pgbackrest check --log-level-console=detail"
+	err := exec(nil, &stdout, &stderr, "bash", "-ceu", "--", command)
+
+	return stdout.String(), stderr.String(), err
+}
+
 // postgresqlListLogFiles returns the full path of numLogs log files.
 func (exec Executor) listPGLogFiles(numLogs int) (string, string, error) {
 	var stdout, stderr bytes.Buffer
