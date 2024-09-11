@@ -39,6 +39,13 @@ func (exec Executor) pgBackRestInfo(output, repoNum string) (string, string, err
 	return stdout.String(), stderr.String(), err
 }
 
+// bashCommand defines a one-line bash command to exec in a container
+func (exec Executor) bashCommand(command string) (string, string, error) {
+	var stdout, stderr bytes.Buffer
+	err := exec(nil, &stdout, &stderr, "bash", "-ceu", "--", command)
+	return stdout.String(), stderr.String(), err
+}
+
 // pgBackRestCheck defines a pgBackRest check command
 // Force log-level-console=detail to override if set elsewhere
 func (exec Executor) pgBackRestCheck() (string, string, error) {
