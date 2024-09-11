@@ -1111,11 +1111,11 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 		commands := []string{
 			"pg_controldata",
 			"df -h /pgdata",
-			"du -h /pgdata",
+			"du -h /pgdata | expand",
 			"df -h /pgwal",
-			"du -h /pgwal",
+			"du -h /pgwal | expand",
 			"df -h /tablespaces",
-			"du -h /tablespaces",
+			"du -h /tablespaces | expand",
 			"ls /pg*/pg*_wal/archive_status/* | grep -E '*.ready' | wc",
 			"ls /pg*/pg*_wal/archive_status/* | grep -E '*.done' | wc",
 		}
@@ -1123,7 +1123,7 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 		var buf bytes.Buffer
 
 		for _, command := range commands {
-			stdout, stderr, err = Executor(exec).bashCommand(command)
+			stdout, stderr, err := Executor(exec).bashCommand(command)
 			if err != nil {
 				if apierrors.IsForbidden(err) {
 					writeInfo(cmd, err.Error())
