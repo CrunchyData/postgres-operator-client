@@ -1135,7 +1135,7 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 					writeInfo(cmd, err.Error())
 					return nil
 				}
-				writeDebug(cmd, fmt.Sprintf("Error executing %s\n", command))
+				writeDebug(cmd, fmt.Sprintf("Error executing %s\n", command.text))
 				writeDebug(cmd, fmt.Sprintf("%s\n", err.Error()))
 				writeDebug(cmd, "This is acceptable in some configurations.\n")
 				continue
