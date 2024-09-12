@@ -1141,7 +1141,7 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 		}
 
 		// Write the buffer to a file
-		path := clusterName + fmt.Sprintf("/pods/%s/", pod.Name) + "postgres-info"
+		path := clusterName + fmt.Sprintf("/pods/%s/%s", pod.Name, "postgres-info")
 		if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
 			return err
 		}
