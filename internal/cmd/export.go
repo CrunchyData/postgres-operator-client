@@ -1110,29 +1110,29 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 		// We will execute several bash commands in the DB container
 		// text is command to execute and desc is a short description
 		type Command struct {
-			text string
-			desc string
+			Path        string
+			description string
 		}
 
 		commands := []Command{
-			{text: "pg_controldata", desc: "pg_controldata"},
+			{Path: "pg_controldata", description: "pg_controldata"},
 		}
 
 		var buf bytes.Buffer
 
 		for _, command := range commands {
-			stdout, stderr, err := Executor(exec).bashCommand(command.text)
+			stdout, stderr, err := Executor(exec).bashCommand(command.Path)
 			if err != nil {
 				if apierrors.IsForbidden(err) {
 					writeInfo(cmd, err.Error())
 					return nil
 				}
-				writeDebug(cmd, fmt.Sprintf("Error executing %s\n", command.text))
+				writeDebug(cmd, fmt.Sprintf("Error executing %s\n", command.Path))
 				writeDebug(cmd, fmt.Sprintf("%s\n", err.Error()))
 				writeDebug(cmd, "This is acceptable in some configurations.\n")
 				continue
 			}
-			buf.Write([]byte(fmt.Sprintf("%s\n", command.desc)))
+			buf.Write([]byte(fmt.Sprintf("%s\n", command.description)))
 			buf.Write([]byte(stdout))
 			if stderr != "" {
 				buf.Write([]byte(stderr))
