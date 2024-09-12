@@ -1116,14 +1116,6 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 
 		commands := []Command{
 			{text: "pg_controldata", desc: "pg_controldata"},
-			{text: "df -h /pgdata", desc: "df /pgdata"},
-			{text: "du -h /pgdata | expand", desc: "du /pgdata"},
-			{text: "df -h /pgwal", desc: "df /pgwal"},
-			{text: "du -h /pgwal | expand", desc: "du /pgwal"},
-			{text: "df -h /tablespaces", desc: "df /tablespaces"},
-			{text: "du -h /tablespaces | expand", desc: "du /tablespaces"},
-			{text: "ls /pg*/pg*_wal/archive_status/* | grep -E '*.ready' | wc", desc: "archive_status/*.ready files"},
-			{text: "ls /pg*/pg*_wal/archive_status/* | grep -E '*.done' | wc", desc: "archive_status/*.done files"},
 		}
 
 		var buf bytes.Buffer
