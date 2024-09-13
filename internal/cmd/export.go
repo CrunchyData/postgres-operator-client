@@ -1107,6 +1107,45 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 			}
 		}
 
+		// We will execute several bash commands in the DB container
+		// text is command to execute and desc is a short description
+		type Command struct {
+			path        string
+			description string
+		}
+
+		commands := []Command{
+			{path: "pg_controldata", description: "pg_controldata"},
+		}
+
+		var buf bytes.Buffer
+
+		for _, command := range commands {
+			stdout, stderr, err := Executor(exec).bashCommand(command.path)
+			if err != nil {
+				if apierrors.IsForbidden(err) {
+					writeInfo(cmd, err.Error())
+					return nil
+				}
+				writeDebug(cmd, fmt.Sprintf("Error executing %s\n", command.path))
+				writeDebug(cmd, fmt.Sprintf("%s\n", err.Error()))
+				writeDebug(cmd, "This is acceptable in some configurations.\n")
+				continue
+			}
+			buf.Write([]byte(fmt.Sprintf("%s\n", command.description)))
+			buf.Write([]byte(stdout))
+			if stderr != "" {
+				buf.Write([]byte(stderr))
+			}
+			buf.Write([]byte("\n\n"))
+		}
+
+		// Write the buffer to a file
+		path := clusterName + fmt.Sprintf("/pods/%s/%s", pod.Name, "postgres-info")
+		if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
+			return err
+		}
+
 	}
 	return nil
 }
@@ -1505,6 +1544,21 @@ func gatherPgBackRestInfo(ctx context.Context,
 
 	buf.Write([]byte("pgbackrest info\n"))
 	stdout, stderr, err := Executor(exec).pgBackRestInfo("text", "")
+	if err != nil {
+		if apierrors.IsForbidden(err) {
+			writeInfo(cmd, err.Error())
+			return nil
+		}
+		return err
+	}
+
+	buf.Write([]byte(stdout))
+	if stderr != "" {
+		buf.Write([]byte(stderr))
+	}
+
+	buf.Write([]byte("pgbackrest check\n"))
+	stdout, stderr, err = Executor(exec).pgBackRestCheck()
 	if err != nil {
 		if apierrors.IsForbidden(err) {
 			writeInfo(cmd, err.Error())
