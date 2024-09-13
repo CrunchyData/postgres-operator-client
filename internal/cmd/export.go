@@ -1110,7 +1110,7 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 		// We will execute several bash commands in the DB container
 		// text is command to execute and desc is a short description
 		type Command struct {
-			Path        string
+			path        string
 			description string
 		}
 
