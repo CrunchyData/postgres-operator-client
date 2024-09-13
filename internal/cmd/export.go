@@ -1115,19 +1115,19 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 		}
 
 		commands := []Command{
-			{Path: "pg_controldata", description: "pg_controldata"},
+			{path: "pg_controldata", description: "pg_controldata"},
 		}
 
 		var buf bytes.Buffer
 
 		for _, command := range commands {
-			stdout, stderr, err := Executor(exec).bashCommand(command.Path)
+			stdout, stderr, err := Executor(exec).bashCommand(command.path)
 			if err != nil {
 				if apierrors.IsForbidden(err) {
 					writeInfo(cmd, err.Error())
 					return nil
 				}
-				writeDebug(cmd, fmt.Sprintf("Error executing %s\n", command.Path))
+				writeDebug(cmd, fmt.Sprintf("Error executing %s\n", command.path))
 				writeDebug(cmd, fmt.Sprintf("%s\n", err.Error()))
 				writeDebug(cmd, "This is acceptable in some configurations.\n")
 				continue
