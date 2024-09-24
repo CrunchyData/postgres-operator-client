@@ -1849,14 +1849,21 @@ func streamFileFromPod(clientset *kubernetes.Clientset,
 
 	// create localPath to write the streamed data from remotePath
 	localPath := filepath.Join(outputDir, filepath.Base(remotePath))
-	if err := os.MkdirAll(filepath.Dir(localPath), 0770); err != nil {
+	if err := os.MkdirAll(filepath.Dir(localPath), 0750); err != nil {
 		return fmt.Errorf("failed to create path for file: %w", err)
 	}
-	outFile, err := os.Create(localPath)
+	outFile, err := os.Create(filepath.Clean(localPath))
 	if err != nil {
 		return fmt.Errorf("failed to create local file: %w", err)
 	}
-	defer outFile.Close()
+
+	defer func() {
+		// ignore any errors from Close functions, the writers will be
+		// closed when the program exits
+		if outFile != nil {
+			_ = outFile.Close()
+		}
+	}()
 
 	// request to cat remotePath
 	req := clientset.CoreV1().RESTClient().
@@ -1921,11 +1928,17 @@ func streamFileFromPod(clientset *kubernetes.Clientset,
 // addFileToTar copies a local file into a tar archive
 func addFileToTar(tw *tar.Writer, localPath, tarPath string) error {
 	// Open the file to be added to the tar
-	file, err := os.Open(localPath)
+	file, err := os.Open(filepath.Clean(localPath))
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		// ignore any errors from Close functions, the writers will be
+		// closed when the program exits
+		if file != nil {
+			_ = file.Close()
+		}
+	}()
 
 	// Get file info to create tar header
 	fileInfo, err := file.Stat()
@@ -1979,7 +1992,7 @@ func getRemoteFileSize(clientset *kubernetes.Clientset, config *rest.Config,
 
 	exec, err := remotecommand.NewSPDYExecutor(config, "GET", req.URL())
 	if err != nil {
-		return 0, fmt.Errorf("could not initialize SPDY executor for stat: %v", err)
+		return 0, fmt.Errorf("could not initialize SPDY executor for stat: %w", err)
 	}
 
 	var stdout, stderr strings.Builder
@@ -1990,13 +2003,13 @@ func getRemoteFileSize(clientset *kubernetes.Clientset, config *rest.Config,
 		Tty:    false,
 	})
 	if err != nil {
-		return 0, fmt.Errorf("could not get file size: %v, stderr: %s", err, stderr.String())
+		return 0, fmt.Errorf("could not get file size: %w, stderr: %s", err, stderr.String())
 	}
 
 	// Parse the file size from stdout
 	size, err := strconv.ParseInt(strings.TrimSpace(stdout.String()), 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("failed to parse file size: %v", err)
+		return 0, fmt.Errorf("failed to parse file size: %w", err)
 	}
 
 	return size, nil
