@@ -23,6 +23,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -47,6 +49,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	remotecommand "k8s.io/client-go/tools/remotecommand"
 	"sigs.k8s.io/yaml"
 
 	"github.com/crunchydata/postgres-operator-client/internal"
@@ -449,7 +452,7 @@ Collecting PGO CLI logs...
 		// All Postgres Logs on the Postgres Instances (primary and replicas)
 		if numLogs > 0 {
 			if err == nil {
-				err = gatherPostgresLogsAndConfigs(ctx, clientset, restConfig, namespace, clusterName, numLogs, tw, cmd)
+				err = gatherPostgresLogsAndConfigs(ctx, clientset, restConfig, namespace, clusterName, outputDir, numLogs, tw, cmd)
 			}
 		}
 
@@ -955,6 +958,7 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 	config *rest.Config,
 	namespace string,
 	clusterName string,
+	outputDir string,
 	numLogs int,
 	tw *tar.Writer,
 	cmd *cobra.Command,
@@ -1025,29 +1029,66 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 
 		logFiles := strings.Split(strings.TrimSpace(stdout), "\n")
 		for _, logFile := range logFiles {
-			writeDebug(cmd, fmt.Sprintf("LOG FILE: %s\n", logFile))
-			var buf bytes.Buffer
-
-			stdout, stderr, err := Executor(exec).catFile(logFile)
+			// get the file size to stream
+			fileSize, err := getRemoteFileSize(clientset, config, namespace, pod.Name, util.ContainerDatabase, logFile)
 			if err != nil {
-				if apierrors.IsForbidden(err) {
-					writeInfo(cmd, err.Error())
-					// Continue and output errors for each log file
-					// Allow the user to see and address all issues at once
+				writeDebug(cmd, fmt.Sprintf("could not get file size for %s: %v\n", logFile, err))
+				continue
+			}
+
+			// longFileName is namespace/podname:path/to/file
+			longFileName := fmt.Sprintf("%s/%s:%s", namespace, pod.Name, logFile)
+			writeInfo(cmd, fmt.Sprintf("\tSize of %-85s %v", longFileName, ConvertBytes(fileSize)))
+
+			// flags to switch behavior between storing the file in memory versus disk
+			doCat := false
+			doStream := true
+
+			if doCat {
+				path := fmt.Sprintf("%s/pods/%s/%s", clusterName, pod.Name, logFile)
+				var buf bytes.Buffer
+
+				stdout, stderr, err := Executor(exec).catFile(logFile)
+				if err != nil {
+					if apierrors.IsForbidden(err) {
+						writeInfo(cmd, err.Error())
+						// Continue and output errors for each log file
+						// Allow the user to see and address all issues at once
+						continue
+					}
+					return err
+				}
+
+				buf.Write([]byte(stdout))
+				if stderr != "" {
+					str := fmt.Sprintf("\nError returned: %s\n", stderr)
+					buf.Write([]byte(str))
+				}
+
+				if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
+					return err
+				}
+			}
+
+			if doStream {
+				err = streamFileFromPod(clientset, config, tw,
+					outputDir, clusterName, namespace, pod.Name, util.ContainerDatabase, logFile)
+
+				if err != nil {
+					writeInfo(cmd, fmt.Sprintf("\tError streaming file %s: %v", logFile, err))
+					// "failed to remove" errors are not remedied with kubectl cp
+					if !strings.Contains(err.Error(), "failed to remove") {
+						writeInfo(cmd, fmt.Sprintf("\tCollect manually with kubectl cp -c %s %s/%s:%s %s",
+							util.ContainerDatabase, namespace, pod.Name, logFile, filepath.Join(outputDir, filepath.Base(logFile))))
+					}
+					// "failed to remove" errors should instruct the user to remove manually
+					// this happens often on Windows
+					if strings.Contains(err.Error(), "failed to remove") {
+						writeInfo(cmd, fmt.Sprintf("\tYou may need to remove %s manually", filepath.Join(outputDir, filepath.Base(logFile))))
+					}
+
 					continue
 				}
-				return err
-			}
-
-			buf.Write([]byte(stdout))
-			if stderr != "" {
-				str := fmt.Sprintf("\nError returned: %s\n", stderr)
-				buf.Write([]byte(str))
-			}
-
-			path := clusterName + fmt.Sprintf("/pods/%s/", pod.Name) + logFile
-			if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
-				return err
 			}
 		}
 
@@ -1799,4 +1840,178 @@ func writeInfo(cmd *cobra.Command, s string) {
 func writeDebug(cmd *cobra.Command, s string) {
 	t := time.Now()
 	cmd.Printf("%s - DEBUG - %s", t.Format(logTimeFormat), s)
+}
+
+// streamFileFromPod streams the file from the Kubernetes pod to a local file.
+func streamFileFromPod(clientset *kubernetes.Clientset,
+	config *rest.Config, tw *tar.Writer,
+	outputDir, clusterName, namespace, podName, containerName, remotePath string) error {
+
+	// create localPath to write the streamed data from remotePath
+	localPath := filepath.Join(outputDir, filepath.Base(remotePath))
+	if err := os.MkdirAll(filepath.Dir(localPath), 0770); err != nil {
+		return fmt.Errorf("failed to create path for file: %w", err)
+	}
+	outFile, err := os.Create(localPath)
+	if err != nil {
+		return fmt.Errorf("failed to create local file: %w", err)
+	}
+	defer outFile.Close()
+
+	// request to cat remotePath
+	req := clientset.CoreV1().RESTClient().
+		Get().
+		Resource("pods").
+		Name(podName).
+		Namespace(namespace).
+		SubResource("exec").
+		Param("container", containerName).
+		Param("command", "cat").
+		Param("command", remotePath).
+		Param("stderr", "true").
+		Param("stdout", "true")
+
+	exec, err := remotecommand.NewSPDYExecutor(config, "GET", req.URL())
+	if err != nil {
+		return fmt.Errorf("failed to initialize SPDY executor: %w", err)
+	}
+
+	// remoteFileSize is the file size within the container
+	remoteFileSize, err := getRemoteFileSize(clientset, config, namespace, podName, containerName, remotePath)
+	if err != nil {
+		return fmt.Errorf("could not get file size: %w", err)
+	}
+
+	// stream remotePath to localPath
+	err = exec.Stream(remotecommand.StreamOptions{
+		Stdout: outFile,
+		Stderr: os.Stderr,
+		Tty:    false,
+	})
+	if err != nil {
+		return fmt.Errorf("error during file streaming: %w", err)
+	}
+
+	// compare file sizes
+	localFileInfo, err := os.Stat(localPath)
+	if err != nil {
+		return fmt.Errorf("failed to get file info: %w", err)
+	}
+	if remoteFileSize != localFileInfo.Size() {
+		return fmt.Errorf("filesize mismatch: remote size is %v and local size is %v",
+			remoteFileSize, localFileInfo.Size())
+	}
+
+	// add localPath to the support export tar
+	tarPath := fmt.Sprintf("%s/pods/%s/%s", clusterName, podName, remotePath)
+	err = addFileToTar(tw, localPath, tarPath)
+	if err != nil {
+		return fmt.Errorf("error writing to tar: %w", err)
+	}
+
+	// remove localPath
+	err = os.Remove(localPath)
+	if err != nil {
+		return fmt.Errorf("failed to %w", err)
+	}
+
+	return nil
+}
+
+// addFileToTar copies a local file into a tar archive
+func addFileToTar(tw *tar.Writer, localPath, tarPath string) error {
+	// Open the file to be added to the tar
+	file, err := os.Open(localPath)
+	if err != nil {
+		return fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	// Get file info to create tar header
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return fmt.Errorf("failed to get file info: %w", err)
+	}
+
+	// Create tar header
+	header := &tar.Header{
+		Name:    tarPath,                // Name in the tar archive
+		Size:    fileInfo.Size(),        // File size
+		Mode:    int64(fileInfo.Mode()), // File mode
+		ModTime: fileInfo.ModTime(),     // Modification time
+	}
+
+	// Write header to the tar
+	err = tw.WriteHeader(header)
+	if err != nil {
+		return fmt.Errorf("failed to write tar header: %w", err)
+	}
+
+	// Stream the file content to the tar
+	_, err = io.Copy(tw, file)
+	if err != nil {
+		return fmt.Errorf("failed to copy file data to tar: %w", err)
+	}
+
+	return nil
+}
+
+// getRemoteFileSize returns the size of a file within a container so that we can stream its contents
+func getRemoteFileSize(clientset *kubernetes.Clientset, config *rest.Config,
+	namespace string, podName string, containerName string, filePath string) (int64, error) {
+
+	// Prepare the command to get the file size using "stat -c %s <file>"
+	req := clientset.
+		CoreV1().
+		RESTClient().
+		Post().
+		Namespace(namespace).
+		Resource("pods").
+		Name(podName).
+		SubResource("exec").
+		Param("container", containerName).
+		Param("command", "stat").
+		Param("command", "-c").
+		Param("command", "%s").
+		Param("command", filePath).
+		Param("stderr", "true").
+		Param("stdout", "true")
+
+	exec, err := remotecommand.NewSPDYExecutor(config, "GET", req.URL())
+	if err != nil {
+		return 0, fmt.Errorf("could not initialize SPDY executor for stat: %v", err)
+	}
+
+	var stdout, stderr strings.Builder
+	err = exec.Stream(remotecommand.StreamOptions{
+		Stdin:  nil,
+		Stdout: &stdout,
+		Stderr: &stderr,
+		Tty:    false,
+	})
+	if err != nil {
+		return 0, fmt.Errorf("could not get file size: %v, stderr: %s", err, stderr.String())
+	}
+
+	// Parse the file size from stdout
+	size, err := strconv.ParseInt(strings.TrimSpace(stdout.String()), 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse file size: %v", err)
+	}
+
+	return size, nil
+}
+
+// ConvertBytes converts a byte size (int64) into a human-readable format.
+func ConvertBytes(bytes int64) string {
+	const unit = 1024
+	if bytes < unit {
+		return fmt.Sprintf("%d B", bytes)
+	}
+	div, exp := int64(unit), 0
+	for n := bytes / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }
