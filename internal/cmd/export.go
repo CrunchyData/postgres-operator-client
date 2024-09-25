@@ -452,7 +452,8 @@ Collecting PGO CLI logs...
 		// All Postgres Logs on the Postgres Instances (primary and replicas)
 		if numLogs > 0 {
 			if err == nil {
-				err = gatherPostgresLogsAndConfigs(ctx, clientset, restConfig, namespace, clusterName, outputDir, numLogs, tw, cmd)
+				err = gatherPostgresLogsAndConfigs(ctx, clientset, restConfig,
+					namespace, clusterName, outputDir, outputFile, numLogs, tw, cmd)
 			}
 		}
 
@@ -959,6 +960,7 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 	namespace string,
 	clusterName string,
 	outputDir string,
+	outputFile string,
 	numLogs int,
 	tw *tar.Writer,
 	cmd *cobra.Command,
@@ -1028,6 +1030,16 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 		}
 
 		logFiles := strings.Split(strings.TrimSpace(stdout), "\n")
+
+		// localDirectory is created to save data on disk
+		// e.g. outputDir/crunchy_k8s_support_export_2022-08-08-115726-0400/remotePath
+		localDirectory := filepath.Join(outputDir, strings.ReplaceAll(outputFile, ".tar.gz", ""))
+
+		// flag to determine whether or not to remove localDirectory after the loop
+		// When an error happens, this flag will switch to false
+		// It's nice to have the extra data around when errors have happened
+		doCleanup := true
+
 		for _, logFile := range logFiles {
 			// get the file size to stream
 			fileSize, err := getRemoteFileSize(clientset, config, namespace, pod.Name, util.ContainerDatabase, logFile)
@@ -1036,59 +1048,38 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 				continue
 			}
 
-			// longFileName is namespace/podname:path/to/file
-			longFileName := fmt.Sprintf("%s/%s:%s", namespace, pod.Name, logFile)
-			writeInfo(cmd, fmt.Sprintf("\tSize of %-85s %v", longFileName, ConvertBytes(fileSize)))
+			// fileSpecSrc is namespace/podname:path/to/file
+			// fileSpecDest is the local destination of the file
+			// These are used to help the user grab the file manually when necessary
+			fileSpecSrc := fmt.Sprintf("%s/%s:%s", namespace, pod.Name, logFile)
+			fileSpecDest := filepath.Join(localDirectory, logFile)
+			writeInfo(cmd, fmt.Sprintf("\tSize of %-85s %v", fileSpecSrc, ConvertBytes(fileSize)))
 
-			// flags to switch behavior between storing the file in memory versus disk
-			doCat := false
-			doStream := true
+			// Stream the file to disk and write the local file to the tar
+			err = streamFileFromPod(clientset, config, tw,
+				localDirectory, clusterName, namespace, pod.Name, util.ContainerDatabase, logFile)
 
-			if doCat {
-				path := fmt.Sprintf("%s/pods/%s/%s", clusterName, pod.Name, logFile)
-				var buf bytes.Buffer
-
-				stdout, stderr, err := Executor(exec).catFile(logFile)
-				if err != nil {
-					if apierrors.IsForbidden(err) {
-						writeInfo(cmd, err.Error())
-						// Continue and output errors for each log file
-						// Allow the user to see and address all issues at once
-						continue
-					}
-					return err
-				}
-
-				buf.Write([]byte(stdout))
-				if stderr != "" {
-					str := fmt.Sprintf("\nError returned: %s\n", stderr)
-					buf.Write([]byte(str))
-				}
-
-				if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
-					return err
-				}
+			if err != nil {
+				doCleanup = false // prevent the deletion of localDirectory so a user can examine contents
+				writeInfo(cmd, fmt.Sprintf("\tError streaming file %s: %v", logFile, err))
+				writeInfo(cmd, fmt.Sprintf("\tCollect manually with kubectl cp -c %s %s %s",
+					util.ContainerDatabase, fileSpecSrc, fileSpecDest))
+				writeInfo(cmd, fmt.Sprintf("\tRemove %s manually after gathering necessary information", localDirectory))
+				continue
 			}
 
-			if doStream {
-				err = streamFileFromPod(clientset, config, tw,
-					outputDir, clusterName, namespace, pod.Name, util.ContainerDatabase, logFile)
+		}
 
-				if err != nil {
-					writeInfo(cmd, fmt.Sprintf("\tError streaming file %s: %v", logFile, err))
-					// "failed to remove" errors are not remedied with kubectl cp
-					if !strings.Contains(err.Error(), "failed to remove") {
-						writeInfo(cmd, fmt.Sprintf("\tCollect manually with kubectl cp -c %s %s/%s:%s %s",
-							util.ContainerDatabase, namespace, pod.Name, logFile, filepath.Join(outputDir, filepath.Base(logFile))))
-					}
-					// "failed to remove" errors should instruct the user to remove manually
-					// this happens often on Windows
-					if strings.Contains(err.Error(), "failed to remove") {
-						writeInfo(cmd, fmt.Sprintf("\tYou may need to remove %s manually", filepath.Join(outputDir, filepath.Base(logFile))))
-					}
-
-					continue
-				}
+		// doCleanup is true when there are no errors above.
+		if doCleanup {
+			// Remove the local directory created to hold the data
+			// Errors in removing localDirectory should instruct the user to remove manually.
+			// This happens often on Windows
+			err = os.RemoveAll(localDirectory)
+			if err != nil {
+				writeInfo(cmd, fmt.Sprintf("\tError removing %s: %v", localDirectory, err))
+				writeInfo(cmd, fmt.Sprintf("\tYou may need to remove %s manually", localDirectory))
+				continue
 			}
 		}
 
@@ -1845,10 +1836,11 @@ func writeDebug(cmd *cobra.Command, s string) {
 // streamFileFromPod streams the file from the Kubernetes pod to a local file.
 func streamFileFromPod(clientset *kubernetes.Clientset,
 	config *rest.Config, tw *tar.Writer,
-	outputDir, clusterName, namespace, podName, containerName, remotePath string) error {
+	localDirectory, clusterName, namespace, podName, containerName, remotePath string) error {
 
 	// create localPath to write the streamed data from remotePath
-	localPath := filepath.Join(outputDir, filepath.Base(remotePath))
+	// use the uniqueness of outputFile to avoid overwriting other files
+	localPath := filepath.Join(localDirectory, remotePath)
 	if err := os.MkdirAll(filepath.Dir(localPath), 0750); err != nil {
 		return fmt.Errorf("failed to create path for file: %w", err)
 	}
@@ -1914,12 +1906,6 @@ func streamFileFromPod(clientset *kubernetes.Clientset,
 	err = addFileToTar(tw, localPath, tarPath)
 	if err != nil {
 		return fmt.Errorf("error writing to tar: %w", err)
-	}
-
-	// remove localPath
-	err = os.Remove(localPath)
-	if err != nil {
-		return fmt.Errorf("failed to %w", err)
 	}
 
 	return nil
