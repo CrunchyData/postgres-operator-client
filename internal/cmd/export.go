@@ -49,7 +49,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/remotecommand"
 	"sigs.k8s.io/yaml"
 
 	"github.com/crunchydata/postgres-operator-client/internal"
@@ -1056,7 +1055,7 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 			writeInfo(cmd, fmt.Sprintf("\tSize of %-85s %v", fileSpecSrc, ConvertBytes(fileSize)))
 
 			// Stream the file to disk and write the local file to the tar
-			err = streamFileFromPod(clientset, config, tw,
+			err = streamFileFromPod(config, tw,
 				localDirectory, clusterName, namespace, pod.Name, util.ContainerDatabase, logFile, fileSize)
 
 			if err != nil {
@@ -1834,8 +1833,7 @@ func writeDebug(cmd *cobra.Command, s string) {
 }
 
 // streamFileFromPod streams the file from the Kubernetes pod to a local file.
-func streamFileFromPod(clientset *kubernetes.Clientset,
-	config *rest.Config, tw *tar.Writer,
+func streamFileFromPod(config *rest.Config, tw *tar.Writer,
 	localDirectory, clusterName, namespace, podName, containerName, remotePath string,
 	remoteFileSize int64) error {
 
@@ -1858,30 +1856,18 @@ func streamFileFromPod(clientset *kubernetes.Clientset,
 		}
 	}()
 
-	// request to cat remotePath
-	req := clientset.CoreV1().RESTClient().
-		Get().
-		Resource("pods").
-		Name(podName).
-		Namespace(namespace).
-		SubResource("exec").
-		Param("container", containerName).
-		Param("command", "cat").
-		Param("command", remotePath).
-		Param("stderr", "true").
-		Param("stdout", "true")
-
-	exec, err := remotecommand.NewSPDYExecutor(config, "GET", req.URL())
+	// Get Postgres Log Files
+	podExec, err := util.NewPodExecutor(config)
 	if err != nil {
-		return fmt.Errorf("failed to initialize SPDY executor: %w", err)
+		return err
+	}
+	exec := func(stdin io.Reader, stdout, stderr io.Writer, command ...string,
+	) error {
+		return podExec(namespace, podName, containerName,
+			stdin, stdout, stderr, command...)
 	}
 
-	// stream remotePath to localPath
-	err = exec.Stream(remotecommand.StreamOptions{
-		Stdout: outFile,
-		Stderr: os.Stderr,
-		Tty:    false,
-	})
+	_, err = Executor(exec).copyFile(remotePath, outFile)
 	if err != nil {
 		return fmt.Errorf("error during file streaming: %w", err)
 	}
