@@ -1050,6 +1050,7 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 			// fileSpecSrc is namespace/podname:path/to/file
 			// fileSpecDest is the local destination of the file
 			// These are used to help the user grab the file manually when necessary
+			// e.g. postgres-operator/hippo-instance1-vp9k-0:pgdata/pg16/log/postgresql-Tue.log
 			fileSpecSrc := fmt.Sprintf("%s/%s:%s", namespace, pod.Name, logFile)
 			fileSpecDest := filepath.Join(localDirectory, logFile)
 			writeInfo(cmd, fmt.Sprintf("\tSize of %-85s %v", fileSpecSrc, ConvertBytes(fileSize)))
