@@ -1057,7 +1057,7 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 
 			// Stream the file to disk and write the local file to the tar
 			err = streamFileFromPod(clientset, config, tw,
-				localDirectory, clusterName, namespace, pod.Name, util.ContainerDatabase, logFile)
+				localDirectory, clusterName, namespace, pod.Name, util.ContainerDatabase, logFile, fileSize)
 
 			if err != nil {
 				doCleanup = false // prevent the deletion of localDirectory so a user can examine contents
@@ -1836,7 +1836,8 @@ func writeDebug(cmd *cobra.Command, s string) {
 // streamFileFromPod streams the file from the Kubernetes pod to a local file.
 func streamFileFromPod(clientset *kubernetes.Clientset,
 	config *rest.Config, tw *tar.Writer,
-	localDirectory, clusterName, namespace, podName, containerName, remotePath string) error {
+	localDirectory, clusterName, namespace, podName, containerName, remotePath string,
+	remoteFileSize int64) error {
 
 	// create localPath to write the streamed data from remotePath
 	// use the uniqueness of outputFile to avoid overwriting other files
@@ -1873,12 +1874,6 @@ func streamFileFromPod(clientset *kubernetes.Clientset,
 	exec, err := remotecommand.NewSPDYExecutor(config, "GET", req.URL())
 	if err != nil {
 		return fmt.Errorf("failed to initialize SPDY executor: %w", err)
-	}
-
-	// remoteFileSize is the file size within the container
-	remoteFileSize, err := getRemoteFileSize(clientset, config, namespace, podName, containerName, remotePath)
-	if err != nil {
-		return fmt.Errorf("could not get file size: %w", err)
 	}
 
 	// stream remotePath to localPath
