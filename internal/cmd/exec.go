@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"os"
 )
 
 // Executor calls commands
@@ -108,6 +109,13 @@ func (exec Executor) catFile(filePath string) (string, string, error) {
 	err := exec(nil, &stdout, &stderr, "bash", "-ceu", "--", command)
 
 	return stdout.String(), stderr.String(), err
+}
+
+func (exec Executor) copyFile(source string, destination *os.File) (string, error) {
+	var stderr bytes.Buffer
+	command := fmt.Sprintf("cat %s", source)
+	err := exec(nil, destination, &stderr, "bash", "-ceu", "--", command)
+	return stderr.String(), err
 }
 
 // patronictl takes a patronictl subcommand and returns the output of that command
