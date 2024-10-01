@@ -1053,7 +1053,7 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 			// e.g. postgres-operator/hippo-instance1-vp9k-0:pgdata/pg16/log/postgresql-Tue.log
 			fileSpecSrc := fmt.Sprintf("%s/%s:%s", namespace, pod.Name, logFile)
 			fileSpecDest := filepath.Join(localDirectory, logFile)
-			writeInfo(cmd, fmt.Sprintf("\tSize of %-85s %v", fileSpecSrc, ConvertBytes(fileSize)))
+			writeInfo(cmd, fmt.Sprintf("\tSize of %-85s %v", fileSpecSrc, convertBytes(fileSize)))
 
 			// Stream the file to disk and write the local file to the tar
 			err = streamFileFromPod(config, tw,
@@ -1967,8 +1967,8 @@ func getRemoteFileSize(config *rest.Config,
 	return size, nil
 }
 
-// ConvertBytes converts a byte size (int64) into a human-readable format.
-func ConvertBytes(bytes int64) string {
+// convertBytes converts a byte size (int64) into a human-readable format.
+func convertBytes(bytes int64) string {
 	const unit = 1024
 	if bytes < unit {
 		return fmt.Sprintf("%d B", bytes)
