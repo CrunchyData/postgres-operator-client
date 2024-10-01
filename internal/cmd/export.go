@@ -49,7 +49,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	remotecommand "k8s.io/client-go/tools/remotecommand"
+	"k8s.io/client-go/tools/remotecommand"
 	"sigs.k8s.io/yaml"
 
 	"github.com/crunchydata/postgres-operator-client/internal"
@@ -1042,7 +1042,7 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 
 		for _, logFile := range logFiles {
 			// get the file size to stream
-			fileSize, err := getRemoteFileSize(clientset, config, namespace, pod.Name, util.ContainerDatabase, logFile)
+			fileSize, err := getRemoteFileSize(config, namespace, pod.Name, util.ContainerDatabase, logFile)
 			if err != nil {
 				writeDebug(cmd, fmt.Sprintf("could not get file size for %s: %v\n", logFile, err))
 				continue
@@ -1951,44 +1951,28 @@ func addFileToTar(tw *tar.Writer, localPath, tarPath string) error {
 }
 
 // getRemoteFileSize returns the size of a file within a container so that we can stream its contents
-func getRemoteFileSize(clientset *kubernetes.Clientset, config *rest.Config,
+func getRemoteFileSize(config *rest.Config,
 	namespace string, podName string, containerName string, filePath string) (int64, error) {
 
-	// Prepare the command to get the file size using "stat -c %s <file>"
-	req := clientset.
-		CoreV1().
-		RESTClient().
-		Post().
-		Namespace(namespace).
-		Resource("pods").
-		Name(podName).
-		SubResource("exec").
-		Param("container", containerName).
-		Param("command", "stat").
-		Param("command", "-c").
-		Param("command", "%s").
-		Param("command", filePath).
-		Param("stderr", "true").
-		Param("stdout", "true")
-
-	exec, err := remotecommand.NewSPDYExecutor(config, "GET", req.URL())
+	podExec, err := util.NewPodExecutor(config)
 	if err != nil {
-		return 0, fmt.Errorf("could not initialize SPDY executor for stat: %w", err)
+		return 0, fmt.Errorf("could not create executor: %w", err)
+	}
+	exec := func(stdin io.Reader, stdout, stderr io.Writer, command ...string,
+	) error {
+		return podExec(namespace, podName, containerName,
+			stdin, stdout, stderr, command...)
 	}
 
-	var stdout, stderr strings.Builder
-	err = exec.Stream(remotecommand.StreamOptions{
-		Stdin:  nil,
-		Stdout: &stdout,
-		Stderr: &stderr,
-		Tty:    false,
-	})
+	// Prepare the command to get the file size using "stat -c %s <file>"
+	command := fmt.Sprintf("stat -c %s %s", "%s", filePath)
+	stdout, stderr, err := Executor(exec).bashCommand(command)
 	if err != nil {
-		return 0, fmt.Errorf("could not get file size: %w, stderr: %s", err, stderr.String())
+		return 0, fmt.Errorf("could not get file size: %w, stderr: %s", err, stderr)
 	}
 
 	// Parse the file size from stdout
-	size, err := strconv.ParseInt(strings.TrimSpace(stdout.String()), 10, 64)
+	size, err := strconv.ParseInt(strings.TrimSpace(stdout), 10, 64)
 	if err != nil {
 		return 0, fmt.Errorf("failed to parse file size: %w", err)
 	}
