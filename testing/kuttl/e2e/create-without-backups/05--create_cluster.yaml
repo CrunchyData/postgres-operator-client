@@ -1,0 +1,5 @@
+---
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: kubectl-pgo --namespace $NAMESPACE create postgrescluster --pg-major-version 16 --disable-backups --environment development created-without-backups

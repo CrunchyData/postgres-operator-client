@@ -1,4 +1,4 @@
-apiVersion: apps/v1
-kind: StatefulSet
+apiVersion: postgres-operator.crunchydata.com/v1beta1
+kind: PostgresCluster
 metadata:
-  name: created-without-backups-repo-host
+  name: created-without-backups
