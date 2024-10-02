@@ -40,7 +40,6 @@ spec:
             resources:
               requests:
                 storage: 1Gi
-  environment: production
   instances:
   - dataVolumeClaimSpec:
       accessModes:
@@ -51,7 +50,7 @@ spec:
   postgresVersion: 15
 `
 
-	u, err := generateUnstructuredClusterYaml("hippo", "15", "production")
+	u, err := generateUnstructuredClusterYaml("hippo", "15")
 	assert.NilError(t, err)
 
 	assert.Assert(t, cmp.MarshalMatches(

@@ -17,6 +17,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 
 	"github.com/spf13/cobra"
@@ -26,6 +27,7 @@ import (
 
 	"github.com/crunchydata/postgres-operator-client/internal"
 	"github.com/crunchydata/postgres-operator-client/internal/apis/postgres-operator.crunchydata.com/v1beta1"
+	"github.com/crunchydata/postgres-operator-client/internal/util"
 )
 
 // newCreateCommand returns the create subcommand of the PGO plugin.
@@ -66,34 +68,20 @@ func newCreateClusterCommand(config *internal.Config) *cobra.Command {
 	cmd.Flags().IntVar(&pgMajorVersion, "pg-major-version", 0, "Set the Postgres major version")
 	cobra.CheckErr(cmd.MarkFlagRequired("pg-major-version"))
 
-	var pgEnvironment string
-	cmd.Flags().StringVar(&pgEnvironment, "environment", "production", "Set the Postgres cluster "+
-		"environment. Options: ['development', 'production']")
-
 	var backupsDisabled bool
 	cmd.Flags().BoolVar(&backupsDisabled, "disable-backups", false, "Disable backups")
-	cmd.MarkFlagsRequiredTogether("environment", "disable-backups")
 
 	cmd.Example = internal.FormatExample(`# Create a postgrescluster with Postgres 15
 pgo create postgrescluster hippo --pg-major-version 15
 
 # Create a postgrescluster with backups disabled (only available in CPK v5.7+)
-pgo create postgrescluster hippo --disable-backups --environment development
+# Requires confirmation
+pgo create postgrescluster hippo --disable-backups
 
 ### Example output	
 postgresclusters/hippo created`)
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		if pgEnvironment != "development" && pgEnvironment != "production" {
-			return fmt.Errorf("--environment can only be set to 'production' or 'development'")
-		}
-
-		if backupsDisabled && pgEnvironment != "development" {
-			return fmt.Errorf("Error: Running a production postgrescluster without backups " +
-				"is not recommended. If you wish to create a cluster without backups, " +
-				"--environment must be set to 'development'.")
-		}
-
 		ctx := context.Background()
 
 		clusterName := args[0]
@@ -108,19 +96,26 @@ postgresclusters/hippo created`)
 			return err
 		}
 
-		cluster, err := generateUnstructuredClusterYaml(
-			clusterName,
-			strconv.Itoa(pgMajorVersion),
-			pgEnvironment,
-		)
+		cluster, err := generateUnstructuredClusterYaml(clusterName, strconv.Itoa(pgMajorVersion))
 		if err != nil {
 			return err
 		}
 
-		// If we've reached this part, pgEnvironment is set to either
-		// `development` or `production`; and if backupsDisbaled is true,
-		// then pgEnvironment is set to `development`.
 		if backupsDisabled {
+			fmt.Print("WARNING: Running a production postgrescluster without backups " +
+				"is not recommended. \nAre you sure you want " +
+				"to continue without backups? (yes/no): ")
+			var confirmed *bool
+			for i := 0; confirmed == nil && i < 10; i++ {
+				// retry 10 times or until a confirmation is given or denied,
+				// whichever comes first
+				confirmed = util.Confirm(os.Stdin, os.Stdout)
+			}
+
+			if confirmed == nil || !*confirmed {
+				return nil
+			}
+
 			unstructured.RemoveNestedField(cluster.Object, "spec", "backups")
 		}
 
@@ -141,7 +136,7 @@ postgresclusters/hippo created`)
 
 // generateUnstructuredClusterYaml takes a name and returns a PostgresCluster
 // in the unstructured format.
-func generateUnstructuredClusterYaml(name, pgMajorVersion, environment string) (*unstructured.Unstructured, error) {
+func generateUnstructuredClusterYaml(name, pgMajorVersion string) (*unstructured.Unstructured, error) {
 	var cluster unstructured.Unstructured
 	err := yaml.Unmarshal([]byte(fmt.Sprintf(`
 apiVersion: postgres-operator.crunchydata.com/v1beta1
@@ -150,7 +145,6 @@ metadata:
   name: %s
 spec:
   postgresVersion: %s
-  environment: %s
   instances:
   - dataVolumeClaimSpec:
       accessModes:
@@ -169,7 +163,7 @@ spec:
             resources:
               requests:
                 storage: 1Gi
-`, name, pgMajorVersion, environment)), &cluster)
+`, name, pgMajorVersion)), &cluster)
 
 	if err != nil {
 		return nil, err

@@ -27,7 +27,8 @@ pgo create postgrescluster CLUSTER_NAME [flags]
 pgo create postgrescluster hippo --pg-major-version 15
 
 # Create a postgrescluster with backups disabled (only available in CPK v5.7+)
-pgo create postgrescluster hippo --disable-backups --environment development
+# Requires confirmation
+pgo create postgrescluster hippo --disable-backups
 
 ```
 ### Example output
@@ -39,7 +40,6 @@ postgresclusters/hippo created
 
 ```
       --disable-backups        Disable backups
-      --environment string     Set the Postgres cluster environment. Options: ['development', 'production'] (default "production")
   -h, --help                   help for postgrescluster
       --pg-major-version int   Set the Postgres major version
 ```
