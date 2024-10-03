@@ -43,7 +43,10 @@ jobs:
         run: kubectl create namespace postgres-operator
 
       - name: Install Operator
-        run: helm install pgo oci://registry.developers.crunchydata.com/crunchydata/pgo -n postgres-operator
+        run: |
+          helm install pgo oci://registry.developers.crunchydata.com/crunchydata/pgo \
+            -n postgres-operator \
+            --set disable_check_for_upgrades=True
 
       - name: Use bash, so we can use double square-bracket [[ syntax in our scripts
         run: |
