@@ -29,8 +29,9 @@ const (
 	// LabelRole is used to identify object roles.
 	LabelRole = labelPrefix + "role"
 
-	// LabelMonitoring is used to identify monitoring Pods
-	LabelMonitoring = "app.kubernetes.io/name=postgres-operator-monitoring"
+	// LabelMonitoring is used to identify monitoring Pods.
+	// Older versions of PGO monitoring use the label 'postgres-operator-monitoring'.
+	LabelMonitoring = "app.kubernetes.io/name in (postgres-operator-monitoring,crunchy-monitoring)"
 
 	// LabelOperator is used to identify operator Pods
 	LabelOperator = "postgres-operator.crunchydata.com/control-plane"
