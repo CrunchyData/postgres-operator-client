@@ -17,6 +17,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 
 	"github.com/spf13/cobra"
@@ -26,6 +27,7 @@ import (
 
 	"github.com/crunchydata/postgres-operator-client/internal"
 	"github.com/crunchydata/postgres-operator-client/internal/apis/postgres-operator.crunchydata.com/v1beta1"
+	"github.com/crunchydata/postgres-operator-client/internal/util"
 )
 
 // newCreateCommand returns the create subcommand of the PGO plugin.
@@ -66,8 +68,15 @@ func newCreateClusterCommand(config *internal.Config) *cobra.Command {
 	cmd.Flags().IntVar(&pgMajorVersion, "pg-major-version", 0, "Set the Postgres major version")
 	cobra.CheckErr(cmd.MarkFlagRequired("pg-major-version"))
 
+	var backupsDisabled bool
+	cmd.Flags().BoolVar(&backupsDisabled, "disable-backups", false, "Disable backups")
+
 	cmd.Example = internal.FormatExample(`# Create a postgrescluster with Postgres 15
 pgo create postgrescluster hippo --pg-major-version 15
+
+# Create a postgrescluster with backups disabled (only available in CPK v5.7+)
+# Requires confirmation
+pgo create postgrescluster hippo --disable-backups
 
 ### Example output	
 postgresclusters/hippo created`)
@@ -90,6 +99,24 @@ postgresclusters/hippo created`)
 		cluster, err := generateUnstructuredClusterYaml(clusterName, strconv.Itoa(pgMajorVersion))
 		if err != nil {
 			return err
+		}
+
+		if backupsDisabled {
+			fmt.Print("WARNING: Running a production postgrescluster without backups " +
+				"is not recommended. \nAre you sure you want " +
+				"to continue without backups? (yes/no): ")
+			var confirmed *bool
+			for i := 0; confirmed == nil && i < 10; i++ {
+				// retry 10 times or until a confirmation is given or denied,
+				// whichever comes first
+				confirmed = util.Confirm(os.Stdin, os.Stdout)
+			}
+
+			if confirmed == nil || !*confirmed {
+				return nil
+			}
+
+			unstructured.RemoveNestedField(cluster.Object, "spec", "backups")
 		}
 
 		u, err := client.
