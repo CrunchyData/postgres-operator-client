@@ -387,88 +387,111 @@ Collecting PGO CLI logs...
 
 		// PGO CLI version
 		err = gatherPGOCLIVersion(ctx, clusterName, tw, cmd)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error gathering PGO CLI Version: %s", err))
+		}
 
-		if err == nil {
-			err = gatherPostgresClusterNames(clusterName, ctx, cmd, tw, postgresClient)
+		// Postgres Cluster Names
+		err = gatherPostgresClusterNames(clusterName, ctx, cmd, tw, postgresClient)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error gathering Postgres Cluster Names: %s", err))
 		}
 
 		// Current Kubernetes context
-		if err == nil {
-			err = gatherKubeContext(ctx, config, clusterName, tw, cmd)
+		err = gatherKubeContext(ctx, config, clusterName, tw, cmd)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error gathering current Kubernetes context: %s", err))
 		}
 
-		// Gather cluster wide resources
-		if err == nil {
-			err = gatherKubeServerVersion(ctx, discoveryClient, clusterName, tw, cmd)
+		// Gather Kubernetes Server Version
+		err = gatherKubeServerVersion(ctx, discoveryClient, clusterName, tw, cmd)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error gathering Kubernetes server version: %s", err))
 		}
 
-		if err == nil {
-			err = gatherNodes(ctx, clientset, clusterName, tw, cmd)
+		// Gather list of nodes
+		err = gatherNodes(ctx, clientset, clusterName, tw, cmd)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error gathering list of cluster nodes: %s", err))
 		}
 
-		if err == nil {
-			err = gatherCurrentNamespace(ctx, clientset, namespace, clusterName, tw, cmd)
+		// Gather namespace information
+		err = gatherCurrentNamespace(ctx, clientset, namespace, clusterName, tw, cmd)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error gathering namespace information: %s", err))
 		}
 
-		// Namespaced resources
-		if err == nil {
-			err = gatherClusterSpec(get, clusterName, tw, cmd)
+		// Gather PostgresCluster manifest
+		err = gatherClusterSpec(get, clusterName, tw, cmd)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error gathering PostgresCluster manifest: %s", err))
 		}
 
 		// TODO (jmckulk): pod describe output
-		if err == nil {
-			// get Namespaced resources that have cluster label
-			nsListOpts := metav1.ListOptions{
-				LabelSelector: "postgres-operator.crunchydata.com/cluster=" + clusterName,
-			}
-			err = gatherNamespacedAPIResources(ctx, dynamicClient, namespace,
-				clusterName, clusterNamespacedResources, nsListOpts, tw, cmd)
+		// Gather Namespaced API Resources
+		// get Namespaced resources that have cluster label
+		nsListOpts := metav1.ListOptions{
+			LabelSelector: "postgres-operator.crunchydata.com/cluster=" + clusterName,
+		}
+		err = gatherNamespacedAPIResources(ctx, dynamicClient, namespace,
+			clusterName, clusterNamespacedResources, nsListOpts, tw, cmd)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error gathering Namespaced API Resources: %s", err))
 		}
 
-		if err == nil {
-			// get other Namespaced resources that do not have the cluster label
-			// but may otherwise impact the PostgresCluster's operation
-			otherListOpts := metav1.ListOptions{}
-			err = gatherNamespacedAPIResources(ctx, dynamicClient, namespace,
-				clusterName, otherNamespacedResources, otherListOpts, tw, cmd)
+		// Gather Namespaced API Resources
+		// get other Namespaced resources that do not have the cluster label
+		// but may otherwise impact the PostgresCluster's operation
+		otherListOpts := metav1.ListOptions{}
+		err = gatherNamespacedAPIResources(ctx, dynamicClient, namespace,
+			clusterName, otherNamespacedResources, otherListOpts, tw, cmd)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error gathering Namespaced API Resources: %s", err))
 		}
 
-		if err == nil {
-			err = gatherEvents(ctx, clientset, namespace, clusterName, tw, cmd)
+		// Gather Events
+		err = gatherEvents(ctx, clientset, namespace, clusterName, tw, cmd)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error gathering Events: %s", err))
 		}
 
 		// Logs
 		// All Postgres Logs on the Postgres Instances (primary and replicas)
 		if numLogs > 0 {
-			if err == nil {
-				err = gatherPostgresLogsAndConfigs(ctx, clientset, restConfig,
-					namespace, clusterName, outputDir, outputFile, numLogs, tw, cmd)
+			err = gatherPostgresLogsAndConfigs(ctx, clientset, restConfig,
+				namespace, clusterName, outputDir, outputFile, numLogs, tw, cmd)
+			if err != nil {
+				writeInfo(cmd, fmt.Sprintf("Error gathering Postgres Logs and Config: %s", err))
 			}
 		}
 
 		// All pgBackRest Logs on the Postgres Instances
-		if err == nil {
-			err = gatherDbBackrestLogs(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
+		err = gatherDbBackrestLogs(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error gathering pgBackRest DB Hosts Logs: %s", err))
 		}
 
 		// All pgBackRest Logs on the Repo Host
-		if err == nil {
-			err = gatherRepoHostLogs(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
+		err = gatherRepoHostLogs(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error gathering pgBackRest Repo Host Logs: %s", err))
 		}
 
 		// get PostgresCluster Pod logs
-		if err == nil {
-			writeInfo(cmd, "Collecting PostgresCluster pod logs...")
-			err = gatherPodLogs(ctx, clientset, namespace, fmt.Sprintf("%s=%s", util.LabelCluster, clusterName), clusterName, tw, cmd)
+		writeInfo(cmd, "Collecting PostgresCluster pod logs...")
+		err = gatherPodLogs(ctx, clientset, namespace, fmt.Sprintf("%s=%s", util.LabelCluster, clusterName), clusterName, tw, cmd)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error gathering PostgresCluster pod logs: %s", err))
 		}
 
 		// get monitoring Pod logs
 		if monitoringNamespace == "" {
 			monitoringNamespace = namespace
 		}
-		if err == nil {
-			writeInfo(cmd, "Collecting monitoring pod logs...")
-			err = gatherPodLogs(ctx, clientset, monitoringNamespace, util.LabelMonitoring, "monitoring", tw, cmd)
+		writeInfo(cmd, "Collecting monitoring pod logs...")
+		err = gatherPodLogs(ctx, clientset, monitoringNamespace, util.LabelMonitoring, "monitoring", tw, cmd)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error gathering monitoring pod logs: %s", err))
 		}
 
 		// get operator Pod logs and descriptions
@@ -478,44 +501,55 @@ Collecting PGO CLI logs...
 		// Operator and Operator upgrade pods should have
 		// "postgres-operator.crunchydata.com/control-plane" label
 		// but with different values
-		if err == nil {
-			req, _ := labels.NewRequirement(util.LabelOperator,
-				selection.Exists, []string{},
-			)
-			nsListOpts := metav1.ListOptions{
-				LabelSelector: req.String(),
-			}
-			err = gatherNamespacedAPIResources(ctx, dynamicClient,
-				operatorNamespace, "operator", operatorNamespacedResources,
-				nsListOpts, tw, cmd)
+		req, _ := labels.NewRequirement(util.LabelOperator,
+			selection.Exists, []string{},
+		)
+		nsListOpts = metav1.ListOptions{
+			LabelSelector: req.String(),
 		}
-		if err == nil {
-			writeInfo(cmd, "Collecting operator pod logs...")
-			err = gatherPodLogs(ctx, clientset, operatorNamespace, util.LabelOperator, "operator", tw, cmd)
+		err = gatherNamespacedAPIResources(ctx, dynamicClient,
+			operatorNamespace, "operator", operatorNamespacedResources,
+			nsListOpts, tw, cmd)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error gathering Operator Namespace API Resources: %s", err))
 		}
 
-		// Exec resources
-		if err == nil {
-			err = gatherPatroniInfo(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
+		// Gather Operator Pod Logs
+		writeInfo(cmd, "Collecting operator pod logs...")
+		err = gatherPodLogs(ctx, clientset, operatorNamespace, util.LabelOperator, "operator", tw, cmd)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error gathering Operator Pod logs: %s", err))
 		}
 
-		if err == nil {
-			err = gatherPgBackRestInfo(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
+		// Exec to get Patroni Information
+		err = gatherPatroniInfo(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error gathering Patroni Info: %s", err))
+		}
+
+		// Exec to get pgBackRest Information
+		err = gatherPgBackRestInfo(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error gathering pgBackRest Info: %s", err))
 		}
 
 		// Exec to get Container processes
-		if err == nil {
-			err = gatherProcessInfo(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
+		err = gatherProcessInfo(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error gathering container processes: %s", err))
 		}
 
 		// Exec to get Container system time
-		if err == nil {
-			err = gatherSystemTime(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
+		err = gatherSystemTime(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error gathering container system time: %s", err))
 		}
 
-		if err == nil {
-			writeInfo(cmd, "Collecting list of kubectl plugins...")
-			err = gatherPluginList(clusterName, tw, cmd)
+		// Get kubectl plugins
+		writeInfo(cmd, "Collecting list of kubectl plugins...")
+		err = gatherPluginList(clusterName, tw, cmd)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error gathering kubectl plugins: %s", err))
 		}
 
 		// Print cli output
@@ -526,13 +560,8 @@ Collecting PGO CLI logs...
 		}
 
 		// Print final message
-		if err == nil {
-			info, err := os.Stat(outputDir + "/" + outputFile)
-
-			if err == nil {
-				fmt.Print(exportSizeReport(float64(info.Size())))
-			}
-		}
+		info, err := os.Stat(outputDir + "/" + outputFile)
+		fmt.Print(exportSizeReport(float64(info.Size())))
 
 		return err
 	}
@@ -579,6 +608,7 @@ func gatherPGOCLIVersion(_ context.Context,
 	cmd *cobra.Command,
 ) error {
 	writeInfo(cmd, "Collecting PGO CLI version...")
+	writeInfo(cmd, fmt.Sprintf("PGO CLI version is %s", clientVersion))
 	path := clusterName + "/pgo-cli-version"
 	if err := writeTar(tw, []byte(clientVersion), path, cmd); err != nil {
 		return err
@@ -1493,7 +1523,7 @@ func gatherPatroniInfo(ctx context.Context,
 			writeInfo(cmd, err.Error())
 			return nil
 		}
-		return err
+		writeInfo(cmd, strings.TrimSpace(fmt.Sprintf("Error with patronictl list: %s", stderr)))
 	}
 
 	buf.Write([]byte(stdout))
@@ -1508,7 +1538,7 @@ func gatherPatroniInfo(ctx context.Context,
 			writeInfo(cmd, err.Error())
 			return nil
 		}
-		return err
+		writeInfo(cmd, strings.TrimSpace(fmt.Sprintf("Error with patronictl history: %s", stderr)))
 	}
 
 	buf.Write([]byte(stdout))
@@ -1571,7 +1601,7 @@ func gatherPgBackRestInfo(ctx context.Context,
 			writeInfo(cmd, err.Error())
 			return nil
 		}
-		return err
+		writeInfo(cmd, strings.TrimSpace(fmt.Sprintf("Error with pgbackrest info: %s", stderr)))
 	}
 
 	buf.Write([]byte(stdout))
@@ -1586,7 +1616,7 @@ func gatherPgBackRestInfo(ctx context.Context,
 			writeInfo(cmd, err.Error())
 			return nil
 		}
-		return err
+		writeInfo(cmd, strings.TrimSpace(fmt.Sprintf("Error with pgbackrest check: %s", stderr)))
 	}
 
 	buf.Write([]byte(stdout))
