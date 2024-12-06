@@ -33,13 +33,13 @@ func (cfg *PatchConfig) AddFlags(flags *pflag.FlagSet) {
 }
 
 // CreateOptions returns a copy of opts with fields set according to cfg.
-func (cfg PatchConfig) CreateOptions(opts metav1.CreateOptions) metav1.CreateOptions {
+func (cfg *PatchConfig) CreateOptions(opts metav1.CreateOptions) metav1.CreateOptions {
 	opts.FieldManager = cfg.FieldManager
 	return opts
 }
 
 // PatchOptions returns a copy of opts with fields set according to cfg.
-func (cfg PatchConfig) PatchOptions(opts metav1.PatchOptions) metav1.PatchOptions {
+func (cfg *PatchConfig) PatchOptions(opts metav1.PatchOptions) metav1.PatchOptions {
 	opts.FieldManager = cfg.FieldManager
 	return opts
 }
