@@ -1523,7 +1523,7 @@ func gatherPatroniInfo(ctx context.Context,
 			writeInfo(cmd, err.Error())
 			return nil
 		}
-		writeInfo(cmd, strings.TrimSpace(fmt.Sprintf("Error with patronictl list: %s", stderr)))
+		writeInfo(cmd, strings.TrimSpace(fmt.Sprintf("Error with patronictl list: %s: %s", err, strings.TrimSpace(stderr))))
 	}
 
 	buf.Write([]byte(stdout))
@@ -1538,7 +1538,7 @@ func gatherPatroniInfo(ctx context.Context,
 			writeInfo(cmd, err.Error())
 			return nil
 		}
-		writeInfo(cmd, strings.TrimSpace(fmt.Sprintf("Error with patronictl history: %s", stderr)))
+		writeInfo(cmd, strings.TrimSpace(fmt.Sprintf("Error with patronictl history: %s: %s", err, strings.TrimSpace(stderr))))
 	}
 
 	buf.Write([]byte(stdout))
@@ -1601,7 +1601,7 @@ func gatherPgBackRestInfo(ctx context.Context,
 			writeInfo(cmd, err.Error())
 			return nil
 		}
-		writeInfo(cmd, strings.TrimSpace(fmt.Sprintf("Error with pgbackrest info: %s", stderr)))
+		writeInfo(cmd, fmt.Sprintf("Error with pgbackrest info: %s: %s", err, strings.TrimSpace(stderr)))
 	}
 
 	buf.Write([]byte(stdout))
@@ -1616,7 +1616,7 @@ func gatherPgBackRestInfo(ctx context.Context,
 			writeInfo(cmd, err.Error())
 			return nil
 		}
-		writeInfo(cmd, strings.TrimSpace(fmt.Sprintf("Error with pgbackrest check: %s", stderr)))
+		writeInfo(cmd, fmt.Sprintf("Error with pgbackrest check: %s: %s", err, strings.TrimSpace(stderr)))
 	}
 
 	buf.Write([]byte(stdout))
