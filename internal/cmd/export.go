@@ -409,10 +409,10 @@ Collecting PGO CLI logs...
 			writeInfo(cmd, fmt.Sprintf("Error gathering Kubernetes server version: %s", err))
 		}
 
-		// Gather list of nodes
+		// Gather list of Kubernetes nodes
 		err = gatherNodes(ctx, clientset, clusterName, tw, cmd)
 		if err != nil {
-			writeInfo(cmd, fmt.Sprintf("Error gathering list of cluster nodes: %s", err))
+			writeInfo(cmd, fmt.Sprintf("Error gathering list of Kubernetes nodes: %s", err))
 		}
 
 		// Gather namespace information
