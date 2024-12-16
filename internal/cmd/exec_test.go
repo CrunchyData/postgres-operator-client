@@ -79,6 +79,25 @@ func TestListPGLogFiles(t *testing.T) {
 
 }
 
+func TestListPatroniLogFiles(t *testing.T) {
+
+	t.Run("default", func(t *testing.T) {
+		expected := errors.New("pass-through")
+		exec := func(
+			stdin io.Reader, stdout, stderr io.Writer, command ...string,
+		) error {
+			assert.DeepEqual(t, command, []string{"bash", "-ceu", "--", "ls -1dt pgdata/patroni/log/*"})
+			assert.Assert(t, stdout != nil, "should capture stdout")
+			assert.Assert(t, stderr != nil, "should capture stderr")
+			return expected
+		}
+		_, _, err := Executor(exec).listPatroniLogFiles()
+		assert.ErrorContains(t, err, "pass-through")
+
+	})
+
+}
+
 func TestCatFile(t *testing.T) {
 
 	t.Run("default", func(t *testing.T) {
