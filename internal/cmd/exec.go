@@ -79,6 +79,17 @@ func (exec Executor) listBackrestLogFiles() (string, string, error) {
 	return stdout.String(), stderr.String(), err
 }
 
+// listPatroniLogFiles returns the full path of Patroni log file.
+// These are the Patroni logs stored on the Postgres instance.
+func (exec Executor) listPatroniLogFiles() (string, string, error) {
+	var stdout, stderr bytes.Buffer
+
+	command := "ls -1dt pgdata/patroni/log/*"
+	err := exec(nil, &stdout, &stderr, "bash", "-ceu", "--", command)
+
+	return stdout.String(), stderr.String(), err
+}
+
 // listBackrestRepoHostLogFiles returns the full path of pgBackRest log files.
 // These are the pgBackRest logs stored on the repo host
 func (exec Executor) listBackrestRepoHostLogFiles() (string, string, error) {
