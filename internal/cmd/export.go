@@ -282,6 +282,9 @@ Collecting networkpolicies...
 Collecting limitranges...
 Collecting events...
 Collecting Postgres logs...
+Collecting pgBackRest logs...
+Collecting Patroni logs...
+Collecting pgBackRest Repo Host logs...
 Collecting PostgresCluster pod logs...
 Collecting monitoring pod logs...
 Collecting operator pod logs...
@@ -469,6 +472,12 @@ Collecting PGO CLI logs...
 		err = gatherDbBackrestLogs(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
 		if err != nil {
 			writeInfo(cmd, fmt.Sprintf("Error gathering pgBackRest DB Hosts Logs: %s", err))
+		}
+
+		// Patroni Logs that are stored on the Postgres Instances
+		err = gatherPatroniLogs(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error gathering Patroni Logs from Instance Pods: %s", err))
 		}
 
 		// All pgBackRest Logs on the Repo Host
@@ -1272,6 +1281,113 @@ func gatherDbBackrestLogs(ctx context.Context,
 
 			if strings.Contains(stderr, "No such file or directory") {
 				writeDebug(cmd, "Cannot find any pgBackRest log files. This is acceptable in some configurations.\n")
+			}
+			continue
+		}
+
+		logFiles := strings.Split(strings.TrimSpace(stdout), "\n")
+		for _, logFile := range logFiles {
+			writeDebug(cmd, fmt.Sprintf("LOG FILE: %s\n", logFile))
+			var buf bytes.Buffer
+
+			stdout, stderr, err := Executor(exec).catFile(logFile)
+			if err != nil {
+				if apierrors.IsForbidden(err) {
+					writeInfo(cmd, err.Error())
+					// Continue and output errors for each log file
+					// Allow the user to see and address all issues at once
+					continue
+				}
+				return err
+			}
+
+			buf.Write([]byte(stdout))
+			if stderr != "" {
+				str := fmt.Sprintf("\nError returned: %s\n", stderr)
+				buf.Write([]byte(str))
+			}
+
+			path := clusterName + fmt.Sprintf("/pods/%s/", pod.Name) + logFile
+			if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
+				return err
+			}
+		}
+
+	}
+	return nil
+}
+
+// gatherPatroniLogs gathers all the file-based Patroni logs on the DB instance,
+// if configured. By default, these logs will be sent to stdout and captured as
+// Pod logs instead.
+func gatherPatroniLogs(ctx context.Context,
+	clientset *kubernetes.Clientset,
+	config *rest.Config,
+	namespace string,
+	clusterName string,
+	tw *tar.Writer,
+	cmd *cobra.Command,
+) error {
+	writeInfo(cmd, "Collecting Patroni logs...")
+
+	dbPods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: util.DBInstanceLabels(clusterName),
+	})
+
+	if err != nil {
+		if apierrors.IsForbidden(err) {
+			writeInfo(cmd, err.Error())
+			return nil
+		}
+		return err
+	}
+
+	if len(dbPods.Items) == 0 {
+		writeInfo(cmd, "No database instance pod found for gathering logs")
+		return nil
+	}
+
+	writeDebug(cmd, fmt.Sprintf("Found %d Pods\n", len(dbPods.Items)))
+
+	podExec, err := util.NewPodExecutor(config)
+	if err != nil {
+		return err
+	}
+
+	for _, pod := range dbPods.Items {
+		writeDebug(cmd, fmt.Sprintf("Pod Name is %s\n", pod.Name))
+
+		exec := func(stdin io.Reader, stdout, stderr io.Writer, command ...string,
+		) error {
+			return podExec(namespace, pod.Name, util.ContainerDatabase,
+				stdin, stdout, stderr, command...)
+		}
+
+		// Get Patroni Log Files
+		stdout, stderr, err := Executor(exec).listPatroniLogFiles()
+
+		// Depending upon the list* function above:
+		// An error may happen when err is non-nil or stderr is non-empty.
+		// In both cases, we want to print helpful information and continue to the
+		// next iteration.
+		if err != nil || stderr != "" {
+
+			if apierrors.IsForbidden(err) {
+				writeInfo(cmd, err.Error())
+				return nil
+			}
+
+			writeDebug(cmd, "Error getting Patroni logs\n")
+
+			if err != nil {
+				writeDebug(cmd, fmt.Sprintf("%s\n", err.Error()))
+			}
+			if stderr != "" {
+				writeDebug(cmd, stderr)
+			}
+
+			if strings.Contains(stderr, "No such file or directory") {
+				writeDebug(cmd, "Cannot find any Patroni log files. This is acceptable in some configurations.\n")
 			}
 			continue
 		}
