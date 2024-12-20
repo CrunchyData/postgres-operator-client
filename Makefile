@@ -98,4 +98,4 @@ tag:
 	git push origin "v$(NEW_VERSION)"
 	git tag "d$(NEW_VERSION)"
 	git push origin "d$(NEW_VERSION)"
-	@echo "Make release from tag "v$(NEW_VERSION)"
+	@echo "Make release from tag v$(NEW_VERSION)"
