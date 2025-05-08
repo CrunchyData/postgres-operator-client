@@ -57,5 +57,5 @@ oc pgo version
 ```
 
 [kubectl plugin]: https://kubernetes.io/docs/tasks/extend-kubectl/kubectl-plugins/
-[Access Portal]: https://access.crunchydata.com/downloads/
+[Access Portal]: https://access.crunchydata.com/downloads/browse/containers/postgres-operator/cli/
 [GitHub]: https://github.com/CrunchyData/postgres-operator-client/releases
