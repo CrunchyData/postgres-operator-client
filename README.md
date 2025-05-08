@@ -28,7 +28,7 @@ will use the role-based access controls (RBAC) that are configured for your
 ### Download the binary
 
 The `kubectl-pgo` binary is available either through the Crunchy Data
-[Access Portal](https://access.crunchydata.com/downloads/) or via
+[Access Portal](https://access.crunchydata.com/downloads/browse/containers/postgres-operator/cli/) or via
 [GitHub](https://github.com/CrunchyData/postgres-operator-client/releases).
 
 ### Installing the Client
