@@ -48,10 +48,22 @@ func (exec Executor) pgBackRestCheck() (string, string, error) {
 }
 
 // postgresqlListLogFiles returns the full path of numLogs log files.
-func (exec Executor) listPGLogFiles(numLogs int) (string, string, error) {
+func (exec Executor) listPGLogFiles(numLogs int, hasInstrumentation bool) (string, string, error) {
 	var stdout, stderr bytes.Buffer
 
-	command := fmt.Sprintf("ls -1dt pgdata/pg[0-9][0-9]/log/* | head -%d", numLogs)
+	location := "pgdata/pg[0-9][0-9]/log/*"
+	if hasInstrumentation {
+		location = "pgdata/logs/postgres/*.*"
+	}
+	// Check both the older and the newer log locations.
+	// If a cluster has used both locations, this will return logs from both.
+	// If a cluster does not have one location or the other, continue without error.
+	// This ensures we get as many logs as possible for whatever combination of
+	// log files exists on this cluster.
+	// Note the "*.*" pattern to exclude the `receiver` directory,
+	// which only the collector container has permission to access.
+	command := fmt.Sprintf("ls -1dt %s | head -%d",
+		location, numLogs)
 	err := exec(nil, &stdout, &stderr, "bash", "-ceu", "--", command)
 
 	return stdout.String(), stderr.String(), err
@@ -73,7 +85,9 @@ func (exec Executor) listPGConfFiles() (string, string, error) {
 func (exec Executor) listBackrestLogFiles() (string, string, error) {
 	var stdout, stderr bytes.Buffer
 
-	command := "ls -1dt pgdata/pgbackrest/log/*"
+	// Note the "*.*" pattern to exclude the `receiver` directory,
+	// which only the collector container has permission to access.
+	command := "ls -1dt pgdata/pgbackrest/log/*.*"
 	err := exec(nil, &stdout, &stderr, "bash", "-ceu", "--", command)
 
 	return stdout.String(), stderr.String(), err
@@ -84,7 +98,9 @@ func (exec Executor) listBackrestLogFiles() (string, string, error) {
 func (exec Executor) listPatroniLogFiles() (string, string, error) {
 	var stdout, stderr bytes.Buffer
 
-	command := "ls -1dt pgdata/patroni/log/*"
+	// Note the "*.*" pattern to exclude the `receiver` directory,
+	// which only the collector container has permission to access.
+	command := "ls -1dt pgdata/patroni/log/*.*"
 	err := exec(nil, &stdout, &stderr, "bash", "-ceu", "--", command)
 
 	return stdout.String(), stderr.String(), err
@@ -95,7 +111,9 @@ func (exec Executor) listPatroniLogFiles() (string, string, error) {
 func (exec Executor) listBackrestRepoHostLogFiles() (string, string, error) {
 	var stdout, stderr bytes.Buffer
 
-	command := "ls -1dt pgbackrest/*/log/*"
+	// Note the "*.*" pattern to exclude the `receiver` directory,
+	// which only the collector container has permission to access.
+	command := "ls -1dt pgbackrest/*/log/*.*"
 	err := exec(nil, &stdout, &stderr, "bash", "-ceu", "--", command)
 
 	return stdout.String(), stderr.String(), err

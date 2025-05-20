@@ -462,7 +462,7 @@ Collecting PGO CLI logs...
 		// All Postgres Logs on the Postgres Instances (primary and replicas)
 		if numLogs > 0 {
 			err = gatherPostgresLogsAndConfigs(ctx, clientset, restConfig,
-				namespace, clusterName, outputDir, outputFile, numLogs, tw, cmd)
+				namespace, clusterName, outputDir, outputFile, numLogs, tw, cmd, get)
 			if err != nil {
 				writeInfo(cmd, fmt.Sprintf("Error gathering Postgres Logs and Config: %s", err))
 			}
@@ -992,6 +992,7 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 	numLogs int,
 	tw *tar.Writer,
 	cmd *cobra.Command,
+	cluster *unstructured.Unstructured,
 ) error {
 	writeInfo(cmd, "Collecting Postgres logs...")
 
@@ -1029,7 +1030,11 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 		}
 
 		// Get Postgres Log Files
-		stdout, stderr, err := Executor(exec).listPGLogFiles(numLogs)
+		// Pass a boolean based on whether the cluster has instrumentation
+		// since that will determine where the log files are stored
+		_, hasInstrumentation, _ := unstructured.NestedMap(cluster.Object,
+			"spec", "instrumentation")
+		stdout, stderr, err := Executor(exec).listPGLogFiles(numLogs, hasInstrumentation)
 
 		// Depending upon the list* function above:
 		// An error may happen when err is non-nil or stderr is non-empty.
