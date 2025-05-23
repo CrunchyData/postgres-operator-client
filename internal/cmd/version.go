@@ -71,10 +71,10 @@ Operator Version: v5.7.0`, clientVersion))
 		}
 
 		if crd != nil &&
-			crd.ObjectMeta.Labels != nil &&
-			crd.ObjectMeta.Labels["app.kubernetes.io/version"] != "" {
+			crd.Labels != nil &&
+			crd.Labels["app.kubernetes.io/version"] != "" {
 
-			cmd.Printf("Operator Version: v%s\n", crd.ObjectMeta.Labels["app.kubernetes.io/version"])
+			cmd.Printf("Operator Version: v%s\n", crd.Labels["app.kubernetes.io/version"])
 		} else {
 			cmd.Println("Operator version not found.")
 		}

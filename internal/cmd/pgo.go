@@ -107,7 +107,7 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
 	// Add flags for kubeconfig, authentication, namespace, and timeout to
 	// every subcommand.
 	// - https://docs.k8s.io/concepts/configuration/organize-cluster-access-kubeconfig/
-	config.ConfigFlags.AddFlags(root.PersistentFlags())
+	config.AddFlags(root.PersistentFlags())
 
 	// Defined command output. If not set, it falls back to [os.Stderr].
 	// - https://pkg.go.dev/github.com/spf13/cobra#Command.Print

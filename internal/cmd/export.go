@@ -1571,7 +1571,8 @@ func gatherPodLogs(ctx context.Context,
 					Container: container.Name,
 				}).Do(ctx)
 
-			if result.Error() != nil {
+			err = result.Error()
+			if err != nil {
 				if apierrors.IsForbidden(result.Error()) {
 					writeInfo(cmd, result.Error().Error())
 					// Continue and output errors for each pod log
