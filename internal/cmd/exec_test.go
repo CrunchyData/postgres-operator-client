@@ -72,7 +72,22 @@ func TestListPGLogFiles(t *testing.T) {
 			assert.Assert(t, stderr != nil, "should capture stderr")
 			return expected
 		}
-		_, _, err := Executor(exec).listPGLogFiles(1)
+		_, _, err := Executor(exec).listPGLogFiles(1, false)
+		assert.ErrorContains(t, err, "pass-through")
+
+	})
+
+	t.Run("has instrumentation", func(t *testing.T) {
+		expected := errors.New("pass-through")
+		exec := func(
+			stdin io.Reader, stdout, stderr io.Writer, command ...string,
+		) error {
+			assert.DeepEqual(t, command, []string{"bash", "-ceu", "--", "ls -1dt pgdata/logs/postgres/*.* | head -1"})
+			assert.Assert(t, stdout != nil, "should capture stdout")
+			assert.Assert(t, stderr != nil, "should capture stderr")
+			return expected
+		}
+		_, _, err := Executor(exec).listPGLogFiles(1, true)
 		assert.ErrorContains(t, err, "pass-through")
 
 	})
@@ -86,7 +101,7 @@ func TestListPatroniLogFiles(t *testing.T) {
 		exec := func(
 			stdin io.Reader, stdout, stderr io.Writer, command ...string,
 		) error {
-			assert.DeepEqual(t, command, []string{"bash", "-ceu", "--", "ls -1dt pgdata/patroni/log/*"})
+			assert.DeepEqual(t, command, []string{"bash", "-ceu", "--", "ls -1dt pgdata/patroni/log/*.*"})
 			assert.Assert(t, stdout != nil, "should capture stdout")
 			assert.Assert(t, stderr != nil, "should capture stderr")
 			return expected

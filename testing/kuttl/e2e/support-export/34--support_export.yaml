@@ -2,10 +2,10 @@
 apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
-- script: kubectl-pgo --namespace $NAMESPACE --operator-namespace postgres-operator support export kuttl-support-cluster -o .
+- script: kubectl-pgo --namespace $NAMESPACE --operator-namespace postgres-operator support export kuttl-support-instrumentation -o .
 - script: tar -xzf ./crunchy_k8s_support_export_*.tar.gz
 - script: |
-    CLEANUP="rm -r ./kuttl-support-cluster ./operator ./crunchy_k8s_support_export_*.tar.gz"
+    CLEANUP="rm -r ./kuttl-support-instrumentation ./operator ./crunchy_k8s_support_export_*.tar.gz"
     check_file() {
       if [ ! -s ./"${1}" ]
       then
@@ -28,7 +28,7 @@ commands:
     }
 
     # check that the PGO CLI version is recorded
-    VER=$(cat ./kuttl-support-cluster/pgo-cli-version)
+    VER=$(cat ./kuttl-support-instrumentation/pgo-cli-version)
     echo "$VER" | grep -E "v[0-9]+\.[0-9]+\.[0-9]+$"
     STATUS=$?
     [ "$STATUS" = 0 ] || {
@@ -39,23 +39,23 @@ commands:
     }
 
     # check that the cluster-names file exists and is not empty
-    check_file "kuttl-support-cluster/cluster-names"
+    check_file "kuttl-support-instrumentation/cluster-names"
 
     # check that the system-time file exists and is not empty
-    check_file "kuttl-support-cluster/system-time"
+    check_file "kuttl-support-instrumentation/system-time"
 
     # check that the context file exists and is not empty
-    check_file "kuttl-support-cluster/current-context"
+    check_file "kuttl-support-instrumentation/current-context"
 
     # check that the patroni info file exists and is not empty
-    check_file "kuttl-support-cluster/patroni-info"
+    check_file "kuttl-support-instrumentation/patroni-info"
 
     # check that the pgbackrest info file exists and is not empty
-    check_file "kuttl-support-cluster/pgbackrest-info"
+    check_file "kuttl-support-instrumentation/pgbackrest-info"
 
     # check that the plugin list file exists and is not empty
     # the file will at least include kubectl-pgo
-    check_file "kuttl-support-cluster/plugin-list"
+    check_file "kuttl-support-instrumentation/plugin-list"
     
     # check that the operator file exists and is not empty
     # the list file will not be empty for the requested Kubernetes types
@@ -77,7 +77,7 @@ commands:
     esac
 
     # Node directory and list file path
-    DIR="./kuttl-support-cluster/nodes/"
+    DIR="./kuttl-support-instrumentation/nodes/"
     LIST="${DIR}list"
 
     # check for expected table header in the list file
@@ -101,13 +101,13 @@ commands:
     fi
 
     # check that the events file exist and is not empty
-    check_file "kuttl-support-cluster/events"
+    check_file "kuttl-support-instrumentation/events"
 
     # check that logs exist for the PG
     # use `check_exists` so we can use a wildcard
-    check_exists "kuttl-support-cluster/pods/kuttl-support-cluster-00-*-0/pgdata/pg16/log/postgresql-*.log"
-    
-    EVENTS="./kuttl-support-cluster/events"
+    check_exists "kuttl-support-instrumentation/pods/kuttl-support-cluster-00-*-0/pgdata/logs/postgresql-*.json"
+
+    EVENTS="./kuttl-support-instrumentation/events"
     # check that the events file contains the expected string
     if ! grep -Fq "Started container postgres-startup" $EVENTS
     then
@@ -116,10 +116,10 @@ commands:
       exit 1
     fi
 
-    PROCESSES_DIR="./kuttl-support-cluster/processes/"
+    PROCESSES_DIR="./kuttl-support-instrumentation/processes/"
 
     # Check for the files that contain an expected pgBackRest server process.
-    # Expected to be found in the Postgres instance Pod's 'database',
+    # Expected to be found in the Postgres instance Pod's 'collector', 'database',
     # 'replication-cert-copy', 'pgbackrest', and 'pgbackrest-config' containers
     # and the pgBackRest repo Pod's 'pgbackrest' and 'pgbackrest-config'
     # containers, i.e. 6 files total, but test will pass if at least one is found.
@@ -131,8 +131,8 @@ commands:
     fi
 
     # Check for the files that contain an expected Postgres process. Expected
-    # to be found in the Postgres instance Pod's 'database', 'replication-cert-copy',
-    # 'pgbackrest', and 'pgbackrest-config' containers, i.e. 4 files total, but
+    # to be found in the Postgres instance Pod's 'collector', 'database', 'replication-cert-copy',
+    # 'pgbackrest', and 'pgbackrest-config' containers, i.e. 5 files total, but
     # test will pass if at least one is found.
     found=$(grep -lR "postgres -D /pgdata/pg" ${PROCESSES_DIR} | wc -l)
     if [ "${found}" -lt 1 ]; then
@@ -142,7 +142,7 @@ commands:
     fi
 
     # check that the PGO CLI log file contains expected messages
-    CLI_LOG="./kuttl-support-cluster/cli.log"
+    CLI_LOG="./kuttl-support-instrumentation/cli.log"
 
     # info output includes expected heading
     if ! grep -Fq -- "- INFO - | PGO CLI Support Export Tool" $CLI_LOG
@@ -153,11 +153,11 @@ commands:
     fi
 
     # debug output includes cluster name argument
-    if ! grep -Fq -- "- DEBUG - Arg - PostgresCluster Name: kuttl-support-cluster" $CLI_LOG
+    if ! grep -Fq -- "- DEBUG - Arg - PostgresCluster Name: kuttl-support-instrumentation" $CLI_LOG
     then
       echo "PGO CLI log does not contain cluster name debug message"
       eval "$CLEANUP"
       exit 1
     fi
 
-- script: rm -r ./kuttl-support-cluster ./crunchy_k8s_support_export_*.tar.gz
+- script: rm -r ./kuttl-support-instrumentation ./crunchy_k8s_support_export_*.tar.gz
