@@ -105,17 +105,14 @@ linters:
       - examples$
 formatters:
   enable:
+    - gci
     - gofmt
-    - goimports
   settings:
     gci:
       sections:
         - standard
         - default
         - prefix(github.com/crunchydata/postgres-operator-client)
-    goimports:
-      local-prefixes:
-        - github.com/crunchydata/postgres-operator-client
   exclusions:
     generated: lax
     paths:
