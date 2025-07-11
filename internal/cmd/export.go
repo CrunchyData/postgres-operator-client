@@ -469,7 +469,7 @@ Collecting PGO CLI logs...
 		}
 
 		// All pgBackRest Logs on the Postgres Instances
-		err = gatherDbBackrestLogs(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
+		err = gatherDbBackrestLogs(ctx, clientset, restConfig, namespace, clusterName, outputDir, outputFile, tw, cmd)
 		if err != nil {
 			writeInfo(cmd, fmt.Sprintf("Error gathering pgBackRest DB Hosts Logs: %s", err))
 		}
@@ -481,7 +481,7 @@ Collecting PGO CLI logs...
 		}
 
 		// All pgBackRest Logs on the Repo Host
-		err = gatherRepoHostLogs(ctx, clientset, restConfig, namespace, clusterName, tw, cmd)
+		err = gatherRepoHostLogs(ctx, clientset, restConfig, namespace, clusterName, outputDir, outputFile, tw, cmd)
 		if err != nil {
 			writeInfo(cmd, fmt.Sprintf("Error gathering pgBackRest Repo Host Logs: %s", err))
 		}
@@ -1223,6 +1223,8 @@ func gatherDbBackrestLogs(ctx context.Context,
 	config *rest.Config,
 	namespace string,
 	clusterName string,
+	outputDir string,
+	outputFile string,
 	tw *tar.Writer,
 	cmd *cobra.Command,
 ) error {
@@ -1291,30 +1293,58 @@ func gatherDbBackrestLogs(ctx context.Context,
 		}
 
 		logFiles := strings.Split(strings.TrimSpace(stdout), "\n")
+
+		// localDirectory is created to save data on disk
+		// e.g. outputDir/crunchy_k8s_support_export_2022-08-08-115726-0400/remotePath
+		localDirectory := filepath.Join(outputDir, strings.ReplaceAll(outputFile, ".tar.gz", ""))
+
+		// flag to determine whether or not to remove localDirectory after the loop
+		// When an error happens, this flag will switch to false
+		// It's nice to have the extra data around when errors have happened
+		doCleanup := true
+
 		for _, logFile := range logFiles {
 			writeDebug(cmd, fmt.Sprintf("LOG FILE: %s\n", logFile))
-			var buf bytes.Buffer
-
-			stdout, stderr, err := Executor(exec).catFile(logFile)
+			// get the file size to stream
+			fileSize, err := getRemoteFileSize(config, namespace, pod.Name, util.ContainerDatabase, logFile)
 			if err != nil {
-				if apierrors.IsForbidden(err) {
-					writeInfo(cmd, err.Error())
-					// Continue and output errors for each log file
-					// Allow the user to see and address all issues at once
-					continue
-				}
-				return err
+				writeDebug(cmd, fmt.Sprintf("could not get file size for %s: %v\n", logFile, err))
+				continue
 			}
 
-			buf.Write([]byte(stdout))
-			if stderr != "" {
-				str := fmt.Sprintf("\nError returned: %s\n", stderr)
-				buf.Write([]byte(str))
+			// fileSpecSrc is namespace/podname:path/to/file
+			// fileSpecDest is the local destination of the file
+			// These are used to help the user grab the file manually when necessary
+			// e.g. postgres-operator/hippo-instance1-vp9k-0:pgdata/pgbackrest/log/db-stanza-create.log
+			fileSpecSrc := fmt.Sprintf("%s/%s:%s", namespace, pod.Name, logFile)
+			fileSpecDest := filepath.Join(localDirectory, logFile)
+			writeInfo(cmd, fmt.Sprintf("\tSize of %-85s %v", fileSpecSrc, convertBytes(fileSize)))
+
+			// Stream the file to disk and write the local file to the tar
+			err = streamFileFromPod(config, tw,
+				localDirectory, clusterName, namespace, pod.Name, util.ContainerDatabase, logFile, fileSize)
+
+			if err != nil {
+				doCleanup = false // prevent the deletion of localDirectory so a user can examine contents
+				writeInfo(cmd, fmt.Sprintf("\tError streaming file %s: %v", logFile, err))
+				writeInfo(cmd, fmt.Sprintf("\tCollect manually with kubectl cp -c %s %s %s",
+					util.ContainerDatabase, fileSpecSrc, fileSpecDest))
+				writeInfo(cmd, fmt.Sprintf("\tRemove %s manually after gathering necessary information", localDirectory))
+				continue
 			}
 
-			path := clusterName + fmt.Sprintf("/pods/%s/", pod.Name) + logFile
-			if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
-				return err
+		}
+
+		// doCleanup is true when there are no errors above.
+		if doCleanup {
+			// Remove the local directory created to hold the data
+			// Errors in removing localDirectory should instruct the user to remove manually.
+			// This happens often on Windows
+			err = os.RemoveAll(localDirectory)
+			if err != nil {
+				writeInfo(cmd, fmt.Sprintf("\tError removing %s: %v", localDirectory, err))
+				writeInfo(cmd, fmt.Sprintf("\tYou may need to remove %s manually", localDirectory))
+				continue
 			}
 		}
 
@@ -1436,6 +1466,8 @@ func gatherRepoHostLogs(ctx context.Context,
 	config *rest.Config,
 	namespace string,
 	clusterName string,
+	outputDir string,
+	outputFile string,
 	tw *tar.Writer,
 	cmd *cobra.Command,
 ) error {
@@ -1503,30 +1535,57 @@ func gatherRepoHostLogs(ctx context.Context,
 		}
 
 		logFiles := strings.Split(strings.TrimSpace(stdout), "\n")
+
+		// localDirectory is created to save data on disk
+		// e.g. outputDir/crunchy_k8s_support_export_2022-08-08-115726-0400/remotePath
+		localDirectory := filepath.Join(outputDir, strings.ReplaceAll(outputFile, ".tar.gz", ""))
+
+		// flag to determine whether or not to remove localDirectory after the loop
+		// When an error happens, this flag will switch to false
+		// It's nice to have the extra data around when errors have happened
+		doCleanup := true
+
 		for _, logFile := range logFiles {
 			writeDebug(cmd, fmt.Sprintf("LOG FILE: %s\n", logFile))
-			var buf bytes.Buffer
-
-			stdout, stderr, err := Executor(exec).catFile(logFile)
+			// get the file size to stream
+			fileSize, err := getRemoteFileSize(config, namespace, pod.Name, util.ContainerPGBackrest, logFile)
 			if err != nil {
-				if apierrors.IsForbidden(err) {
-					writeInfo(cmd, err.Error())
-					// Continue and output errors for each log file
-					// Allow the user to see and address all issues at once
-					continue
-				}
-				return err
+				writeDebug(cmd, fmt.Sprintf("could not get file size for %s: %v\n", logFile, err))
+				continue
 			}
 
-			buf.Write([]byte(stdout))
-			if stderr != "" {
-				str := fmt.Sprintf("\nError returned: %s\n", stderr)
-				buf.Write([]byte(str))
-			}
+			// fileSpecSrc is namespace/podname:path/to/file
+			// fileSpecDest is the local destination of the file
+			// These are used to help the user grab the file manually when necessary
+			// e.g. postgres-operator/hippo-repo-host-0:pgbackrest/repo1/log/db-backup.log
+			fileSpecSrc := fmt.Sprintf("%s/%s:%s", namespace, pod.Name, logFile)
+			fileSpecDest := filepath.Join(localDirectory, logFile)
+			writeInfo(cmd, fmt.Sprintf("\tSize of %-85s %v", fileSpecSrc, convertBytes(fileSize)))
 
-			path := clusterName + fmt.Sprintf("/pods/%s/", pod.Name) + logFile
-			if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
-				return err
+			// Stream the file to disk and write the local file to the tar
+			err = streamFileFromPod(config, tw,
+				localDirectory, clusterName, namespace, pod.Name, util.ContainerPGBackrest, logFile, fileSize)
+
+			if err != nil {
+				doCleanup = false // prevent the deletion of localDirectory so a user can examine contents
+				writeInfo(cmd, fmt.Sprintf("\tError streaming file %s: %v", logFile, err))
+				writeInfo(cmd, fmt.Sprintf("\tCollect manually with kubectl cp -c %s %s %s",
+					util.ContainerPGBackrest, fileSpecSrc, fileSpecDest))
+				writeInfo(cmd, fmt.Sprintf("\tRemove %s manually after gathering necessary information", localDirectory))
+				continue
+			}
+		}
+
+		// doCleanup is true when there are no errors above.
+		if doCleanup {
+			// Remove the local directory created to hold the data
+			// Errors in removing localDirectory should instruct the user to remove manually.
+			// This happens often on Windows
+			err = os.RemoveAll(localDirectory)
+			if err != nil {
+				writeInfo(cmd, fmt.Sprintf("\tError removing %s: %v", localDirectory, err))
+				writeInfo(cmd, fmt.Sprintf("\tYou may need to remove %s manually", localDirectory))
+				continue
 			}
 		}
 
