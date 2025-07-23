@@ -595,7 +595,10 @@ Collecting PGO CLI logs...
 }
 
 func gatherPluginList(clusterName string, tw *tar.Writer, cmd *cobra.Command) error {
-	ex := exec.Command("kubectl", "plugin", "list")
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel() // Ensure the context is canceled to avoid leaks
+
+	ex := exec.CommandContext(ctx, "kubectl", "plugin", "list")
 	msg, err := ex.Output()
 
 	if err != nil {
@@ -611,7 +614,10 @@ func gatherPluginList(clusterName string, tw *tar.Writer, cmd *cobra.Command) er
 }
 
 func gatherPGUpgradeSpec(clusterName, namespace, pgUpgrade string, tw *tar.Writer, cmd *cobra.Command) error {
-	ex := exec.Command("kubectl", "get", "pgupgrade", pgUpgrade, "-n", namespace, "-o", "yaml")
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel() // Ensure the context is canceled to avoid leaks
+
+	ex := exec.CommandContext(ctx, "kubectl", "get", "pgupgrade", pgUpgrade, "-n", namespace, "-o", "yaml")
 	msg, err := ex.Output()
 
 	if err != nil {
