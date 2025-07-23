@@ -561,6 +561,22 @@ Collecting PGO CLI logs...
 			writeInfo(cmd, fmt.Sprintf("Error gathering kubectl plugins: %s", err))
 		}
 
+		// Get PGUpgrade spec (if available)
+		writeInfo(cmd, "Collecting PGUpgrade spec (if available)...")
+
+		key := util.AllowUpgradeAnnotation()
+		value, exists := get.GetAnnotations()[key]
+
+		if exists {
+			writeInfo(cmd, fmt.Sprintf("The PGUpgrade object is: %s", value))
+			err = gatherPGUpgradeSpec(clusterName, namespace, value, tw, cmd)
+			if err != nil {
+				writeInfo(cmd, fmt.Sprintf("Error gathering PGUpgrade spec: %s", err))
+			}
+		} else {
+			writeInfo(cmd, fmt.Sprintf("There is no PGUpgrade object associated with cluster '%s'", clusterName))
+		}
+
 		// Print cli output
 		writeInfo(cmd, "Collecting PGO CLI logs...")
 		path := clusterName + "/cli.log"
@@ -587,6 +603,26 @@ func gatherPluginList(clusterName string, tw *tar.Writer, cmd *cobra.Command) er
 		msg = append(msg, err.Error()...)
 	}
 	path := clusterName + "/plugin-list"
+	if err := writeTar(tw, msg, path, cmd); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func gatherPGUpgradeSpec(clusterName, namespace, pgUpgrade string, tw *tar.Writer, cmd *cobra.Command) error {
+	ex := exec.Command("kubectl", "get", "pgupgrade", pgUpgrade, "-n", namespace, "-o", "yaml")
+	msg, err := ex.Output()
+
+	if err != nil {
+		msg = append(msg, err.Error()...)
+		msg = append(msg, []byte(`
+There was an error running 'kubectl get pgupgrade'. Verify permissions and that the resource exists.`)...)
+
+		writeInfo(cmd, fmt.Sprintf("Error: '%s'", msg))
+	}
+
+	path := clusterName + "/pgupgrade.yaml"
 	if err := writeTar(tw, msg, path, cmd); err != nil {
 		return err
 	}

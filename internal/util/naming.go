@@ -89,3 +89,9 @@ func PostgresUserSecretLabels(clusterName string) string {
 	return LabelCluster + "=" + clusterName + "," +
 		LabelRole + "=" + RolePostgresUser
 }
+
+// AllowUpgradeAnnotation is the annotation key to allow of PostgresCluster
+// to upgrade. Its value is the name of the PGUpgrade object.
+func AllowUpgradeAnnotation() string {
+	return labelPrefix + "allow-upgrade"
+}
