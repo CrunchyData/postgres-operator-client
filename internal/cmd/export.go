@@ -351,9 +351,9 @@ Collecting PGO CLI logs...
 			return err
 		}
 
-		get, err := postgresClient.Namespace(namespace).Get(ctx,
+		getCluster, err := postgresClient.Namespace(namespace).Get(ctx,
 			clusterName, metav1.GetOptions{})
-		if err != nil || get == nil {
+		if err != nil || getCluster == nil {
 			if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
 				return err
 			}
@@ -425,7 +425,7 @@ Collecting PGO CLI logs...
 		}
 
 		// Gather PostgresCluster manifest
-		err = gatherClusterSpec(get, clusterName, tw, cmd)
+		err = gatherClusterSpec(getCluster, clusterName, tw, cmd)
 		if err != nil {
 			writeInfo(cmd, fmt.Sprintf("Error gathering PostgresCluster manifest: %s", err))
 		}
@@ -462,7 +462,7 @@ Collecting PGO CLI logs...
 		// All Postgres Logs on the Postgres Instances (primary and replicas)
 		if numLogs > 0 {
 			err = gatherPostgresLogsAndConfigs(ctx, clientset, restConfig,
-				namespace, clusterName, outputDir, outputFile, numLogs, tw, cmd, get)
+				namespace, clusterName, outputDir, outputFile, numLogs, tw, cmd, getCluster)
 			if err != nil {
 				writeInfo(cmd, fmt.Sprintf("Error gathering Postgres Logs and Config: %s", err))
 			}
@@ -561,6 +561,22 @@ Collecting PGO CLI logs...
 			writeInfo(cmd, fmt.Sprintf("Error gathering kubectl plugins: %s", err))
 		}
 
+		// Get PGUpgrade spec (if available)
+		writeInfo(cmd, "Collecting PGUpgrade spec (if available)...")
+
+		key := util.AllowUpgradeAnnotation()
+		value, exists := getCluster.GetAnnotations()[key]
+
+		if exists {
+			writeInfo(cmd, fmt.Sprintf("The PGUpgrade object is: %s", value))
+			err = gatherPGUpgradeSpec(clusterName, namespace, value, tw, cmd)
+			if err != nil {
+				writeInfo(cmd, fmt.Sprintf("Error gathering PGUpgrade spec: %s", err))
+			}
+		} else {
+			writeInfo(cmd, fmt.Sprintf("There is no PGUpgrade object associated with cluster '%s'", clusterName))
+		}
+
 		// Print cli output
 		writeInfo(cmd, "Collecting PGO CLI logs...")
 		path := clusterName + "/cli.log"
@@ -579,7 +595,10 @@ Collecting PGO CLI logs...
 }
 
 func gatherPluginList(clusterName string, tw *tar.Writer, cmd *cobra.Command) error {
-	ex := exec.Command("kubectl", "plugin", "list")
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel() // Ensure the context is canceled to avoid leaks
+
+	ex := exec.CommandContext(ctx, "kubectl", "plugin", "list")
 	msg, err := ex.Output()
 
 	if err != nil {
@@ -587,6 +606,29 @@ func gatherPluginList(clusterName string, tw *tar.Writer, cmd *cobra.Command) er
 		msg = append(msg, err.Error()...)
 	}
 	path := clusterName + "/plugin-list"
+	if err := writeTar(tw, msg, path, cmd); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func gatherPGUpgradeSpec(clusterName, namespace, pgUpgrade string, tw *tar.Writer, cmd *cobra.Command) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel() // Ensure the context is canceled to avoid leaks
+
+	ex := exec.CommandContext(ctx, "kubectl", "get", "pgupgrade", pgUpgrade, "-n", namespace, "-o", "yaml")
+	msg, err := ex.Output()
+
+	if err != nil {
+		msg = append(msg, err.Error()...)
+		msg = append(msg, []byte(`
+There was an error running 'kubectl get pgupgrade'. Verify permissions and that the resource exists.`)...)
+
+		writeInfo(cmd, fmt.Sprintf("Error: '%s'", msg))
+	}
+
+	path := clusterName + "/pgupgrade.yaml"
 	if err := writeTar(tw, msg, path, cmd); err != nil {
 		return err
 	}
