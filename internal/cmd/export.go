@@ -351,9 +351,9 @@ Collecting PGO CLI logs...
 			return err
 		}
 
-		get, err := postgresClient.Namespace(namespace).Get(ctx,
+		getCluster, err := postgresClient.Namespace(namespace).Get(ctx,
 			clusterName, metav1.GetOptions{})
-		if err != nil || get == nil {
+		if err != nil || getCluster == nil {
 			if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
 				return err
 			}
@@ -425,7 +425,7 @@ Collecting PGO CLI logs...
 		}
 
 		// Gather PostgresCluster manifest
-		err = gatherClusterSpec(get, clusterName, tw, cmd)
+		err = gatherClusterSpec(getCluster, clusterName, tw, cmd)
 		if err != nil {
 			writeInfo(cmd, fmt.Sprintf("Error gathering PostgresCluster manifest: %s", err))
 		}
@@ -462,7 +462,7 @@ Collecting PGO CLI logs...
 		// All Postgres Logs on the Postgres Instances (primary and replicas)
 		if numLogs > 0 {
 			err = gatherPostgresLogsAndConfigs(ctx, clientset, restConfig,
-				namespace, clusterName, outputDir, outputFile, numLogs, tw, cmd, get)
+				namespace, clusterName, outputDir, outputFile, numLogs, tw, cmd, getCluster)
 			if err != nil {
 				writeInfo(cmd, fmt.Sprintf("Error gathering Postgres Logs and Config: %s", err))
 			}
@@ -565,7 +565,7 @@ Collecting PGO CLI logs...
 		writeInfo(cmd, "Collecting PGUpgrade spec (if available)...")
 
 		key := util.AllowUpgradeAnnotation()
-		value, exists := get.GetAnnotations()[key]
+		value, exists := getCluster.GetAnnotations()[key]
 
 		if exists {
 			writeInfo(cmd, fmt.Sprintf("The PGUpgrade object is: %s", value))
