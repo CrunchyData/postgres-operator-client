@@ -15,7 +15,7 @@ defaultContentLanguageInSubdir= false
 enableMissingTranslationPlaceholders = false
 
 [params]
-clientVersion = "0.5.1"
+clientVersion = "0.5.2"
 
 # crunchy-hugo-theme params
 showVisitedLinks = false # default is false # in theme
