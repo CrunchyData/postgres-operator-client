@@ -160,6 +160,10 @@ var otherNamespacedResources = []schema.GroupVersionResource{{
 	Group:    corev1.SchemeGroupVersion.Group,
 	Version:  corev1.SchemeGroupVersion.Version,
 	Resource: "limitranges",
+}, {
+	Group:    corev1.SchemeGroupVersion.Group,
+	Version:  corev1.SchemeGroupVersion.Version,
+	Resource: "resourcequotas",
 }}
 
 // newSupportCommand returns the support subcommand of the PGO plugin.
@@ -1224,6 +1228,9 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 
 		commands := []Command{
 			{path: "pg_controldata", description: "pg_controldata"},
+			{path: "df -h /pgdata", description: "disk free"},
+			{path: "du -h /pgdata", description: "disk usage"},
+			{path: "ls /pgdata/*/archive_status/*.ready | wc -l", description: "Archive Ready File Count"},
 		}
 
 		var buf bytes.Buffer
