@@ -160,6 +160,10 @@ var otherNamespacedResources = []schema.GroupVersionResource{{
 	Group:    corev1.SchemeGroupVersion.Group,
 	Version:  corev1.SchemeGroupVersion.Version,
 	Resource: "limitranges",
+}, {
+	Group:    corev1.SchemeGroupVersion.Group,
+	Version:  corev1.SchemeGroupVersion.Version,
+	Resource: "resourcequotas",
 }}
 
 // newSupportCommand returns the support subcommand of the PGO plugin.
