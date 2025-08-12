@@ -14,7 +14,7 @@ jobs:
   licenses:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # Trivy needs a populated Go module cache to detect Go module licenses.
       - uses: actions/setup-go@v5
@@ -37,7 +37,7 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # Run trivy and log detected and fixed vulnerabilities
       # This report should match the uploaded code scan report below
