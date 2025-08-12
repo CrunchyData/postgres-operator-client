@@ -12,7 +12,7 @@ jobs:
   go-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-go@v5
         with: { go-version: stable }
 
@@ -27,7 +27,7 @@ jobs:
       matrix:
         kubernetes: [v1.27, v1.24, v1.21]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-go@v5
         with: { go-version: stable }
 
