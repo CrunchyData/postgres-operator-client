@@ -1229,8 +1229,9 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 		commands := []Command{
 			{path: "pg_controldata", description: "pg_controldata"},
 			{path: "df -h /pgdata", description: "disk free"},
-			{path: "du -h /pgdata", description: "disk usage"},
+			{path: "du -h /pgdata | column -t -o \"     \"", description: "disk usage"},
 			{path: "ls /pgdata/*/archive_status/*.ready | wc -l", description: "Archive Ready File Count"},
+			{path: "psql -P format=wrapped -P columns=180 -c \"select name,setting,source,sourcefile,sourceline FROM pg_settings order by 1\"", description: "PG Settings"},
 		}
 
 		var buf bytes.Buffer
