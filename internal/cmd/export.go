@@ -581,6 +581,73 @@ Collecting PGO CLI logs...
 			writeInfo(cmd, fmt.Sprintf("There is no PGUpgrade object associated with cluster '%s'", clusterName))
 		}
 
+		// Run kubectl describe and similar commands
+		writeInfo(cmd, "Running kubectl describe nodes...")
+		err = runKubectlCommand(tw, cmd, clusterName+"/describe/nodes", "describe", "nodes")
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe nodes: %s", err))
+		}
+
+		writeInfo(cmd, "Running kubectl cluster-info dump...")
+		err = runKubectlCommand(tw, cmd, clusterName+"/describe/cluster-info.json", "cluster-info", "dump")
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error running kubectl cluster-info dump: %s", err))
+		}
+
+		writeInfo(cmd, "Running kubectl describe postgrescluster...")
+		err = runKubectlCommand(tw, cmd, clusterName+"/describe/postgrescluster", "describe", "postgrescluster", clusterName, "-n", namespace)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe postgrescluster: %s", err))
+		}
+
+		writeInfo(cmd, "Running kubectl describe crd crunchybridgeclusters...")
+		err = runKubectlCommand(tw, cmd, clusterName+"/describe/crds/crunchybridgeclusters", "describe", "crds", "crunchybridgeclusters")
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe crd crunchybridgeclusters: %s", err))
+		}
+
+		writeInfo(cmd, "Running kubectl describe crd pgadmins...")
+		err = runKubectlCommand(tw, cmd, clusterName+"/describe/crds/pgadmins", "describe", "crds", "pgadmins")
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe crd pgadmins: %s", err))
+		}
+
+		writeInfo(cmd, "Running kubectl describe crd pgupgrades...")
+		err = runKubectlCommand(tw, cmd, clusterName+"/describe/crds/pgupgrades", "describe", "crds", "pgupgrades")
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe crd pgupgrades: %s", err))
+		}
+
+		writeInfo(cmd, "Running kubectl describe crd postgresclusters...")
+		err = runKubectlCommand(tw, cmd, clusterName+"/describe/crds/postgresclusters", "describe", "crds", "postgresclusters")
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe crd postgresclusters: %s", err))
+		}
+
+		writeInfo(cmd, "Running kubectl describe clusterrole...")
+		err = runKubectlCommand(tw, cmd, clusterName+"/describe/clusterrole", "describe", "clusterrole", "postgres-operator")
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe clusterrole: %s", err))
+		}
+
+		writeInfo(cmd, "Running kubectl describe clusterrolebinding...")
+		err = runKubectlCommand(tw, cmd, clusterName+"/describe/clusterrolebinding", "describe", "clusterrolebinding", "postgres-operator")
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe clusterrolebinding: %s", err))
+		}
+
+		writeInfo(cmd, "Running kubectl describe lease...")
+		err = runKubectlCommand(tw, cmd, "operator/describe/lease", "describe", "lease", "-n", operatorNamespace)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe lease: %s", err))
+		}
+
+		writeInfo(cmd, "Running kubectl describe pgadmin...")
+		err = runKubectlCommand(tw, cmd, "pgadmin/describe/pgadmin", "describe", "pgadmin", "-n", namespace)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe pgadmin: %s", err))
+		}
+
 		// Print cli output
 		writeInfo(cmd, "Collecting PGO CLI logs...")
 		path := clusterName + "/cli.log"
@@ -633,6 +700,28 @@ There was an error running 'kubectl get pgupgrade'. Verify permissions and that 
 	}
 
 	path := clusterName + "/pgupgrade.yaml"
+	if err := writeTar(tw, msg, path, cmd); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func runKubectlCommand(tw *tar.Writer, cmd *cobra.Command, path string, cmdArgs ...string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel() // Ensure the context is canceled to avoid leaks
+
+	ex := exec.CommandContext(ctx, "kubectl", cmdArgs...)
+	msg, err := ex.Output()
+
+	if err != nil {
+		msg = append(msg, err.Error()...)
+		msg = append(msg, []byte(`
+There was an error running the command. Verify permissions and that the resource exists.`)...)
+
+		writeInfo(cmd, fmt.Sprintf("Error: '%s'", msg))
+	}
+
 	if err := writeTar(tw, msg, path, cmd); err != nil {
 		return err
 	}
@@ -1671,6 +1760,10 @@ func gatherPodLogs(ctx context.Context,
 	}
 
 	for _, pod := range pods.Items {
+		err = runKubectlCommand(tw, cmd, rootDir+"/describe/"+"pods/"+pod.GetName(), "describe", "pods", pod.GetName(), "-n", namespace)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe pods: %s", err))
+		}
 		containers := pod.Spec.Containers
 		containers = append(containers, pod.Spec.InitContainers...)
 		for _, container := range containers {
