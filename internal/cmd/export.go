@@ -27,6 +27,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
+	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -341,6 +342,11 @@ Collecting PGO CLI logs...
 			return err
 		}
 
+		apiExtensionClientSet, err := apiextensionsclientset.NewForConfig(restConfig)
+		if err != nil {
+			return err
+		}
+
 		discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
 		if err != nil {
 			return err
@@ -454,6 +460,12 @@ Collecting PGO CLI logs...
 			clusterName, otherNamespacedResources, otherListOpts, tw, cmd)
 		if err != nil {
 			writeInfo(cmd, fmt.Sprintf("Error gathering Namespaced API Resources: %s", err))
+		}
+
+		// Gather CRDs
+		err = gatherCrds(ctx, apiExtensionClientSet, clusterName, tw, cmd)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error gathering CRDs: %s", err))
 		}
 
 		// Gather Events
@@ -592,30 +604,6 @@ Collecting PGO CLI logs...
 		err = runKubectlCommand(tw, cmd, clusterName+"/describe/postgrescluster", "describe", "postgrescluster", clusterName, "-n", namespace)
 		if err != nil {
 			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe postgrescluster: %s", err))
-		}
-
-		writeInfo(cmd, "Running kubectl describe crd crunchybridgeclusters...")
-		err = runKubectlCommand(tw, cmd, clusterName+"/describe/crds/crunchybridgeclusters", "describe", "crds", "crunchybridgeclusters")
-		if err != nil {
-			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe crd crunchybridgeclusters: %s", err))
-		}
-
-		writeInfo(cmd, "Running kubectl describe crd pgadmins...")
-		err = runKubectlCommand(tw, cmd, clusterName+"/describe/crds/pgadmins", "describe", "crds", "pgadmins")
-		if err != nil {
-			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe crd pgadmins: %s", err))
-		}
-
-		writeInfo(cmd, "Running kubectl describe crd pgupgrades...")
-		err = runKubectlCommand(tw, cmd, clusterName+"/describe/crds/pgupgrades", "describe", "crds", "pgupgrades")
-		if err != nil {
-			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe crd pgupgrades: %s", err))
-		}
-
-		writeInfo(cmd, "Running kubectl describe crd postgresclusters...")
-		err = runKubectlCommand(tw, cmd, clusterName+"/describe/crds/postgresclusters", "describe", "crds", "postgresclusters")
-		if err != nil {
-			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe crd postgresclusters: %s", err))
 		}
 
 		writeInfo(cmd, "Running kubectl describe clusterrole...")
@@ -1037,6 +1025,63 @@ func gatherNamespacedAPIResources(ctx context.Context,
 		}
 	}
 	return nil
+}
+
+// gatherCrds gathers all the CRDs with a name=pgo label
+func gatherCrds(ctx context.Context,
+	clientset *apiextensionsclientset.Clientset,
+	clusterName string,
+	tw *tar.Writer,
+	cmd *cobra.Command,
+) error {
+	writeInfo(cmd, "Collecting events...")
+	// list, err := clientset.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{})
+
+	labelSelector := "app.kubernetes.io/name=pgo"
+	crds, err := clientset.ApiextensionsV1().CustomResourceDefinitions().List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
+
+	if err != nil {
+		if apierrors.IsForbidden(err) {
+			writeInfo(cmd, err.Error())
+			return nil
+		}
+		return err
+	}
+
+	if len(crds.Items) == 0 {
+		// If we didn't find any resources, skip
+		writeInfo(cmd, fmt.Sprintf("Resource CRDs not found, skipping"))
+		return nil
+	}
+
+	// Create a buffer to generate string with the table formatted list
+	var buf bytes.Buffer
+	if err := printers.NewTablePrinter(printers.PrintOptions{}).
+		PrintObj(crds, &buf); err != nil {
+		return err
+	}
+
+	// Define the file name/path where the list file will be created and
+	// write to the tar
+	path := clusterName + "/" + "crds" + "/list"
+	if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
+		return err
+	}
+
+	for _, obj := range crds.Items {
+		b, err := yaml.Marshal(obj)
+		if err != nil {
+			return err
+		}
+
+		path := clusterName + "/" + "crds" + "/" + obj.GetName() + ".yaml"
+		if err := writeTar(tw, b, path, cmd); err != nil {
+			return err
+		}
+	}
+
+	return nil
+
 }
 
 // gatherEvents gathers all events from a namespace, selects information (based on
