@@ -588,12 +588,6 @@ Collecting PGO CLI logs...
 			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe nodes: %s", err))
 		}
 
-		writeInfo(cmd, "Running kubectl cluster-info dump...")
-		err = runKubectlCommand(tw, cmd, clusterName+"/describe/cluster-info.json", "cluster-info", "dump")
-		if err != nil {
-			writeInfo(cmd, fmt.Sprintf("Error running kubectl cluster-info dump: %s", err))
-		}
-
 		writeInfo(cmd, "Running kubectl describe postgrescluster...")
 		err = runKubectlCommand(tw, cmd, clusterName+"/describe/postgrescluster", "describe", "postgrescluster", clusterName, "-n", namespace)
 		if err != nil {
