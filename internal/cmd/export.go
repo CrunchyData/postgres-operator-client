@@ -624,10 +624,9 @@ Collecting PGO CLI logs...
 			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe lease: %s", err))
 		}
 
-		writeInfo(cmd, "Running kubectl describe pgadmin...")
-		err = runKubectlCommand(tw, cmd, "pgadmin/describe/pgadmin", "describe", "pgadmin", "-n", namespace)
+		err = gatherPgadminResources(config, clientset, ctx, namespace, tw, cmd)
 		if err != nil {
-			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe pgadmin: %s", err))
+			writeInfo(cmd, fmt.Sprintf("Error gathering PGAdmin Resources: %s", err))
 		}
 
 		// Print cli output
@@ -645,6 +644,74 @@ Collecting PGO CLI logs...
 	}
 
 	return cmd
+}
+
+func gatherPgadminResources(config *internal.Config,
+	clientset *kubernetes.Clientset,
+	ctx context.Context,
+	namespace string,
+	tw *tar.Writer, cmd *cobra.Command) error {
+
+	_, pgadminClient, err := v1beta1.NewPgadminClient(config)
+
+	if err != nil {
+		return err
+	}
+
+	pgadmins, err := pgadminClient.Namespace(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		if apierrors.IsForbidden(err) {
+			writeInfo(cmd, err.Error())
+			return nil
+		}
+		return err
+	}
+
+	if len(pgadmins.Items) == 0 {
+		// If we didn't find any resources, skip
+		writeInfo(cmd, "Resource PGAdmin not found, skipping")
+		return nil
+	}
+
+	// Create a buffer to generate string with the table formatted list
+	var buf bytes.Buffer
+	if err := printers.NewTablePrinter(printers.PrintOptions{}).
+		PrintObj(pgadmins, &buf); err != nil {
+		return err
+	}
+
+	// Define the file name/path where the list file will be created and
+	// write to the tar
+	path := "pgadmin" + "/list"
+	if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
+		return err
+	}
+
+	for _, obj := range pgadmins.Items {
+		b, err := yaml.Marshal(obj)
+		if err != nil {
+			return err
+		}
+
+		path := "pgadmin" + "/" + obj.GetName() + ".yaml"
+		if err := writeTar(tw, b, path, cmd); err != nil {
+			return err
+		}
+
+		writeInfo(cmd, "Collecting PGAdmin pod logs...")
+		err = gatherPodLogs(ctx, clientset, namespace, fmt.Sprintf("%s=%s", util.LabelPgadmin, obj.GetName()), "pgadmin", tw, cmd)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error gathering PGAdmin pod logs: %s", err))
+		}
+
+		writeInfo(cmd, "Running kubectl describe pgadmin")
+		err = runKubectlCommand(tw, cmd, "pgadmin/describe/"+obj.GetName(), "describe", "pgadmin", obj.GetName(), "-n", namespace)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe pgadmin: %s", err))
+		}
+	}
+
+	return nil
 }
 
 func gatherPluginList(clusterName string, tw *tar.Writer, cmd *cobra.Command) error {
