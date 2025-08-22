@@ -1050,7 +1050,7 @@ func gatherCrds(ctx context.Context,
 
 	if len(crds.Items) == 0 {
 		// If we didn't find any resources, skip
-		writeInfo(cmd, fmt.Sprintf("Resource CRDs not found, skipping"))
+		writeInfo(cmd, "Resource CRDs not found, skipping")
 		return nil
 	}
 
