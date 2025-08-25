@@ -609,11 +609,22 @@ Collecting PGO CLI logs...
 		writeInfo(cmd, "Running kubectl describe clusterrole...")
 		err = runKubectlCommand(tw, cmd, clusterName+"/describe/clusterrole", "describe", "clusterrole", "postgres-operator")
 		if err != nil {
+			writeInfo(cmd, "Could not find clusterrole 'postgres-operator'. Looking for 'postgresoperator'...")
+			writeInfo(cmd, "Running kubectl describe clusterrole...")
+			err = runKubectlCommand(tw, cmd, clusterName+"/describe/clusterrole", "describe", "clusterrole", "postgresoperator")
+		}
+
+		if err != nil {
 			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe clusterrole: %s", err))
 		}
 
 		writeInfo(cmd, "Running kubectl describe clusterrolebinding...")
 		err = runKubectlCommand(tw, cmd, clusterName+"/describe/clusterrolebinding", "describe", "clusterrolebinding", "postgres-operator")
+		if err != nil {
+			writeInfo(cmd, "Could not find clusterrolebinding 'postgres-operator'. Looking for 'postgresoperator'...")
+			writeInfo(cmd, "Running kubectl describe clusterrole...")
+			err = runKubectlCommand(tw, cmd, clusterName+"/describe/clusterrolebinding", "describe", "clusterrolebinding", "postgresoperator")
+		}
 		if err != nil {
 			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe clusterrolebinding: %s", err))
 		}
@@ -769,6 +780,7 @@ func runKubectlCommand(tw *tar.Writer, cmd *cobra.Command, path string, cmdArgs 
 There was an error running the command. Verify permissions and that the resource exists.`)...)
 
 		writeInfo(cmd, fmt.Sprintf("Error: '%s'", msg))
+		return err
 	}
 
 	if err := writeTar(tw, msg, path, cmd); err != nil {
@@ -1101,7 +1113,7 @@ func gatherCrds(ctx context.Context,
 	tw *tar.Writer,
 	cmd *cobra.Command,
 ) error {
-	writeInfo(cmd, "Collecting events...")
+	writeInfo(cmd, "Collecting CRDs...")
 	// list, err := clientset.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{})
 
 	labelSelector := "app.kubernetes.io/name=pgo"
