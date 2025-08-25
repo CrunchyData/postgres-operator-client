@@ -27,6 +27,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -1121,10 +1122,8 @@ func gatherCrds(ctx context.Context,
 	cmd *cobra.Command,
 ) error {
 	writeInfo(cmd, "Collecting CRDs...")
-	// list, err := clientset.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{})
 
-	labelSelector := "app.kubernetes.io/name=pgo"
-	crds, err := clientset.ApiextensionsV1().CustomResourceDefinitions().List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
+	crdList, err := clientset.ApiextensionsV1().CustomResourceDefinitions().List(ctx, metav1.ListOptions{})
 
 	if err != nil {
 		if apierrors.IsForbidden(err) {
@@ -1134,7 +1133,19 @@ func gatherCrds(ctx context.Context,
 		return err
 	}
 
-	if len(crds.Items) == 0 {
+	// Get only the CRDs matching our filter
+	nameFilter := "postgres-operator.crunchydata.com"
+
+	filteredCRDs := &apiextensionsv1.CustomResourceDefinitionList{
+		Items: []apiextensionsv1.CustomResourceDefinition{},
+	}
+	for _, crd := range crdList.Items {
+		if strings.Contains(crd.Name, nameFilter) {
+			filteredCRDs.Items = append(filteredCRDs.Items, crd)
+		}
+	}
+
+	if len(filteredCRDs.Items) == 0 {
 		// If we didn't find any resources, skip
 		writeInfo(cmd, "Resource CRDs not found, skipping")
 		return nil
@@ -1143,7 +1154,7 @@ func gatherCrds(ctx context.Context,
 	// Create a buffer to generate string with the table formatted list
 	var buf bytes.Buffer
 	if err := printers.NewTablePrinter(printers.PrintOptions{}).
-		PrintObj(crds, &buf); err != nil {
+		PrintObj(filteredCRDs, &buf); err != nil {
 		return err
 	}
 
@@ -1154,7 +1165,7 @@ func gatherCrds(ctx context.Context,
 		return err
 	}
 
-	for _, obj := range crds.Items {
+	for _, obj := range filteredCRDs.Items {
 		b, err := yaml.Marshal(obj)
 		if err != nil {
 			return err
