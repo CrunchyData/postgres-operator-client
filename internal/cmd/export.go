@@ -606,27 +606,34 @@ Collecting PGO CLI logs...
 			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe postgrescluster: %s", err))
 		}
 
+		// Resource name is generally 'postgres-operator' but in some environments
+		// like Openshift it could be 'postgresoperator'
 		writeInfo(cmd, "Running kubectl describe clusterrole...")
 		err = runKubectlCommand(tw, cmd, clusterName+"/describe/clusterrole", "describe", "clusterrole", "postgres-operator")
 		if err != nil {
-			writeInfo(cmd, "Could not find clusterrole 'postgres-operator'. Looking for 'postgresoperator'...")
-			writeInfo(cmd, "Running kubectl describe clusterrole...")
-			err = runKubectlCommand(tw, cmd, clusterName+"/describe/clusterrole", "describe", "clusterrole", "postgresoperator")
-		}
-
-		if err != nil {
 			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe clusterrole: %s", err))
+			writeInfo(cmd, "Could not find clusterrole 'postgres-operator'. Looking for 'postgresoperator'...")
+
+			// Check for the alternative spelling with 'postgresoperator'
+			err = runKubectlCommand(tw, cmd, clusterName+"/describe/clusterrole", "describe", "clusterrole", "postgresoperator")
+			if err != nil {
+				writeInfo(cmd, fmt.Sprintf("Error running kubectl describe clusterrole: %s", err))
+			}
 		}
 
+		// Resource name is generally 'postgres-operator' but in some environments
+		// like Openshift it could be 'postgresoperator'
 		writeInfo(cmd, "Running kubectl describe clusterrolebinding...")
 		err = runKubectlCommand(tw, cmd, clusterName+"/describe/clusterrolebinding", "describe", "clusterrolebinding", "postgres-operator")
 		if err != nil {
-			writeInfo(cmd, "Could not find clusterrolebinding 'postgres-operator'. Looking for 'postgresoperator'...")
-			writeInfo(cmd, "Running kubectl describe clusterrole...")
-			err = runKubectlCommand(tw, cmd, clusterName+"/describe/clusterrolebinding", "describe", "clusterrolebinding", "postgresoperator")
-		}
-		if err != nil {
 			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe clusterrolebinding: %s", err))
+
+			// Check for the alternative spelling with 'postgresoperator'
+			writeInfo(cmd, "Could not find clusterrolebinding 'postgres-operator'. Looking for 'postgresoperator'...")
+			err = runKubectlCommand(tw, cmd, clusterName+"/describe/clusterrolebinding", "describe", "clusterrolebinding", "postgresoperator")
+			if err != nil {
+				writeInfo(cmd, fmt.Sprintf("Error running kubectl describe clusterrolebinding: %s", err))
+			}
 		}
 
 		writeInfo(cmd, "Running kubectl describe lease...")
