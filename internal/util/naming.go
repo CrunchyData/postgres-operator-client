@@ -13,6 +13,9 @@ const (
 	// LabelCluster is used to label PostgresCluster objects.
 	LabelCluster = labelPrefix + "cluster"
 
+	// LabelPgadmin is used to label PGAdmin objects.
+	LabelPgadmin = labelPrefix + "pgadmin"
+
 	// LabelData is used to identify Pods and Volumes store Postgres data.
 	LabelData = labelPrefix + "data"
 

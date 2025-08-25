@@ -27,6 +27,8 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -341,6 +343,11 @@ Collecting PGO CLI logs...
 			return err
 		}
 
+		apiExtensionClientSet, err := apiextensionsclientset.NewForConfig(restConfig)
+		if err != nil {
+			return err
+		}
+
 		discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
 		if err != nil {
 			return err
@@ -454,6 +461,12 @@ Collecting PGO CLI logs...
 			clusterName, otherNamespacedResources, otherListOpts, tw, cmd)
 		if err != nil {
 			writeInfo(cmd, fmt.Sprintf("Error gathering Namespaced API Resources: %s", err))
+		}
+
+		// Gather CRDs
+		err = gatherCrds(ctx, apiExtensionClientSet, clusterName, tw, cmd)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error gathering CRDs: %s", err))
 		}
 
 		// Gather Events
@@ -581,6 +594,60 @@ Collecting PGO CLI logs...
 			writeInfo(cmd, fmt.Sprintf("There is no PGUpgrade object associated with cluster '%s'", clusterName))
 		}
 
+		// Run kubectl describe and similar commands
+		writeInfo(cmd, "Running kubectl describe nodes...")
+		err = runKubectlCommand(tw, cmd, clusterName+"/describe/nodes", "describe", "nodes")
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe nodes: %s", err))
+		}
+
+		writeInfo(cmd, "Running kubectl describe postgrescluster...")
+		err = runKubectlCommand(tw, cmd, clusterName+"/describe/postgrescluster", "describe", "postgrescluster", clusterName, "-n", namespace)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe postgrescluster: %s", err))
+		}
+
+		// Resource name is generally 'postgres-operator' but in some environments
+		// like Openshift it could be 'postgresoperator'
+		writeInfo(cmd, "Running kubectl describe clusterrole...")
+		err = runKubectlCommand(tw, cmd, clusterName+"/describe/clusterrole", "describe", "clusterrole", "postgres-operator")
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe clusterrole: %s", err))
+			writeInfo(cmd, "Could not find clusterrole 'postgres-operator'. Looking for 'postgresoperator'...")
+
+			// Check for the alternative spelling with 'postgresoperator'
+			err = runKubectlCommand(tw, cmd, clusterName+"/describe/clusterrole", "describe", "clusterrole", "postgresoperator")
+			if err != nil {
+				writeInfo(cmd, fmt.Sprintf("Error running kubectl describe clusterrole: %s", err))
+			}
+		}
+
+		// Resource name is generally 'postgres-operator' but in some environments
+		// like Openshift it could be 'postgresoperator'
+		writeInfo(cmd, "Running kubectl describe clusterrolebinding...")
+		err = runKubectlCommand(tw, cmd, clusterName+"/describe/clusterrolebinding", "describe", "clusterrolebinding", "postgres-operator")
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe clusterrolebinding: %s", err))
+
+			// Check for the alternative spelling with 'postgresoperator'
+			writeInfo(cmd, "Could not find clusterrolebinding 'postgres-operator'. Looking for 'postgresoperator'...")
+			err = runKubectlCommand(tw, cmd, clusterName+"/describe/clusterrolebinding", "describe", "clusterrolebinding", "postgresoperator")
+			if err != nil {
+				writeInfo(cmd, fmt.Sprintf("Error running kubectl describe clusterrolebinding: %s", err))
+			}
+		}
+
+		writeInfo(cmd, "Running kubectl describe lease...")
+		err = runKubectlCommand(tw, cmd, "operator/describe/lease", "describe", "lease", "-n", operatorNamespace)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe lease: %s", err))
+		}
+
+		err = gatherPgadminResources(config, clientset, ctx, namespace, tw, cmd)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error gathering PGAdmin Resources: %s", err))
+		}
+
 		// Print cli output
 		writeInfo(cmd, "Collecting PGO CLI logs...")
 		path := clusterName + "/cli.log"
@@ -596,6 +663,74 @@ Collecting PGO CLI logs...
 	}
 
 	return cmd
+}
+
+func gatherPgadminResources(config *internal.Config,
+	clientset *kubernetes.Clientset,
+	ctx context.Context,
+	namespace string,
+	tw *tar.Writer, cmd *cobra.Command) error {
+
+	_, pgadminClient, err := v1beta1.NewPgadminClient(config)
+
+	if err != nil {
+		return err
+	}
+
+	pgadmins, err := pgadminClient.Namespace(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		if apierrors.IsForbidden(err) {
+			writeInfo(cmd, err.Error())
+			return nil
+		}
+		return err
+	}
+
+	if len(pgadmins.Items) == 0 {
+		// If we didn't find any resources, skip
+		writeInfo(cmd, "Resource PGAdmin not found, skipping")
+		return nil
+	}
+
+	// Create a buffer to generate string with the table formatted list
+	var buf bytes.Buffer
+	if err := printers.NewTablePrinter(printers.PrintOptions{}).
+		PrintObj(pgadmins, &buf); err != nil {
+		return err
+	}
+
+	// Define the file name/path where the list file will be created and
+	// write to the tar
+	path := "pgadmin" + "/list"
+	if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
+		return err
+	}
+
+	for _, obj := range pgadmins.Items {
+		b, err := yaml.Marshal(obj)
+		if err != nil {
+			return err
+		}
+
+		path := "pgadmin" + "/" + obj.GetName() + ".yaml"
+		if err := writeTar(tw, b, path, cmd); err != nil {
+			return err
+		}
+
+		writeInfo(cmd, "Collecting PGAdmin pod logs...")
+		err = gatherPodLogs(ctx, clientset, namespace, fmt.Sprintf("%s=%s", util.LabelPgadmin, obj.GetName()), "pgadmin", tw, cmd)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error gathering PGAdmin pod logs: %s", err))
+		}
+
+		writeInfo(cmd, "Running kubectl describe pgadmin")
+		err = runKubectlCommand(tw, cmd, "pgadmin/describe/"+obj.GetName(), "describe", "pgadmin", obj.GetName(), "-n", namespace)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe pgadmin: %s", err))
+		}
+	}
+
+	return nil
 }
 
 func gatherPluginList(clusterName string, tw *tar.Writer, cmd *cobra.Command) error {
@@ -633,6 +768,29 @@ There was an error running 'kubectl get pgupgrade'. Verify permissions and that 
 	}
 
 	path := clusterName + "/pgupgrade.yaml"
+	if err := writeTar(tw, msg, path, cmd); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func runKubectlCommand(tw *tar.Writer, cmd *cobra.Command, path string, cmdArgs ...string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel() // Ensure the context is canceled to avoid leaks
+
+	ex := exec.CommandContext(ctx, "kubectl", cmdArgs...)
+	msg, err := ex.Output()
+
+	if err != nil {
+		msg = append(msg, err.Error()...)
+		msg = append(msg, []byte(`
+There was an error running the command. Verify permissions and that the resource exists.`)...)
+
+		writeInfo(cmd, fmt.Sprintf("Error: '%s'", msg))
+		return err
+	}
+
 	if err := writeTar(tw, msg, path, cmd); err != nil {
 		return err
 	}
@@ -956,6 +1114,73 @@ func gatherNamespacedAPIResources(ctx context.Context,
 	return nil
 }
 
+// gatherCrds gathers all the CRDs with a name=pgo label
+func gatherCrds(ctx context.Context,
+	clientset *apiextensionsclientset.Clientset,
+	clusterName string,
+	tw *tar.Writer,
+	cmd *cobra.Command,
+) error {
+	writeInfo(cmd, "Collecting CRDs...")
+
+	crdList, err := clientset.ApiextensionsV1().CustomResourceDefinitions().List(ctx, metav1.ListOptions{})
+
+	if err != nil {
+		if apierrors.IsForbidden(err) {
+			writeInfo(cmd, err.Error())
+			return nil
+		}
+		return err
+	}
+
+	// Get only the CRDs matching our filter
+	nameFilter := "postgres-operator.crunchydata.com"
+
+	filteredCRDs := &apiextensionsv1.CustomResourceDefinitionList{
+		Items: []apiextensionsv1.CustomResourceDefinition{},
+	}
+	for _, crd := range crdList.Items {
+		if strings.Contains(crd.Name, nameFilter) {
+			filteredCRDs.Items = append(filteredCRDs.Items, crd)
+		}
+	}
+
+	if len(filteredCRDs.Items) == 0 {
+		// If we didn't find any resources, skip
+		writeInfo(cmd, "Resource CRDs not found, skipping")
+		return nil
+	}
+
+	// Create a buffer to generate string with the table formatted list
+	var buf bytes.Buffer
+	if err := printers.NewTablePrinter(printers.PrintOptions{}).
+		PrintObj(filteredCRDs, &buf); err != nil {
+		return err
+	}
+
+	// Define the file name/path where the list file will be created and
+	// write to the tar
+	path := clusterName + "/" + "crds" + "/list"
+	if err := writeTar(tw, buf.Bytes(), path, cmd); err != nil {
+		return err
+	}
+
+	for _, obj := range filteredCRDs.Items {
+		b, err := yaml.Marshal(obj)
+		if err != nil {
+			return err
+		}
+
+		path := clusterName + "/" + "crds" + "/" + obj.GetName() + ".yaml"
+		if err := writeTar(tw, b, path, cmd); err != nil {
+			return err
+		}
+	}
+
+	return nil
+
+}
+
 // gatherEvents gathers all events from a namespace, selects information (based on
 // what kubectl outputs), formats the data then prints to the tar file
 func gatherEvents(ctx context.Context,
@@ -1229,8 +1454,9 @@ func gatherPostgresLogsAndConfigs(ctx context.Context,
 		commands := []Command{
 			{path: "pg_controldata", description: "pg_controldata"},
 			{path: "df -h /pgdata", description: "disk free"},
-			{path: "du -h /pgdata", description: "disk usage"},
+			{path: "du -h /pgdata | column -t -o \"     \"", description: "disk usage"},
 			{path: "ls /pgdata/*/archive_status/*.ready | wc -l", description: "Archive Ready File Count"},
+			{path: "psql -P format=wrapped -P columns=180 -c \"select name,setting,source,sourcefile,sourceline FROM pg_settings order by 1\"", description: "PG Settings"},
 		}
 
 		var buf bytes.Buffer
@@ -1670,6 +1896,10 @@ func gatherPodLogs(ctx context.Context,
 	}
 
 	for _, pod := range pods.Items {
+		err = runKubectlCommand(tw, cmd, rootDir+"/describe/"+"pods/"+pod.GetName(), "describe", "pods", pod.GetName(), "-n", namespace)
+		if err != nil {
+			writeInfo(cmd, fmt.Sprintf("Error running kubectl describe pods: %s", err))
+		}
 		containers := pod.Spec.Containers
 		containers = append(containers, pod.Spec.InitContainers...)
 		for _, container := range containers {
