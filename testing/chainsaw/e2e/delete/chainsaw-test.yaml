@@ -1,0 +1,83 @@
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: chainsaw-delete-cluster-no
+spec:
+  bindings:
+  - name: cluster
+    value: chainsaw-delete-cluster-no
+  - name: postgresVersion
+    value: (to_string($values.versions.postgres))
+
+  steps:
+
+  - name: 'Create Cluster with PGO CLI'
+    use:
+      template: '../templates/create-cluster.yaml'
+
+  - name: run 'delete cluster' with confirm 'n'
+    try:
+    - command:
+        env:
+          - name: "NAMESPACE"
+            value: ($namespace)
+          - name: "CLUSTER"
+            value: ($cluster)
+        entrypoint: "sh"
+        args:
+        - "-c"
+        - "echo 'n' | kubectl pgo delete postgrescluster $CLUSTER --namespace=$NAMESPACE"
+        timeout: 10s
+
+  - name: confirm cluster did not delete
+    try:
+    - assert:
+        timeout: 30s
+        resource:
+          apiVersion: postgres-operator.crunchydata.com/v1beta1
+          kind: PostgresCluster
+          metadata:
+            name: ($cluster)
+            namespace: ($namespace)
+---
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: chainsaw-delete-cluster-yes
+spec:
+  bindings:
+  - name: cluster
+    value: chainsaw-delete-cluster-yes
+  - name: postgresVersion
+    value: (to_string($values.versions.postgres))
+
+  steps:
+
+  - name: 'Create Cluster with PGO CLI'
+    use:
+      template: '../templates/create-cluster.yaml'
+
+  - name: run 'delete cluster' with confirm 'y'
+    try:
+    - command:
+        env:
+          - name: "NAMESPACE"
+            value: ($namespace)
+          - name: "CLUSTER"
+            value: ($cluster)
+        entrypoint: "sh"
+        args:
+        - "-c"
+        - "echo 'y' | kubectl pgo delete postgrescluster $CLUSTER --namespace=$NAMESPACE"
+        timeout: 10s
+
+  - name: confirm cluster deleted
+    try:
+    - error:
+        timeout: 30s
+        resource:
+          apiVersion: postgres-operator.crunchydata.com/v1beta1
+          kind: PostgresCluster
+          metadata:
+            name: ($cluster)
+            namespace: ($namespace)
