@@ -1,0 +1,49 @@
+
+# Kyverno Policies
+
+## Install Kyverno
+
+
+Each 1.x version of Kyverno supports a range of Kubernetes version. Consult the
+chart for appropriate versions for your test.
+
+The latest is v1.15 and is not included in the website documentation.
+
+
+| Kyverno Version | Kubernetes Min | Kubernetes Max |
+|-----------------|----------------|----------------|
+| 1.12.x          | 1.26           | 1.29           |
+| 1.13.x          | 1.28           | 1.31           |
+| 1.14.x          | 1.29           | 1.32           |
+
+- https://kyverno.io/docs/installation/#compatibility-matrix
+
+
+```shell
+kubectl create -f https://github.com/kyverno/kyverno/releases/download/v1.15.1/install.yaml
+```
+
+## Image Pull Secret Policies
+
+Execute these commands after Kyverno successfully deploys.
+
+```shell
+kubectl apply -f v1.15.1/00-rbac.yaml
+kubectl apply -f v1.15.1/01-inject-imagepullsecret-to-namespace.yaml
+kubectl apply -f v1.15.1/02-add-imagepullsecrets.yaml
+```
+
+## Create Registry Secrets
+
+```shell
+kubectl create secret docker-registry crunchy-access-portal -n default \
+  --docker-server=registry.crunchydata.com \
+  --docker-username=$CRUNCHY_AP_USERNAME \
+  --docker-email=$CRUNCHY_AP_USERNAME \
+  --docker-password=$CRUNCHY_AP_PWD
+
+kubectl create secret docker-registry crunchy-harbor -n default \
+  --docker-server registry.internal.crunchydata.com \
+  --docker-username=$HARBOR_USER \
+  --docker-password=$HARBOR_PWD
+```

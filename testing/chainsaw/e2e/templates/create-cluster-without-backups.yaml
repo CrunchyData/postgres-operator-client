@@ -1,0 +1,27 @@
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: StepTemplate
+metadata:
+  name: create-cluster-without-backups
+spec:
+  try:
+    -
+      description: >
+        Create a PostgresCluster with the PGO CLI without backups
+      command:
+        env:
+          - name: "NAMESPACE"
+            value: ($namespace)
+          - name: "CLUSTER"
+            value: ($cluster)
+          - name: "PGVERSION"
+            value: ($postgresVersion)
+        entrypoint: "sh"
+        args:
+        - "-c"
+        - "echo yes | kubectl-pgo --namespace $NAMESPACE create postgrescluster --pg-major-version $PGVERSION --disable-backups $CLUSTER"
+        timeout: 10s
+  catch:
+    - describe:
+        apiVersion: v1
+        kind: Pod
+        selector: (concat('postgres-operator.crunchydata.com/cluster=', $cluster))

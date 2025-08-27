@@ -1,0 +1,22 @@
+
+# README
+
+## Install PGO
+
+```shell
+kubectl apply -k kustomize/install/namespace
+kubectl apply --server-side -k kustomize/install/default
+```
+
+## Configure Image Pull Secrets
+
+If your images are not publicly accessible, you will need to configure ImagePullSecrets.
+Kyverno Policies can be used to inject them into the tests for you.
+See [README](./policies/README) for the details.
+
+
+## Run Chainsaw
+
+```shell
+chainsaw test --config ./e2e/config.yaml --values ./e2e/values.yaml --test-dir e2e
+```

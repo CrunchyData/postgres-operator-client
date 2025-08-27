@@ -1,0 +1,621 @@
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: check-replica-create-backup
+spec:
+  bindings:
+    - name: cluster
+      value: check-replica-create-backup
+
+    - name: postgresVersion
+      value: (to_string($values.versions.postgres))
+
+    - name: backupSelector
+      value: (join(',', [
+                'postgres-operator.crunchydata.com/cluster=CLUSTER',
+                'postgres-operator.crunchydata.com/pgbackrest-backup=BACKUP_TYPE',
+                'postgres-operator.crunchydata.com/pgbackrest-repo=repo1'
+              ]))
+
+  steps:
+
+    - name: 'Create Cluster with PGO CLI'
+      use:
+        template: '../templates/create-cluster-from-manifest.yaml'
+
+    - name: 'Confirm cluster is created'
+      use:
+        template: '../templates/confirm-created.yaml'
+
+    - name: 'Confirm Replica backup completed'
+      use:
+        template: '../templates/replica-backup-complete.yaml'
+
+
+    - name: Verify COMMAND_OPTS matches "--stanza=db --repo=1"
+      bindings:
+        - name: selector
+          value: (replace_all(
+            (replace_all($backupSelector, 'CLUSTER', ($cluster))),
+            'BACKUP_TYPE', 'replica-create'))
+      try:
+        - sleep:
+            duration: 10s
+        - command:
+            env:
+              - name: "NAMESPACE"
+                value: ($namespace)
+              - name: "CLUSTER"
+                value: ($cluster)
+              - name: "SELECTOR"
+                value: ($selector)
+            entrypoint: kubectl
+            args:
+            - get
+            - pod
+            - -n
+            - $NAMESPACE
+            - -l
+            - $SELECTOR
+            - -o
+            - jsonpath="{.items[*].spec.containers[*].env[?(@.name=='COMMAND_OPTS')].value}"
+            check:
+              ($stdout): '"--stanza=db --repo=1"'
+---
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: check-backup-command
+spec:
+  bindings:
+    - name: cluster
+      value: check-backup-command
+
+    - name: postgresVersion
+      value: (to_string($values.versions.postgres))
+
+    - name: backupSelector
+      value: (join(',', [
+                'postgres-operator.crunchydata.com/cluster=CLUSTER',
+                'postgres-operator.crunchydata.com/pgbackrest-backup=BACKUP_TYPE',
+                'postgres-operator.crunchydata.com/pgbackrest-repo=repo1'
+              ]))
+
+  steps:
+
+    - name: 'Create Cluster with PGO CLI'
+      use:
+        template: '../templates/create-cluster-from-manifest.yaml'
+
+    - name: 'Confirm cluster is created'
+      use:
+        template: '../templates/confirm-created.yaml'
+
+    - name: 'Confirm Replica backup completed'
+      use:
+        template: '../templates/replica-backup-complete.yaml'
+
+    - name: Trigger a CLI backup with --options="--type=full"
+      try:
+        - command:
+            env:
+              - name: "NAMESPACE"
+                value: ($namespace)
+              - name: "CLUSTER"
+                value: ($cluster)
+            entrypoint: kubectl-pgo
+            args:
+            - -n
+            - $NAMESPACE
+            - backup
+            - $CLUSTER
+            - --repoName
+            - repo1
+            - --options
+            - --type=full
+        - sleep:
+            duration: 10s
+
+    - name: Verify COMMAND_OPTS matches "--stanza=db --repo=1 --type=full"
+      bindings:
+        - name: selector
+          value: (replace_all(
+            (replace_all($backupSelector, 'CLUSTER', ($cluster))),
+            'BACKUP_TYPE', 'manual'))
+      try:
+        - sleep:
+            duration: 10s
+        - command:
+            env:
+              - name: "NAMESPACE"
+                value: ($namespace)
+              - name: "CLUSTER"
+                value: ($cluster)
+              - name: "SELECTOR"
+                value: ($selector)
+            entrypoint: kubectl
+            args:
+            - get
+            - pod
+            - -n
+            - $NAMESPACE
+            - -l
+            - $SELECTOR
+            - -o
+            - jsonpath="{.items[*].spec.containers[*].env[?(@.name=='COMMAND_OPTS')].value}"
+            check:
+              ($stdout): '"--stanza=db --repo=1 --type=full"'
+
+    - name: Wait for CLI backup to succeed"
+      bindings:
+        - name: selector
+          value: (replace_all(
+            (replace_all($backupSelector, 'CLUSTER', ($cluster))),
+            'BACKUP_TYPE', 'manual'))
+      try:
+      - wait:
+          apiVersion: v1
+          kind: Pod
+          selector: ($selector)
+          timeout: 300s
+          for:
+            jsonPath:
+              path: '{.status.phase}'
+              value: 'Succeeded'
+---
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: check-backup-command-longer-options
+spec:
+  bindings:
+    - name: cluster
+      value: check-backup-command-longer-options
+
+    - name: postgresVersion
+      value: (to_string($values.versions.postgres))
+
+    - name: backupSelector
+      value: (join(',', [
+                'postgres-operator.crunchydata.com/cluster=CLUSTER',
+                'postgres-operator.crunchydata.com/pgbackrest-backup=BACKUP_TYPE',
+                'postgres-operator.crunchydata.com/pgbackrest-repo=repo1'
+              ]))
+
+  steps:
+
+    - name: 'Create Cluster with PGO CLI'
+      use:
+        template: '../templates/create-cluster-from-manifest.yaml'
+
+    - name: 'Confirm cluster is created'
+      use:
+        template: '../templates/confirm-created.yaml'
+
+    - name: 'Confirm Replica backup completed'
+      use:
+        template: '../templates/replica-backup-complete.yaml'
+
+    - name: Trigger a backup through CLI with longer options
+      try:
+        - command:
+            env:
+              - name: "NAMESPACE"
+                value: ($namespace)
+              - name: "CLUSTER"
+                value: ($cluster)
+            entrypoint: kubectl-pgo
+            args:
+            - -n
+            - $NAMESPACE
+            - backup
+            - $CLUSTER
+            - --repoName
+            - repo1
+            - --options
+            - --type=full --start-fast=n
+        - sleep:
+            duration: 10s
+
+    - name: Verify COMMAND_OPTS matches "--stanza=db --repo=1 --type=full --start-fast=n"
+      bindings:
+        - name: selector
+          value: (replace_all(
+            (replace_all($backupSelector, 'CLUSTER', ($cluster))),
+            'BACKUP_TYPE', 'manual'))
+      try:
+        - sleep:
+            duration: 10s
+        - command:
+            env:
+              - name: "NAMESPACE"
+                value: ($namespace)
+              - name: "CLUSTER"
+                value: ($cluster)
+              - name: "SELECTOR"
+                value: ($selector)
+            entrypoint: kubectl
+            args:
+            - get
+            - pod
+            - -n
+            - $NAMESPACE
+            - -l
+            - $SELECTOR
+            - -o
+            - jsonpath="{.items[*].spec.containers[*].env[?(@.name=='COMMAND_OPTS')].value}"
+            check:
+              ($stdout): '"--stanza=db --repo=1 --type=full --start-fast=n"'
+
+    - name: Wait for CLI backup to succeed"
+      bindings:
+        - name: selector
+          value: (replace_all(
+            (replace_all($backupSelector, 'CLUSTER', ($cluster))),
+            'BACKUP_TYPE', 'manual'))
+      try:
+      - wait:
+          apiVersion: v1
+          kind: Pod
+          selector: ($selector)
+          timeout: 300s
+          for:
+            jsonPath:
+              path: '{.status.phase}'
+              value: 'Succeeded'
+---
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: check-backup-command-multiple-flags
+spec:
+  bindings:
+    - name: cluster
+      value: check-backup-command-multiple-flags
+
+    - name: postgresVersion
+      value: (to_string($values.versions.postgres))
+
+    - name: backupSelector
+      value: (join(',', [
+                'postgres-operator.crunchydata.com/cluster=CLUSTER',
+                'postgres-operator.crunchydata.com/pgbackrest-backup=BACKUP_TYPE',
+                'postgres-operator.crunchydata.com/pgbackrest-repo=repo1'
+              ]))
+
+  steps:
+
+    - name: 'Create Cluster with PGO CLI'
+      use:
+        template: '../templates/create-cluster-from-manifest.yaml'
+
+    - name: 'Confirm cluster is created'
+      use:
+        template: '../templates/confirm-created.yaml'
+
+    - name: 'Confirm Replica backup completed'
+      use:
+        template: '../templates/replica-backup-complete.yaml'
+
+    - name: Trigger a backup through CLI with multiple flags
+      try:
+        - command:
+            env:
+              - name: "NAMESPACE"
+                value: ($namespace)
+              - name: "CLUSTER"
+                value: ($cluster)
+            entrypoint: kubectl-pgo
+            args:
+            - -n
+            - $NAMESPACE
+            - backup
+            - $CLUSTER
+            - --repoName
+            - repo1
+            - --options
+            - --type=full
+            - --options
+            - --start-fast=n
+        - sleep:
+            duration: 10s
+
+    - name: Verify COMMAND_OPTS matches "--stanza=db --repo=1 --type=full --start-fast=n"
+      bindings:
+        - name: selector
+          value: (replace_all(
+            (replace_all($backupSelector, 'CLUSTER', ($cluster))),
+            'BACKUP_TYPE', 'manual'))
+      try:
+        - sleep:
+            duration: 10s
+        - command:
+            env:
+              - name: "NAMESPACE"
+                value: ($namespace)
+              - name: "CLUSTER"
+                value: ($cluster)
+              - name: "SELECTOR"
+                value: ($selector)
+            entrypoint: kubectl
+            args:
+            - get
+            - pod
+            - -n
+            - $NAMESPACE
+            - -l
+            - $SELECTOR
+            - -o
+            - jsonpath="{.items[*].spec.containers[*].env[?(@.name=='COMMAND_OPTS')].value}"
+            check:
+              ($stdout): '"--stanza=db --repo=1 --type=full --start-fast=n"'
+
+    - name: Wait for CLI backup to succeed"
+      bindings:
+        - name: selector
+          value: (replace_all(
+            (replace_all($backupSelector, 'CLUSTER', ($cluster))),
+            'BACKUP_TYPE', 'manual'))
+      try:
+      - wait:
+          apiVersion: v1
+          kind: Pod
+          selector: ($selector)
+          timeout: 300s
+          for:
+            jsonPath:
+              path: '{.status.phase}'
+              value: 'Succeeded'
+---
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: check-backup-command-no-flags
+spec:
+  bindings:
+    - name: cluster
+      value: check-backup-command-no-flags
+
+    - name: postgresVersion
+      value: (to_string($values.versions.postgres))
+
+    - name: backupSelector
+      value: (join(',', [
+                'postgres-operator.crunchydata.com/cluster=CLUSTER',
+                'postgres-operator.crunchydata.com/pgbackrest-backup=BACKUP_TYPE',
+                'postgres-operator.crunchydata.com/pgbackrest-repo=repo1'
+              ]))
+
+  steps:
+
+    - name: 'Create Cluster with PGO CLI'
+      use:
+        template: '../templates/create-cluster-from-manifest.yaml'
+
+    - name: 'Confirm cluster is created'
+      use:
+        template: '../templates/confirm-created.yaml'
+
+    - name: 'Confirm Replica backup completed'
+      use:
+        template: '../templates/replica-backup-complete.yaml'
+
+    - name: Trigger a backup through CLI with no flags
+      try:
+        - description: Get prior annotation
+          command:
+            outputs:
+              - name: prior_annotation
+                value: ($stdout)
+            env:
+              - name: "NAMESPACE"
+                value: ($namespace)
+              - name: "CLUSTER"
+                value: ($cluster)
+              - name: "GOTEMPLATE"
+                value: go-template={{ if .metadata.annotations }}{{ index .metadata.annotations "postgres-operator.crunchydata.com/pgbackrest-backup" }}{{ else }}not-found{{ end }}
+            entrypoint: kubectl
+            args:
+            - get
+            - postgrescluster
+            - $CLUSTER
+            - -n
+            - $NAMESPACE
+            - --output
+            - '$GOTEMPLATE'
+
+
+        - description: Print Prior Annotation
+          script:
+            env:
+            - name: INPUT
+              value: ($prior_annotation)
+            content: |
+              echo $(date)
+              echo $INPUT
+
+        - description: Start backup with PGO CLI
+          command:
+            env:
+              - name: "NAMESPACE"
+                value: ($namespace)
+              - name: "CLUSTER"
+                value: ($cluster)
+            entrypoint: kubectl-pgo
+            args:
+            - -n
+            - $NAMESPACE
+            - backup
+            - $CLUSTER
+            - --repoName
+            - repo1
+        - sleep:
+            duration: 10s
+
+        - description: Get current annotation
+          command:
+            outputs:
+              - name: current_annotation
+                value: ($stdout)
+            env:
+              - name: "NAMESPACE"
+                value: ($namespace)
+              - name: "CLUSTER"
+                value: ($cluster)
+              - name: "GOTEMPLATE"
+                value: go-template={{ if .metadata.annotations }}{{ index .metadata.annotations "postgres-operator.crunchydata.com/pgbackrest-backup" }}{{ else }}not-found{{ end }}
+            entrypoint: kubectl
+            args:
+            - get
+            - postgrescluster
+            - $CLUSTER
+            - -n
+            - $NAMESPACE
+            - --output
+            - '$GOTEMPLATE'
+
+        - description: Create ConfigMap to compare annotations
+          apply:
+            resource:
+              apiVersion: v1
+              kind: ConfigMap
+              metadata:
+                name: compare-annotations
+              data:
+                key1: ($prior_annotation)
+                key2: ($current_annotation)
+
+        - description: Compare annotations
+          assert:
+            timeout: 30s
+            resource:
+              apiVersion: v1
+              kind: ConfigMap
+              metadata:
+                name: compare-annotations
+              data:
+                (key1 != key2): true
+                (key2 != 'not-found'): true
+
+    - name: Wait for CLI backup to succeed"
+      bindings:
+        - name: selector
+          value: (replace_all(
+            (replace_all($backupSelector, 'CLUSTER', ($cluster))),
+            'BACKUP_TYPE', 'manual'))
+      try:
+      - wait:
+          apiVersion: v1
+          kind: Pod
+          selector: ($selector)
+          timeout: 300s
+          for:
+            jsonPath:
+              path: '{.status.phase}'
+              value: 'Succeeded'
+---
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: check-backup-command-force-conflicts
+spec:
+  bindings:
+    - name: cluster
+      value: check-backup-command-force-conflicts
+
+    - name: postgresVersion
+      value: (to_string($values.versions.postgres))
+
+    - name: backupSelector
+      value: (join(',', [
+                'postgres-operator.crunchydata.com/cluster=CLUSTER',
+                'postgres-operator.crunchydata.com/pgbackrest-backup=BACKUP_TYPE',
+                'postgres-operator.crunchydata.com/pgbackrest-repo=repo1'
+              ]))
+
+  steps:
+
+    - name: 'Create Cluster with PGO CLI'
+      use:
+        template: '../templates/create-cluster-from-manifest.yaml'
+  
+    - name: 'Confirm cluster is created'
+      use:
+        template: '../templates/confirm-created.yaml'
+  
+    - name: 'Confirm Replica backup completed'
+      use:
+        template: '../templates/replica-backup-complete.yaml'
+  
+    - name: Change ownership of spec.backups.pgbackrest.manual.repoName
+      try:
+      - script:
+          env:
+            - name: "NAMESPACE"
+              value: ($namespace)
+            - name: "CLUSTER"
+              value: ($cluster)
+          content: |
+            envsubst < change-ownership.yaml | kubectl apply --server-side -n ${NAMESPACE} --field-manager=test-manager -f -
+
+      - assert:
+          resource:
+            apiVersion: postgres-operator.crunchydata.com/v1beta1
+            kind: PostgresCluster
+            metadata:
+              name: ($cluster)
+            spec:
+              backups:
+                pgbackrest:
+                  manual:
+                    repoName: repo3
+
+
+    - name: Attempt a backup on Repo1 without force conflicts and get an error
+      try:
+        - description: Start backup with PGO CLI
+          command:
+            env:
+              - name: "NAMESPACE"
+                value: ($namespace)
+              - name: "CLUSTER"
+                value: ($cluster)
+            entrypoint: kubectl-pgo
+            args:
+            - -n
+            - $NAMESPACE
+            - backup
+            - $CLUSTER
+            - --repoName
+            - repo1
+            - --options
+            - --type=full
+            check:
+              (contains($stderr, 'conflict with "test-manager"')): true
+        - sleep:
+            duration: 10s
+
+    - name: Attempt a backup on Repo1 with force conflicts and succeed
+      try:
+        - description: Start backup with PGO CLI
+          command:
+            env:
+              - name: "NAMESPACE"
+                value: ($namespace)
+              - name: "CLUSTER"
+                value: ($cluster)
+            entrypoint: kubectl-pgo
+            args:
+            - -n
+            - $NAMESPACE
+            - backup
+            - $CLUSTER
+            - --repoName
+            - repo1
+            - --options
+            - --type=full
+            - --force-conflicts
+            check:
+              (contains($stdout, 'backup initiated')): true
+        - sleep:
+            duration: 10s

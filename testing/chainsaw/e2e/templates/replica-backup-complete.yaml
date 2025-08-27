@@ -1,0 +1,26 @@
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: StepTemplate
+metadata:
+  name: replica-backup-complete
+spec:
+  try:
+    -
+      description: >
+        Wait for the replica backup to complete
+      assert:
+        resource:
+          apiVersion: postgres-operator.crunchydata.com/v1beta1
+          kind: PostgresCluster
+          metadata:
+            name: ($cluster)
+          status:
+            pgbackrest:
+              repos:
+              - name: repo1
+                replicaCreateBackupComplete: true
+                stanzaCreated: true
+  catch:
+    - describe:
+        apiVersion: v1
+        kind: Pod
+        selector: (concat('postgres-operator.crunchydata.com/cluster=', $cluster))

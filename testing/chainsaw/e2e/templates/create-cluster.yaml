@@ -1,0 +1,31 @@
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: StepTemplate
+metadata:
+  name: create-cluster
+spec:
+  try:
+    -
+      description: >
+        Create a PostgresCluster with the PGO CLI
+      command:
+        env:
+          - name: "NAMESPACE"
+            value: ($namespace)
+          - name: "CLUSTER"
+            value: ($cluster)
+          - name: "PGVERSION"
+            value: ($postgresVersion)
+        entrypoint: "kubectl"
+        args:
+        - "pgo"
+        - "create"
+        - "postgrescluster"
+        - "$CLUSTER"
+        - "--pg-major-version=$PGVERSION"
+        - "--namespace=$NAMESPACE"
+        timeout: 10s
+  catch:
+    - describe:
+        apiVersion: v1
+        kind: Pod
+        selector: (concat('postgres-operator.crunchydata.com/cluster=', $cluster))

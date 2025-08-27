@@ -1,0 +1,24 @@
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: StepTemplate
+metadata:
+  name: confirm-created
+spec:
+  try:
+    - description: >
+        Confirm the cluster is created
+      assert:
+        resource:
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            labels:
+              postgres-operator.crunchydata.com/cluster: ($cluster)
+          status:
+            (containerStatuses[?name == 'database']):
+            - name: database
+              ready: true
+  catch:
+    - describe:
+        apiVersion: v1
+        kind: Pod
+        selector: (concat('postgres-operator.crunchydata.com/cluster=', $cluster))
