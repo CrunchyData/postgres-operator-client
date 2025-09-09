@@ -4,21 +4,20 @@ metadata:
   name: replica-backup-complete
 spec:
   try:
-    -
-      description: >
-        Wait for the replica backup to complete
-      assert:
-        resource:
-          apiVersion: postgres-operator.crunchydata.com/v1beta1
-          kind: PostgresCluster
-          metadata:
-            name: ($cluster)
-          status:
-            pgbackrest:
-              repos:
-              - name: repo1
-                replicaCreateBackupComplete: true
-                stanzaCreated: true
+    - sleep:
+        duration: 30s
+
+    - description: Wait for initial backup to complete'
+      wait:
+        for:
+          jsonPath:
+            path: '{.status.succeeded}'
+            value: "1"
+        timeout: 5m
+        apiVersion: batch/v1
+        kind: Job
+        namespace: ($namespace)
+        selector: postgres-operator.crunchydata.com/pgbackrest-backup=replica-create
   catch:
     - describe:
         apiVersion: v1
