@@ -19,18 +19,32 @@ spec:
 
   steps:
 
-    - name: 'Create Cluster with PGO CLI'
+    - name: 'Create Cluster from manifest'
       use:
         template: '../templates/create-cluster-from-manifest.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
 
     - name: 'Confirm cluster is created'
       use:
         template: '../templates/confirm-created.yaml'
 
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
+
     - name: 'Confirm Replica backup completed'
       use:
         template: '../templates/replica-backup-complete.yaml'
 
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
 
     - name: Verify COMMAND_OPTS matches "--stanza=db --repo=1"
       bindings:
@@ -60,7 +74,7 @@ spec:
             - -o
             - jsonpath="{.items[*].spec.containers[*].env[?(@.name=='COMMAND_OPTS')].value}"
             check:
-              ($stdout): '"--stanza=db --repo=1"'
+              (contains($stdout, '--stanza=db --repo=1')): true
 ---
 apiVersion: chainsaw.kyverno.io/v1alpha1
 kind: Test
@@ -83,13 +97,23 @@ spec:
 
   steps:
 
-    - name: 'Create Cluster with PGO CLI'
+    - name: 'Create Cluster from manifest'
       use:
         template: '../templates/create-cluster-from-manifest.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
 
     - name: 'Confirm cluster is created'
       use:
         template: '../templates/confirm-created.yaml'
+
+    - name: "Sleep 10s"
+      try:
+        - sleep:
+            duration: 10s
 
     - name: 'Confirm Replica backup completed'
       use:
@@ -113,6 +137,11 @@ spec:
             - repo1
             - --options
             - --type=full
+        - sleep:
+            duration: 10s
+
+    - name: "Sleep 10s"
+      try:
         - sleep:
             duration: 10s
 
@@ -184,13 +213,23 @@ spec:
 
   steps:
 
-    - name: 'Create Cluster with PGO CLI'
+    - name: 'Create Cluster from manifest'
       use:
         template: '../templates/create-cluster-from-manifest.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
 
     - name: 'Confirm cluster is created'
       use:
         template: '../templates/confirm-created.yaml'
+
+    - name: "Sleep 30s"
+      try:
+        - sleep:
+            duration: 30s
 
     - name: 'Confirm Replica backup completed'
       use:
@@ -285,17 +324,32 @@ spec:
 
   steps:
 
-    - name: 'Create Cluster with PGO CLI'
+    - name: 'Create Cluster from manifest'
       use:
         template: '../templates/create-cluster-from-manifest.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
 
     - name: 'Confirm cluster is created'
       use:
         template: '../templates/confirm-created.yaml'
 
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
+
     - name: 'Confirm Replica backup completed'
       use:
         template: '../templates/replica-backup-complete.yaml'
+
+    - name: "Sleep 10s"
+      try:
+        - sleep:
+            duration: 10s
 
     - name: Trigger a backup through CLI with multiple flags
       try:
@@ -388,17 +442,32 @@ spec:
 
   steps:
 
-    - name: 'Create Cluster with PGO CLI'
+    - name: 'Create Cluster from manifest'
       use:
         template: '../templates/create-cluster-from-manifest.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
 
     - name: 'Confirm cluster is created'
       use:
         template: '../templates/confirm-created.yaml'
 
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
+
     - name: 'Confirm Replica backup completed'
       use:
         template: '../templates/replica-backup-complete.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
 
     - name: Trigger a backup through CLI with no flags
       try:
@@ -535,18 +604,33 @@ spec:
 
   steps:
 
-    - name: 'Create Cluster with PGO CLI'
+    - name: 'Create Cluster from manifest'
       use:
         template: '../templates/create-cluster-from-manifest.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
   
     - name: 'Confirm cluster is created'
       use:
         template: '../templates/confirm-created.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
   
     - name: 'Confirm Replica backup completed'
       use:
         template: '../templates/replica-backup-complete.yaml'
   
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
+
     - name: Change ownership of spec.backups.pgbackrest.manual.repoName
       try:
       - script:

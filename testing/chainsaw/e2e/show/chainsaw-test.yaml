@@ -12,13 +12,23 @@ spec:
 
   steps:
 
-    - name: 'Create Cluster with PGO CLI'
+    - name: 'Create Cluster from manifest'
       use:
-        template: '../templates/create-cluster.yaml'
+        template: '../templates/create-cluster-from-manifest.yaml'
 
+    - name: "Sleep 30s"
+      try:
+        - sleep:
+            duration: 30s
+            
     - name: 'Confirm cluster is created'
       use:
         template: '../templates/confirm-created.yaml'
+
+    - name: "Sleep 30s"
+      try:
+        - sleep:
+            duration: 30s
 
     - name: 'Confirm Replica backup completed'
       use:
@@ -89,6 +99,10 @@ spec:
 
             exit 1
 
+    - name: "Sleep 30s"
+      try:
+        - sleep:
+            duration: 30s
 
     - name: Show pgbackrest info output json
       try:
@@ -157,6 +171,11 @@ spec:
 
             exit 1
 
+    - name: "Sleep 30s"
+      try:
+        - sleep:
+            duration: 30s
+
 
     - name: Show patronictl list
       try:
@@ -190,6 +209,11 @@ spec:
 
             exit 1
 
+    - name: "Sleep 30s"
+      try:
+        - sleep:
+            duration: 30s
+
 
     - name: Show patronictl list output json
       try:
@@ -222,6 +246,11 @@ spec:
             fi
 
             exit 1
+
+    - name: "Sleep 30s"
+      try:
+        - sleep:
+            duration: 30s
 
     - name: Show patronictl list output bad
       try:

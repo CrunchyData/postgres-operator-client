@@ -36,9 +36,19 @@ spec:
       use:
         template: '../templates/create-cluster.yaml'
 
+    - name: Sleep for 30s
+      try:
+      - sleep:
+          duration: 30s
+
     - name: 'Confirm cluster is created'
       use:
         template: '../templates/confirm-created.yaml'
+
+    - name: Sleep for 30s
+      try:
+      - sleep:
+          duration: 30s
 
     - name: 'Confirm Replica backup completed'
       use:
@@ -96,9 +106,19 @@ spec:
       use:
         template: '../templates/create-cluster-without-backups.yaml'
 
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
+
     - name: 'Confirm cluster is created'
       use:
         template: '../templates/confirm-created.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
 
     - name: 'Verify Postgres is running correct version'
       description: >

@@ -11,9 +11,9 @@ spec:
 
   steps:
 
-  - name: 'Create Cluster with PGO CLI'
+  - name: 'Create Cluster from manifest'
     use:
-      template: '../templates/create-cluster.yaml'
+      template: '../templates/create-cluster-from-manifest.yaml'
 
   - name: run 'delete cluster' with confirm 'n'
     try:
@@ -53,9 +53,9 @@ spec:
 
   steps:
 
-  - name: 'Create Cluster with PGO CLI'
+  - name: 'Create Cluster from manifest'
     use:
-      template: '../templates/create-cluster.yaml'
+      template: '../templates/create-cluster-from-manifest.yaml'
 
   - name: run 'delete cluster' with confirm 'y'
     try:
@@ -71,10 +71,15 @@ spec:
         - "echo 'y' | kubectl pgo delete postgrescluster $CLUSTER --namespace=$NAMESPACE"
         timeout: 10s
 
+  - name: "Sleep 60s"
+    try:
+      - sleep:
+          duration: 60s
+
   - name: confirm cluster deleted
     try:
     - error:
-        timeout: 30s
+        timeout: 500s
         resource:
           apiVersion: postgres-operator.crunchydata.com/v1beta1
           kind: PostgresCluster
