@@ -1,0 +1,932 @@
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: kuttl-support-cluster
+spec:
+  bindings:
+    - name: cluster
+      value: kuttl-support-cluster
+
+    - name: postgresVersion
+      value: 16
+
+    - name: psql
+      value:
+        image: ($values.images.psql)
+        connect: { name: PGCONNECT_TIMEOUT, value: '5' }
+
+    - name: confirmQuery
+      value: |
+          DO $script$
+          DECLARE
+            pg_is_in_recovery boolean;
+            pgVer TEXT;
+          BEGIN
+            SELECT pg_is_in_recovery() INTO pg_is_in_recovery;
+            SELECT postgresVersion into pgVer;
+            RAISE NOTICE 'pgVer is %', pgVer;
+            RAISE NOTICE 'version() is %', version();
+            ASSERT pg_is_in_recovery = FALSE AND 
+              position('PostgreSQL ' || pgVer in version()) > 0;
+          END $script$;
+
+  steps:
+
+    - name: 'Create Cluster from manifest'
+      use:
+        template: '../templates/create-cluster-from-manifest.yaml'
+
+    - name: Sleep for 30s
+      try:
+      - sleep:
+          duration: 30s
+
+    - name: 'Confirm cluster is created'
+      use:
+        template: '../templates/confirm-created.yaml'
+
+    - name: Sleep for 30s
+      try:
+      - sleep:
+          duration: 30s
+
+    - name: 'Confirm Replica backup completed'
+      use:
+        template: '../templates/replica-backup-complete.yaml'
+
+    - name: Sleep for 30s
+      try:
+      - sleep:
+          duration: 30s
+
+    - name: Run support export
+      try:
+        - script:
+            env:
+              - name: "NAMESPACE"
+                value: ($namespace)
+              - name: "CLUSTER"
+                value: kuttl-support-cluster
+            content: |
+              kubectl-pgo --namespace $NAMESPACE --operator-namespace postgres-operator support export $CLUSTER -o .
+            check:
+              (contains($stdout, 'PGO CLI Support Export Tool')): true
+
+    - name: Expand support export
+      try:
+        - script:
+            content: |
+              tar -xzf ./crunchy_k8s_support_export_*.tar.gz
+
+
+    - name: Check support export
+      try:
+        - script:
+            env:
+              - name: "NAMESPACE"
+                value: ($namespace)
+              - name: "CLUSTER"
+                value: kuttl-support-cluster
+            content: |
+              CLEANUP="rm -r ./kuttl-support-cluster ./operator ./crunchy_k8s_support_export_*.tar.gz"
+              check_file() {
+                if [ ! -s ./"${1}" ]
+                then
+                  echo "Expected ${1} file to not be empty"
+                  eval "$CLEANUP"
+                  exit 1
+                else
+                  echo "Found ${1}"
+                fi
+              }
+              check_exists() {
+                if [ -f ./"${1}" ]
+                then
+                  echo "Expected ${1} file to exist"
+                  eval "$CLEANUP"
+                  exit 1
+                else
+                  echo "Found ${1}"
+                fi
+              }
+
+              # check that the PGO CLI version is recorded
+              VER=$(cat ./kuttl-support-cluster/pgo-cli-version)
+              echo "$VER" | grep -E "v[0-9]+\.[0-9]+\.[0-9]+$"
+              STATUS=$?
+              [ "$STATUS" = 0 ] || {
+                echo "Expected PGO CLI version, got:"
+                echo "${VER}"
+                eval "$CLEANUP"
+                exit 1
+              }
+
+              # check that the cluster-names file exists and is not empty
+              check_file "kuttl-support-cluster/cluster-names"
+
+              # check that the system-time file exists and is not empty
+              check_file "kuttl-support-cluster/system-time"
+
+              # check that the context file exists and is not empty
+              check_file "kuttl-support-cluster/current-context"
+
+              # check that the patroni info file exists and is not empty
+              check_file "kuttl-support-cluster/patroni-info"
+
+              # check that the pgbackrest info file exists and is not empty
+              check_file "kuttl-support-cluster/pgbackrest-info"
+
+              # check that the plugin list file exists and is not empty
+              # the file will at least include kubectl-pgo
+              check_file "kuttl-support-cluster/plugin-list"
+
+              # check that the operator file exists and is not empty
+              # the list file will not be empty for the requested Kubernetes types
+              check_file "operator/deployments/list"
+              check_file "operator/replicasets/list"
+              check_file "operator/pods/list"
+
+              # check for expected gzip compression level
+              FILE_INFO=$(file ./crunchy_k8s_support_export_*.tar.gz)
+              case "${FILE_INFO}" in
+              *'gzip compressed data, max compression'*)
+                  ;;
+              *)
+                  echo "Expected gzip max compression message, got:"
+                  echo "${FILE_INFO}"
+                  eval "$CLEANUP"
+                  exit 1
+                  ;;
+              esac
+
+              # Node directory and list file path
+              DIR="./kuttl-support-cluster/nodes/"
+              LIST="${DIR}list"
+
+              # check for expected table header in the list file
+              KV=$(awk 'NR==1 {print $9}' $LIST)
+              [ "${KV}" = '|KERNEL-VERSION' ] || {
+                echo "Expected KERNEL-VERSION header, got:"
+                echo "${KV}"
+                eval "$CLEANUP"
+                exit 1
+              }
+
+              # check for a .yaml file with the name of the first Node in the list file
+              NODE="$(awk 'NR==2 {print $1}' $LIST).yaml"
+
+              if [ ! -f "${DIR}${NODE}" ]
+              then
+                echo "Expected directory with file ${NODE}, got:"
+                ls ${DIR}
+                eval "$CLEANUP"
+                exit 1
+              fi
+
+              # check that the events file exist and is not empty
+              check_file "kuttl-support-cluster/events"
+
+              # check that logs exist for the PG
+              # use `check_exists` so we can use a wildcard
+              check_exists "kuttl-support-cluster/pods/kuttl-support-cluster-00-*-0/pgdata/pg16/log/postgresql-*.log"
+
+              EVENTS="./kuttl-support-cluster/events"
+              # check that the events file contains the expected string
+              if ! grep -Fq "Started container postgres-startup" $EVENTS
+              then
+                echo "Events file does not contain expected string"
+                eval "$CLEANUP"
+                exit 1
+              fi
+
+              PROCESSES_DIR="./kuttl-support-cluster/processes/"
+
+              # Check for the files that contain an expected pgBackRest server process.
+              # Expected to be found in the Postgres instance Pod's 'database',
+              # 'replication-cert-copy', 'pgbackrest', and 'pgbackrest-config' containers
+              # and the pgBackRest repo Pod's 'pgbackrest' and 'pgbackrest-config'
+              # containers, i.e. 6 files total, but test will pass if at least one is found.
+              found=$(grep -lR "pgbackrest server" ${PROCESSES_DIR} | wc -l)
+              if [ "${found}" -lt 1 ]; then
+                echo "Expected to find pgBackRest process, got ${found}"
+                eval "$CLEANUP"
+                exit 1
+              fi
+
+              # Check for the files that contain an expected Postgres process. Expected
+              # to be found in the Postgres instance Pod's 'database', 'replication-cert-copy',
+              # 'pgbackrest', and 'pgbackrest-config' containers, i.e. 4 files total, but
+              # test will pass if at least one is found.
+              found=$(grep -lR "postgres -D /pgdata/pg" ${PROCESSES_DIR} | wc -l)
+              if [ "${found}" -lt 1 ]; then
+                echo "Expected to find Postgres process, got ${found}"
+                eval "$CLEANUP"
+                exit 1
+              fi
+
+              # check that the PGO CLI log file contains expected messages
+              CLI_LOG="./kuttl-support-cluster/cli.log"
+
+              # info output includes expected heading
+              if ! grep -Fq -- "- INFO - | PGO CLI Support Export Tool" $CLI_LOG
+              then
+                echo "PGO CLI log does not contain expected info message"
+                eval "$CLEANUP"
+                exit 1
+              fi
+
+              # debug output includes cluster name argument
+              if ! grep -Fq -- "- DEBUG - Arg - PostgresCluster Name: kuttl-support-cluster" $CLI_LOG
+              then
+                echo "PGO CLI log does not contain cluster name debug message"
+                eval "$CLEANUP"
+                exit 1
+              fi
+
+              rm -r ./kuttl-support-cluster ./operator ./crunchy_k8s_support_export_*.tar.gz
+
+
+    - name: Run support export for invalid cluster
+      try:
+        - script:
+            env:
+              - name: "NAMESPACE"
+                value: ($namespace)
+              - name: "CLUSTER"
+                value: kuttl-support-cluster
+            content: |
+              kubectl-pgo --namespace $NAMESPACE --operator-namespace postgres-operator support export invalid -o .
+            check:
+              (contains($stderr, '"invalid" not found')): true
+
+
+
+    - name: 'Create Limit Range'
+      try:
+      - apply:
+          resource:
+            apiVersion: v1
+            kind: LimitRange
+            metadata:
+              name: kuttl-test-limitrange
+            spec:
+              limits:
+              - type: PersistentVolumeClaim
+                max:
+                  storage: 2Gi
+                min:
+                  storage: 500Mi
+
+    - name: 'Create Ingress'
+      try:
+      - apply:
+          resource:
+            apiVersion: networking.k8s.io/v1
+            kind: Ingress
+            metadata:
+              name: kuttl-test-ingress
+              annotations:
+                nginx.ingress.kubernetes.io/rewrite-target: /
+            spec:
+              ingressClassName: simple-example
+              rules:
+              - http:
+                  paths:
+                  - path: /testpath
+                    pathType: Prefix
+                    backend:
+                      service:
+                        name: test
+                        port:
+                          number: 80
+
+
+
+    - name: Sleep for 30s
+      try:
+      - sleep:
+          duration: 30s
+
+    - name: Run support export
+      try:
+        - script:
+            env:
+              - name: "NAMESPACE"
+                value: ($namespace)
+              - name: "CLUSTER"
+                value: kuttl-support-cluster
+            content: |
+              kubectl-pgo --namespace $NAMESPACE --operator-namespace postgres-operator support export $CLUSTER -o .
+            check:
+              (contains($stdout, 'PGO CLI Support Export Tool')): true
+
+    - name: Expand support export
+      try:
+        - script:
+            content: |
+              tar -xzf ./crunchy_k8s_support_export_*.tar.gz
+
+
+    - name: Check support export
+      try:
+        - script:
+            env:
+              - name: "NAMESPACE"
+                value: ($namespace)
+              - name: "CLUSTER"
+                value: kuttl-support-cluster
+            content: |
+              CLEANUP="rm -r ./kuttl-support-cluster ./crunchy_k8s_support_export_*.tar.gz"
+
+              # LimitRange directory and list file path
+              LR_DIR="./kuttl-support-cluster/limitranges/"
+              LR_LIST="${LR_DIR}list"
+
+              # check for limitrange object name
+              LRO=$(awk 'NR==2 {print $1}' "${LR_LIST}")
+              [ "${LRO}" = 'kuttl-test-limitrange' ] || {
+                echo "Expected 'kuttl-test-limitrange' limitrange, got:"
+                echo "${LRO}"
+                eval "$CLEANUP"
+                exit 1
+              }
+
+              # check for a .yaml file for the limitrange object
+              LR_FILE="${LR_DIR}kuttl-test-limitrange.yaml"
+              if [ ! -f ${LR_FILE} ]
+              then
+                echo "Expected directory with file, ${LR_FILE}, got:"
+                ls ${LR_DIR}
+                eval "$CLEANUP"
+                exit 1
+              fi
+
+              # Ingress directory and list file path
+              I_DIR="./kuttl-support-cluster/ingresses/"
+              I_LIST="${I_DIR}list"
+
+              # check for ingress object name
+              IO=$(awk 'NR==2 {print $1}' ${I_LIST})
+              [ "${IO}" = 'kuttl-test-ingress' ] || {
+                echo "Expected 'kuttl-test-ingress' ingress, got:"
+                echo "${IO}"
+                eval "$CLEANUP"
+                exit 1
+              }
+
+              # check for a .yaml file for the ingress object
+              I_FILE="${I_DIR}kuttl-test-ingress.yaml"
+              if [ ! -f ${I_FILE} ]
+              then
+                echo "Expected directory with file, ${I_FILE}, got:"
+                ls ${I_DIR}
+                eval "$CLEANUP"
+                exit 1
+              fi
+
+              rm -r ./kuttl-support-cluster ./operator ./crunchy_k8s_support_export_*.tar.gz
+
+
+
+    - name: Delete resources
+      try: 
+        - delete:
+            ref:
+              apiVersion: postgres-operator.crunchydata.com/v1beta1
+              kind: PostgresCluster
+              name: kuttl-support-cluster
+        - delete:
+            ref:
+              apiVersion: v1
+              kind: LimitRange
+              name: kuttl-test-limitrange
+        - delete:
+            ref:
+              apiVersion: networking.k8s.io/v1
+              kind: Ingress
+              name: kuttl-test-ingress
+
+
+    - name: 'Create Monitoring Cluster'
+      try:
+      - apply:
+          resource:
+            apiVersion: postgres-operator.crunchydata.com/v1beta1
+            kind: PostgresCluster
+            metadata:
+              name: kuttl-support-monitoring-cluster
+            spec:
+              postgresVersion: 16
+              instances:
+                - dataVolumeClaimSpec:
+                    accessModes: [ReadWriteOnce]
+                    resources: { requests: { storage: 1Gi } }
+              backups:
+                pgbackrest:
+                  repos:
+                  - name: repo1
+                    volume:
+                      volumeClaimSpec:
+                        accessModes: [ReadWriteOnce]
+                        resources: { requests: { storage: 1Gi } }
+              monitoring:
+                pgmonitor:
+                  exporter: {}
+      - apply:
+          resource:
+            apiVersion: apps/v1
+            kind: Deployment
+            metadata:
+              name: crunchy-prometheus
+            spec:
+              selector:
+                matchLabels:
+                  app.kubernetes.io/name: postgres-operator-monitoring
+                  name: crunchy-prometheus
+              template:
+                metadata:
+                  labels:
+                    app.kubernetes.io/name: postgres-operator-monitoring
+                    name: crunchy-prometheus
+                spec:
+                  containers:
+                  - image: prom/prometheus:v2.33.5
+                    name: prometheus
+                    # Override default command to avoid 'permission denied' error in some
+                    # environments (e.g. Openshift). Echo 'hello' so the Pod log is not empty.
+                    command: ["sh", "-c", "while true; do echo hello; sleep 10;done"]
+      - apply:
+          resource:
+            apiVersion: apps/v1
+            kind: Deployment
+            metadata:
+              name: crunchy-grafana
+            spec:
+              selector:
+                matchLabels:
+                  app.kubernetes.io/name: postgres-operator-monitoring
+                  name: crunchy-grafana
+              template:
+                metadata:
+                  labels:
+                    app.kubernetes.io/name: postgres-operator-monitoring
+                    name: crunchy-grafana
+                spec:
+                  containers:
+                  - image: grafana/grafana:8.5.10
+                    name: grafana
+      - apply:
+          resource:
+            apiVersion: apps/v1
+            kind: Deployment
+            metadata:
+              name: crunchy-alertmanager
+            spec:
+              selector:
+                matchLabels:
+                  app.kubernetes.io/name: postgres-operator-monitoring
+                  name: crunchy-alertmanager
+              template:
+                metadata:
+                  labels:
+                    app.kubernetes.io/name: postgres-operator-monitoring
+                    name: crunchy-alertmanager
+                spec:
+                  containers:
+                  - image: prom/alertmanager:v0.22.2
+                    name: alertmanager
+
+    - name: Sleep for 30s
+      try:
+      - sleep:
+          duration: 30s
+
+    - name: Assert resources exist
+      try:
+      - assert:
+          resource:
+            apiVersion: postgres-operator.crunchydata.com/v1beta1
+            kind: PostgresCluster
+            metadata:
+              name: kuttl-support-monitoring-cluster
+            spec:
+              backups:
+                pgbackrest:
+                  repos:
+                    - name: repo1
+                      volume:
+                        volumeClaimSpec:
+                          accessModes:
+                            - "ReadWriteOnce"
+                          resources:
+                            requests:
+                              storage: 1Gi
+              instances:
+                - dataVolumeClaimSpec:
+                    accessModes:
+                    - "ReadWriteOnce"
+                    resources:
+                      requests:
+                        storage: 1Gi
+                  replicas: 1
+              postgresVersion: 16
+            status:
+              instances:
+                - name: "00"
+                  readyReplicas: 1
+                  replicas: 1
+                  updatedReplicas: 1
+              monitoring: {}
+      - assert:
+          resource:
+            apiVersion: apps/v1
+            kind: Deployment
+            metadata:
+              name: crunchy-prometheus
+            status:
+              availableReplicas: 1
+              observedGeneration: 1
+              readyReplicas: 1
+              replicas: 1
+              updatedReplicas: 1
+      - assert:
+          resource:
+            apiVersion: apps/v1
+            kind: Deployment
+            metadata:
+              name: crunchy-grafana
+            status:
+              availableReplicas: 1
+              observedGeneration: 1
+              readyReplicas: 1
+              replicas: 1
+              updatedReplicas: 1
+      - assert:
+          resource:
+            apiVersion: apps/v1
+            kind: Deployment
+            metadata:
+              name: crunchy-alertmanager
+            status:
+              availableReplicas: 1
+              observedGeneration: 1
+              readyReplicas: 1
+              replicas: 1
+              updatedReplicas: 1
+
+
+
+    - name: Sleep for 30s
+      try:
+      - sleep:
+          duration: 30s
+
+    - name: Run support export
+      try:
+        - script:
+            env:
+              - name: "NAMESPACE"
+                value: ($namespace)
+              - name: "CLUSTER"
+                value: kuttl-support-monitoring-cluster
+            content: |
+              kubectl-pgo --namespace $NAMESPACE support export kuttl-support-monitoring-cluster -o .
+            check:
+              (contains($stdout, 'PGO CLI Support Export Tool')): true
+
+    - name: Expand support export
+      try:
+        - script:
+            content: |
+              tar -xzf ./crunchy_k8s_support_export_*.tar.gz
+
+
+    - name: Check support export
+      try:
+        - script:
+            env:
+              - name: "NAMESPACE"
+                value: ($namespace)
+              - name: "CLUSTER"
+                value: kuttl-support-monitoring-cluster
+            content: |
+              CLEANUP="rm -r ./kuttl-support-monitoring-cluster ./monitoring ./crunchy_k8s_support_export_*.tar.gz"
+              CLUSTER_DIR="./kuttl-support-monitoring-cluster/pods/"
+              MONITORING_DIR="./monitoring/pods/"
+
+              # check for exporter, prometheus, grafana and alertmanager logs
+              found=$(find ${CLUSTER_DIR} -name "*exporter.log" | wc -l)
+              if [ "${found}" -eq 0 ]; then
+                echo "exporter not found"
+                eval "$CLEANUP"
+                exit 1
+              fi
+
+              found=$(find ${MONITORING_DIR} -name "*prometheus.log" | wc -l)
+              if [ "${found}" -eq 0 ]; then
+                echo "prometheus not found"
+                eval "$CLEANUP"
+                exit 1
+              fi
+
+              found=$(find ${MONITORING_DIR} -name "*grafana.log" | wc -l)
+              if [ "${found}" -eq 0 ]; then
+                echo "grafana not found"
+                eval "$CLEANUP"
+                exit 1
+              fi
+
+              found=$(find ${MONITORING_DIR} -name "*alertmanager.log" | wc -l)
+              if [ "${found}" -eq 0 ]; then
+                echo "alertmanager not found"
+                eval "$CLEANUP"
+                exit 1
+              fi
+
+              rm -r ./kuttl-support-monitoring-cluster ./monitoring ./operator ./crunchy_k8s_support_export_*.tar.gz
+
+
+    - name: Delete resources
+      try: 
+        - delete:
+            ref:
+              apiVersion: postgres-operator.crunchydata.com/v1beta1
+              kind: PostgresCluster
+              name: kuttl-support-monitoring-cluster
+        - delete:
+            ref:
+              apiVersion: apps/v1
+              kind: Deployment
+              name: crunchy-prometheus
+        - delete:
+            ref:
+              apiVersion: apps/v1
+              kind: Deployment
+              name: crunchy-alertmanager
+
+    - name: Sleep for 30s
+      try:
+      - sleep:
+          duration: 30s
+
+
+    - name: 'Create Instrumentation Cluster'
+      try:
+      - apply:
+          resource:
+            apiVersion: postgres-operator.crunchydata.com/v1beta1
+            kind: PostgresCluster
+            metadata:
+              name: kuttl-support-instrumentation
+            spec:
+              postgresVersion: 16
+              instances:
+                - dataVolumeClaimSpec:
+                    accessModes: [ReadWriteOnce]
+                    resources: { requests: { storage: 1Gi } }
+              backups:
+                pgbackrest:
+                  repos:
+                  - name: repo1
+                    volume:
+                      volumeClaimSpec:
+                        accessModes: [ReadWriteOnce]
+                        resources: { requests: { storage: 1Gi } }
+              instrumentation: {}
+
+
+    - name: Sleep for 30s
+      try:
+      - sleep:
+          duration: 30s
+
+    - name: Assert resources exist
+      try:
+      - assert:
+          resource:
+            apiVersion: postgres-operator.crunchydata.com/v1beta1
+            kind: PostgresCluster
+            metadata:
+              name: kuttl-support-instrumentation
+            spec:
+              backups:
+                pgbackrest:
+                  repos:
+                    - name: repo1
+                      volume:
+                        volumeClaimSpec:
+                          accessModes:
+                            - "ReadWriteOnce"
+                          resources:
+                            requests:
+                              storage: 1Gi
+              instances:
+                - dataVolumeClaimSpec:
+                    accessModes:
+                    - "ReadWriteOnce"
+                    resources:
+                      requests:
+                        storage: 1Gi
+                  replicas: 1
+              postgresVersion: 16
+            status:
+              instances:
+                - name: "00"
+                  readyReplicas: 1
+                  replicas: 1
+                  updatedReplicas: 1
+              monitoring: {}
+
+
+    - name: Sleep for 30s
+      try:
+      - sleep:
+          duration: 30s
+
+
+    - name: Run support export
+      try:
+        - script:
+            env:
+              - name: "NAMESPACE"
+                value: ($namespace)
+              - name: "CLUSTER"
+                value: kuttl-support-monitoring-cluster
+            content: |
+              kubectl-pgo --namespace $NAMESPACE --operator-namespace postgres-operator support export kuttl-support-instrumentation -o .
+            check:
+              (contains($stdout, 'PGO CLI Support Export Tool')): true
+
+    - name: Expand support export
+      try:
+        - script:
+            content: |
+              tar -xzf ./crunchy_k8s_support_export_*.tar.gz
+
+
+    - name: Check support export
+      try:
+        - script:
+            env:
+              - name: "NAMESPACE"
+                value: ($namespace)
+              - name: "CLUSTER"
+                value: kuttl-support-monitoring-cluster
+            content: |
+              CLEANUP="rm -r ./kuttl-support-instrumentation ./operator ./crunchy_k8s_support_export_*.tar.gz"
+              check_file() {
+                if [ ! -s ./"${1}" ]
+                then
+                  echo "Expected ${1} file to not be empty"
+                  eval "$CLEANUP"
+                  exit 1
+                else
+                  echo "Found ${1}"
+                fi
+              }
+              check_exists() {
+                if [ -f ./"${1}" ]
+                then
+                  echo "Expected ${1} file to exist"
+                  eval "$CLEANUP"
+                  exit 1
+                else
+                  echo "Found ${1}"
+                fi
+              }
+
+              # check that the PGO CLI version is recorded
+              VER=$(cat ./kuttl-support-instrumentation/pgo-cli-version)
+              echo "$VER" | grep -E "v[0-9]+\.[0-9]+\.[0-9]+$"
+              STATUS=$?
+              [ "$STATUS" = 0 ] || {
+                echo "Expected PGO CLI version, got:"
+                echo "${VER}"
+                eval "$CLEANUP"
+                exit 1
+              }
+
+              # check that the cluster-names file exists and is not empty
+              check_file "kuttl-support-instrumentation/cluster-names"
+
+              # check that the system-time file exists and is not empty
+              check_file "kuttl-support-instrumentation/system-time"
+
+              # check that the context file exists and is not empty
+              check_file "kuttl-support-instrumentation/current-context"
+
+              # check that the patroni info file exists and is not empty
+              check_file "kuttl-support-instrumentation/patroni-info"
+
+              # check that the pgbackrest info file exists and is not empty
+              check_file "kuttl-support-instrumentation/pgbackrest-info"
+
+              # check that the plugin list file exists and is not empty
+              # the file will at least include kubectl-pgo
+              check_file "kuttl-support-instrumentation/plugin-list"
+
+              # check that the operator file exists and is not empty
+              # the list file will not be empty for the requested Kubernetes types
+              check_file "operator/deployments/list"
+              check_file "operator/replicasets/list"
+              check_file "operator/pods/list"
+
+              # check for expected gzip compression level
+              FILE_INFO=$(file ./crunchy_k8s_support_export_*.tar.gz)
+              case "${FILE_INFO}" in
+              *'gzip compressed data, max compression'*)
+                  ;;
+              *)
+                  echo "Expected gzip max compression message, got:"
+                  echo "${FILE_INFO}"
+                  eval "$CLEANUP"
+                  exit 1
+                  ;;
+              esac
+
+              # Node directory and list file path
+              DIR="./kuttl-support-instrumentation/nodes/"
+              LIST="${DIR}list"
+
+              # check for expected table header in the list file
+              KV=$(awk 'NR==1 {print $9}' $LIST)
+              [ "${KV}" = '|KERNEL-VERSION' ] || {
+                echo "Expected KERNEL-VERSION header, got:"
+                echo "${KV}"
+                eval "$CLEANUP"
+                exit 1
+              }
+
+              # check for a .yaml file with the name of the first Node in the list file
+              NODE="$(awk 'NR==2 {print $1}' $LIST).yaml"
+
+              if [ ! -f "${DIR}${NODE}" ]
+              then
+                echo "Expected directory with file ${NODE}, got:"
+                ls ${DIR}
+                eval "$CLEANUP"
+                exit 1
+              fi
+
+              # check that the events file exist and is not empty
+              check_file "kuttl-support-instrumentation/events"
+
+              # check that logs exist for the PG
+              # use `check_exists` so we can use a wildcard
+              check_exists "kuttl-support-instrumentation/pods/kuttl-support-cluster-00-*-0/pgdata/logs/postgresql-*.json"
+
+              EVENTS="./kuttl-support-instrumentation/events"
+              # check that the events file contains the expected string
+              if ! grep -Fq "Started container postgres-startup" $EVENTS
+              then
+                echo "Events file does not contain expected string"
+                eval "$CLEANUP"
+                exit 1
+              fi
+
+              PROCESSES_DIR="./kuttl-support-instrumentation/processes/"
+
+              # Check for the files that contain an expected pgBackRest server process.
+              # Expected to be found in the Postgres instance Pod's 'collector', 'database',
+              # 'replication-cert-copy', 'pgbackrest', and 'pgbackrest-config' containers
+              # and the pgBackRest repo Pod's 'pgbackrest' and 'pgbackrest-config'
+              # containers, i.e. 6 files total, but test will pass if at least one is found.
+              found=$(grep -lR "pgbackrest server" ${PROCESSES_DIR} | wc -l)
+              if [ "${found}" -lt 1 ]; then
+                echo "Expected to find pgBackRest process, got ${found}"
+                eval "$CLEANUP"
+                exit 1
+              fi
+
+              # Check for the files that contain an expected Postgres process. Expected
+              # to be found in the Postgres instance Pod's 'collector', 'database', 'replication-cert-copy',
+              # 'pgbackrest', and 'pgbackrest-config' containers, i.e. 5 files total, but
+              # test will pass if at least one is found.
+              found=$(grep -lR "postgres -D /pgdata/pg" ${PROCESSES_DIR} | wc -l)
+              if [ "${found}" -lt 1 ]; then
+                echo "Expected to find Postgres process, got ${found}"
+                eval "$CLEANUP"
+                exit 1
+              fi
+
+              # check that the PGO CLI log file contains expected messages
+              CLI_LOG="./kuttl-support-instrumentation/cli.log"
+
+              # info output includes expected heading
+              if ! grep -Fq -- "- INFO - | PGO CLI Support Export Tool" $CLI_LOG
+              then
+                echo "PGO CLI log does not contain expected info message"
+                eval "$CLEANUP"
+                exit 1
+              fi
+
+              # debug output includes cluster name argument
+              if ! grep -Fq -- "- DEBUG - Arg - PostgresCluster Name: kuttl-support-instrumentation" $CLI_LOG
+              then
+                echo "PGO CLI log does not contain cluster name debug message"
+                eval "$CLEANUP"
+                exit 1
+              fi
+
+              rm -r ./kuttl-support-instrumentation ./monitoring ./operator ./crunchy_k8s_support_export_*.tar.gz
+
