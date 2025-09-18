@@ -12,8 +12,8 @@ spec:
 
     - name: backupSelector
       value: (join(',', [
-                'postgres-operator.crunchydata.com/cluster=CLUSTER',
-                'postgres-operator.crunchydata.com/pgbackrest-backup=BACKUP_TYPE',
+                'postgres-operator.crunchydata.com/cluster=check-replica-create-backup',
+                'postgres-operator.crunchydata.com/pgbackrest-backup=replica-create',
                 'postgres-operator.crunchydata.com/pgbackrest-repo=repo1'
               ]))
 
@@ -47,11 +47,6 @@ spec:
           duration: 10s
 
     - name: Verify COMMAND_OPTS matches "--stanza=db --repo=1"
-      bindings:
-        - name: selector
-          value: (replace_all(
-            (replace_all($backupSelector, 'CLUSTER', ($cluster))),
-            'BACKUP_TYPE', 'replica-create'))
       try:
         - sleep:
             duration: 10s
@@ -62,7 +57,7 @@ spec:
               - name: "CLUSTER"
                 value: ($cluster)
               - name: "SELECTOR"
-                value: ($selector)
+                value: ($backupSelector)
             entrypoint: kubectl
             args:
             - get
@@ -90,8 +85,8 @@ spec:
 
     - name: backupSelector
       value: (join(',', [
-                'postgres-operator.crunchydata.com/cluster=CLUSTER',
-                'postgres-operator.crunchydata.com/pgbackrest-backup=BACKUP_TYPE',
+                'postgres-operator.crunchydata.com/cluster=check-backup-command',
+                'postgres-operator.crunchydata.com/pgbackrest-backup=manual',
                 'postgres-operator.crunchydata.com/pgbackrest-repo=repo1'
               ]))
 
@@ -146,11 +141,6 @@ spec:
             duration: 10s
 
     - name: Verify COMMAND_OPTS matches "--stanza=db --repo=1 --type=full"
-      bindings:
-        - name: selector
-          value: (replace_all(
-            (replace_all($backupSelector, 'CLUSTER', ($cluster))),
-            'BACKUP_TYPE', 'manual'))
       try:
         - sleep:
             duration: 10s
@@ -161,7 +151,7 @@ spec:
               - name: "CLUSTER"
                 value: ($cluster)
               - name: "SELECTOR"
-                value: ($selector)
+                value: ($backupSelector)
             entrypoint: kubectl
             args:
             - get
@@ -176,16 +166,11 @@ spec:
               ($stdout): '"--stanza=db --repo=1 --type=full"'
 
     - name: Wait for CLI backup to succeed"
-      bindings:
-        - name: selector
-          value: (replace_all(
-            (replace_all($backupSelector, 'CLUSTER', ($cluster))),
-            'BACKUP_TYPE', 'manual'))
       try:
       - wait:
           apiVersion: v1
           kind: Pod
-          selector: ($selector)
+          selector: ($backupSelector)
           timeout: 300s
           for:
             jsonPath:
@@ -206,8 +191,8 @@ spec:
 
     - name: backupSelector
       value: (join(',', [
-                'postgres-operator.crunchydata.com/cluster=CLUSTER',
-                'postgres-operator.crunchydata.com/pgbackrest-backup=BACKUP_TYPE',
+                'postgres-operator.crunchydata.com/cluster=check-backup-command-longer-options',
+                'postgres-operator.crunchydata.com/pgbackrest-backup=manual',
                 'postgres-operator.crunchydata.com/pgbackrest-repo=repo1'
               ]))
 
@@ -257,11 +242,6 @@ spec:
             duration: 10s
 
     - name: Verify COMMAND_OPTS matches "--stanza=db --repo=1 --type=full --start-fast=n"
-      bindings:
-        - name: selector
-          value: (replace_all(
-            (replace_all($backupSelector, 'CLUSTER', ($cluster))),
-            'BACKUP_TYPE', 'manual'))
       try:
         - sleep:
             duration: 10s
@@ -272,7 +252,7 @@ spec:
               - name: "CLUSTER"
                 value: ($cluster)
               - name: "SELECTOR"
-                value: ($selector)
+                value: ($backupSelector)
             entrypoint: kubectl
             args:
             - get
@@ -287,16 +267,11 @@ spec:
               ($stdout): '"--stanza=db --repo=1 --type=full --start-fast=n"'
 
     - name: Wait for CLI backup to succeed"
-      bindings:
-        - name: selector
-          value: (replace_all(
-            (replace_all($backupSelector, 'CLUSTER', ($cluster))),
-            'BACKUP_TYPE', 'manual'))
       try:
       - wait:
           apiVersion: v1
           kind: Pod
-          selector: ($selector)
+          selector: ($backupSelector)
           timeout: 300s
           for:
             jsonPath:
@@ -317,8 +292,8 @@ spec:
 
     - name: backupSelector
       value: (join(',', [
-                'postgres-operator.crunchydata.com/cluster=CLUSTER',
-                'postgres-operator.crunchydata.com/pgbackrest-backup=BACKUP_TYPE',
+                'postgres-operator.crunchydata.com/cluster=check-backup-command-multiple-flags',
+                'postgres-operator.crunchydata.com/pgbackrest-backup=manual',
                 'postgres-operator.crunchydata.com/pgbackrest-repo=repo1'
               ]))
 
@@ -375,11 +350,6 @@ spec:
             duration: 10s
 
     - name: Verify COMMAND_OPTS matches "--stanza=db --repo=1 --type=full --start-fast=n"
-      bindings:
-        - name: selector
-          value: (replace_all(
-            (replace_all($backupSelector, 'CLUSTER', ($cluster))),
-            'BACKUP_TYPE', 'manual'))
       try:
         - sleep:
             duration: 10s
@@ -390,7 +360,7 @@ spec:
               - name: "CLUSTER"
                 value: ($cluster)
               - name: "SELECTOR"
-                value: ($selector)
+                value: ($backupSelector)
             entrypoint: kubectl
             args:
             - get
@@ -405,16 +375,11 @@ spec:
               ($stdout): '"--stanza=db --repo=1 --type=full --start-fast=n"'
 
     - name: Wait for CLI backup to succeed"
-      bindings:
-        - name: selector
-          value: (replace_all(
-            (replace_all($backupSelector, 'CLUSTER', ($cluster))),
-            'BACKUP_TYPE', 'manual'))
       try:
       - wait:
           apiVersion: v1
           kind: Pod
-          selector: ($selector)
+          selector: ($backupSelector)
           timeout: 300s
           for:
             jsonPath:
@@ -435,8 +400,8 @@ spec:
 
     - name: backupSelector
       value: (join(',', [
-                'postgres-operator.crunchydata.com/cluster=CLUSTER',
-                'postgres-operator.crunchydata.com/pgbackrest-backup=BACKUP_TYPE',
+                'postgres-operator.crunchydata.com/cluster=check-backup-command-no-flags',
+                'postgres-operator.crunchydata.com/pgbackrest-backup=manual',
                 'postgres-operator.crunchydata.com/pgbackrest-repo=repo1'
               ]))
 
@@ -567,16 +532,11 @@ spec:
                 (key2 != 'not-found'): true
 
     - name: Wait for CLI backup to succeed"
-      bindings:
-        - name: selector
-          value: (replace_all(
-            (replace_all($backupSelector, 'CLUSTER', ($cluster))),
-            'BACKUP_TYPE', 'manual'))
       try:
       - wait:
           apiVersion: v1
           kind: Pod
-          selector: ($selector)
+          selector: ($backupSelector)
           timeout: 300s
           for:
             jsonPath:
@@ -594,13 +554,6 @@ spec:
 
     - name: postgresVersion
       value: (to_string($values.versions.postgres))
-
-    - name: backupSelector
-      value: (join(',', [
-                'postgres-operator.crunchydata.com/cluster=CLUSTER',
-                'postgres-operator.crunchydata.com/pgbackrest-backup=BACKUP_TYPE',
-                'postgres-operator.crunchydata.com/pgbackrest-repo=repo1'
-              ]))
 
   steps:
 
