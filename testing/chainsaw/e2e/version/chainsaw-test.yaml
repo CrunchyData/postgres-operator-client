@@ -6,7 +6,7 @@ metadata:
   name: version
 spec:
   steps:
-  - name: step-00
+  - name: Run kubectl pgo version
     try:
     - script:
         content: |
@@ -34,7 +34,7 @@ spec:
             echo "Actual: ${VERSION_OUTPUT}"
             exit 1
           }
-  - name: step-01
+  - name: Run kubectl pgo version --client
     try:
     - script:
         content: |
