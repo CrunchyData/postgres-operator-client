@@ -1,0 +1,255 @@
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: stop-cluster-no-with-force-conflicts
+spec:
+
+  bindings:
+    - name: cluster
+      value: stop-cluster-no-with-force-conflicts
+
+    - name: postgresVersion
+      value: (to_string($values.versions.postgres))
+
+  steps:
+
+    - name: 'Create Cluster from manifest'
+      use:
+        template: '../templates/create-cluster-from-manifest.yaml'
+
+    - name: "Sleep 30s"
+      try:
+        - sleep:
+            duration: 30s
+  
+    - name: 'Confirm cluster is created'
+      use:
+        template: '../templates/confirm-created.yaml'
+  
+    - name: "Sleep 30s"
+      try:
+        - sleep:
+            duration: 30s
+
+    - name: 'Confirm Replica backup completed'
+      use:
+        template: '../templates/replica-backup-complete.yaml'
+
+    - name: run 'stop cluster' with confirm 'n' and force-conflicts
+      try:
+      - command:
+          env:
+            - name: "NAMESPACE"
+              value: ($namespace)
+            - name: "CLUSTER"
+              value: ($cluster)
+          entrypoint: "sh"
+          args:
+          - "-c"
+          - "echo 'n' | kubectl-pgo stop $CLUSTER --force-conflicts --namespace=$NAMESPACE"
+          timeout: 10s
+
+    - name: 'Confirm cluster is created'
+      use:
+        template: '../templates/confirm-created.yaml'
+---
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: stop-cluster-yes-with-force-conflicts
+spec:
+
+  bindings:
+    - name: cluster
+      value: stop-cluster-yes-with-force-conflicts
+
+    - name: postgresVersion
+      value: (to_string($values.versions.postgres))
+
+  steps:
+
+    - name: 'Create Cluster from manifest'
+      use:
+        template: '../templates/create-cluster-from-manifest.yaml'
+
+    - name: "Sleep 30s"
+      try:
+        - sleep:
+            duration: 30s
+  
+    - name: 'Confirm cluster is created'
+      use:
+        template: '../templates/confirm-created.yaml'
+  
+    - name: "Sleep 30s"
+      try:
+        - sleep:
+            duration: 30s
+
+    - name: 'Confirm Replica backup completed'
+      use:
+        template: '../templates/replica-backup-complete.yaml'
+
+    - name: run 'stop cluster' with confirm 'y' and force-conflicts
+      try:
+      - command:
+          env:
+            - name: "NAMESPACE"
+              value: ($namespace)
+            - name: "CLUSTER"
+              value: ($cluster)
+          entrypoint: "sh"
+          args:
+          - "-c"
+          - "echo 'y' | kubectl-pgo stop $CLUSTER --force-conflicts --namespace=$NAMESPACE"
+          timeout: 10s
+      - sleep:
+          duration: 10s
+
+    - name: confirm cluster did stop
+      try:
+      - assert:
+          timeout: 30s
+          resource:
+            apiVersion: postgres-operator.crunchydata.com/v1beta1
+            kind: PostgresCluster
+            metadata:
+              name: ($cluster)
+              namespace: ($namespace)
+            spec:
+              shutdown: true
+      - sleep:
+          duration: 10s
+---
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: start-cluster
+spec:
+
+  bindings:
+    - name: cluster
+      value: start-cluster
+
+    - name: postgresVersion
+      value: (to_string($values.versions.postgres))
+
+  steps:
+
+    - name: 'Create Cluster from manifest'
+      use:
+        template: '../templates/create-cluster-from-manifest.yaml'
+  
+    - name: 'Confirm cluster is created'
+      use:
+        template: '../templates/confirm-created.yaml'
+
+    - name: "Sleep 30s"
+      try:
+        - sleep:
+            duration: 30s
+
+    - name: run 'stop cluster' with confirm 'y' and force-conflicts
+      try:
+      - command:
+          env:
+            - name: "NAMESPACE"
+              value: ($namespace)
+            - name: "CLUSTER"
+              value: ($cluster)
+          entrypoint: "sh"
+          args:
+          - "-c"
+          - "echo 'y' | kubectl-pgo stop $CLUSTER --force-conflicts --namespace=$NAMESPACE"
+          timeout: 10s
+      - sleep:
+          duration: 10s
+
+    - name: confirm cluster did stop
+      try:
+      - assert:
+          timeout: 30s
+          resource:
+            apiVersion: postgres-operator.crunchydata.com/v1beta1
+            kind: PostgresCluster
+            metadata:
+              name: ($cluster)
+              namespace: ($namespace)
+            spec:
+              shutdown: true
+      - sleep:
+          duration: 10s
+
+    - name: run 'start cluster'
+      try:
+      - command:
+          env:
+            - name: "NAMESPACE"
+              value: ($namespace)
+            - name: "CLUSTER"
+              value: ($cluster)
+          entrypoint: "sh"
+          args:
+          - "-c"
+          - "kubectl-pgo start $CLUSTER --namespace=$NAMESPACE"
+          timeout: 10s
+
+    - name: 'Confirm cluster is created'
+      use:
+        template: '../templates/confirm-created.yaml'
+---
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: start-cluster-already-running
+spec:
+
+  bindings:
+    - name: cluster
+      value: start-cluster-already-running
+
+    - name: postgresVersion
+      value: (to_string($values.versions.postgres))
+
+  steps:
+
+    - name: 'Create Cluster from manifest'
+      use:
+        template: '../templates/create-cluster-from-manifest.yaml'
+  
+    - name: 'Confirm cluster is created'
+      use:
+        template: '../templates/confirm-created.yaml'
+
+    - name: run 'start cluster'
+      try:
+      - command:
+          env:
+            - name: "NAMESPACE"
+              value: ($namespace)
+            - name: "CLUSTER"
+              value: ($cluster)
+          entrypoint: "sh"
+          args:
+          - "-c"
+          - "sleep 5 && kubectl-pgo start $CLUSTER -n $NAMESPACE"
+          timeout: 10s
+          check:
+            (contains($stdout, 'start initiated')): true
+
+    - name: run 'start cluster'
+      try:
+      - command:
+          env:
+            - name: "NAMESPACE"
+              value: ($namespace)
+            - name: "CLUSTER"
+              value: ($cluster)
+          entrypoint: "sh"
+          args:
+          - "-c"
+          - "sleep 5 && kubectl-pgo start $CLUSTER -n $NAMESPACE"
+          timeout: 10s
+          check:
+            (contains($stdout, 'Cluster already Started')): true
+

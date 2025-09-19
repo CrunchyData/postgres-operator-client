@@ -1,0 +1,146 @@
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: create-cluster
+spec:
+  bindings:
+    - name: cluster
+      value: create-cluster
+
+    - name: postgresVersion
+      value: (to_string($values.versions.postgres))
+
+    - name: psql
+      value:
+        image: ($values.images.psql)
+        connect: { name: PGCONNECT_TIMEOUT, value: '5' }
+
+    - name: confirmQuery
+      value: |
+          DO $script$
+          DECLARE
+            pg_is_in_recovery boolean;
+            pgVer TEXT;
+          BEGIN
+            SELECT pg_is_in_recovery() INTO pg_is_in_recovery;
+            SELECT postgresVersion into pgVer;
+            RAISE NOTICE 'pgVer is %', pgVer;
+            RAISE NOTICE 'version() is %', version();
+            ASSERT pg_is_in_recovery = FALSE AND 
+              position('PostgreSQL ' || pgVer in version()) > 0;
+          END $script$;
+
+  steps:
+
+    - name: 'Create Cluster with PGO CLI'
+      use:
+        template: '../templates/create-cluster.yaml'
+
+    - name: Sleep for 30s
+      try:
+      - sleep:
+          duration: 30s
+
+    - name: 'Confirm cluster is created'
+      use:
+        template: '../templates/confirm-created.yaml'
+
+    - name: Sleep for 30s
+      try:
+      - sleep:
+          duration: 30s
+
+    - name: 'Confirm Replica backup completed'
+      use:
+        template: '../templates/replica-backup-complete.yaml'
+
+    - name: 'Verify Postgres is running correct version'
+      description: >
+        Confirm that Postgres is running and using the expected version
+      use:
+        template: '../templates/psql-data.yaml'
+        with:
+          bindings:
+            - name: target
+              value: ($cluster)
+            - name: job
+              value: (join('-', [$cluster, 'verify-version']))
+            - name: command
+              value: (replace_all($confirmQuery, 'postgresVersion', $postgresVersion))
+---
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: create-cluster-without-backups
+spec:
+  bindings:
+    - name: cluster
+      value: create-cluster-without-backups
+
+    - name: postgresVersion
+      value: (to_string($values.versions.postgres))
+
+    - name: psql
+      value:
+        image: ($values.images.psql)
+        connect: { name: PGCONNECT_TIMEOUT, value: '5' }
+
+    - name: confirmQuery
+      value: |
+          DO $script$
+          DECLARE
+            pg_is_in_recovery boolean;
+            pgVer TEXT;
+          BEGIN
+            SELECT pg_is_in_recovery() INTO pg_is_in_recovery;
+            SELECT postgresVersion into pgVer;
+            RAISE NOTICE 'pgVer is %', pgVer;
+            RAISE NOTICE 'version() is %', version();
+            ASSERT pg_is_in_recovery = FALSE AND 
+              position('PostgreSQL ' || pgVer in version()) > 0;
+          END $script$;
+
+  steps:
+
+    - name: 'Create Cluster with PGO CLI'
+      use:
+        template: '../templates/create-cluster-without-backups.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
+
+    - name: 'Confirm cluster is created'
+      use:
+        template: '../templates/confirm-created.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
+
+    - name: 'Verify Postgres is running correct version'
+      description: >
+        Confirm that Postgres is running and using the expected version
+      use:
+        template: '../templates/psql-data.yaml'
+        with:
+          bindings:
+            - name: target
+              value: ($cluster)
+            - name: job
+              value: (join('-', [$cluster, 'verify-version']))
+            - name: command
+              value: (replace_all($confirmQuery, 'postgresVersion', $postgresVersion))
+
+    - name: Confirm spec.backups is not in the manifest
+      try:
+      - error:
+          resource:
+            apiVersion: postgres-operator.crunchydata.com/v1beta1
+            kind: PostgresCluster
+            metadata:
+              name: ($cluster)
+            spec:
+              backups: {}

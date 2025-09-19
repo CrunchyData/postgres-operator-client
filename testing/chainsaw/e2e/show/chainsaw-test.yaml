@@ -1,0 +1,402 @@
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: chainsaw-show
+spec:
+  bindings:
+    - name: cluster
+      value: chainsaw-show
+
+    - name: postgresVersion
+      value: (to_string($values.versions.postgres))
+
+  steps:
+
+    - name: 'Create Cluster from manifest'
+      use:
+        template: '../templates/create-cluster-from-manifest.yaml'
+
+    - name: "Sleep 30s"
+      try:
+        - sleep:
+            duration: 30s
+            
+    - name: 'Confirm cluster is created'
+      use:
+        template: '../templates/confirm-created.yaml'
+
+    - name: "Sleep 30s"
+      try:
+        - sleep:
+            duration: 30s
+
+    - name: 'Confirm Replica backup completed'
+      use:
+        template: '../templates/replica-backup-complete.yaml'
+
+
+    - name: Show pgbackrest info
+      try:
+      - script:
+          env:
+            - name: "NAMESPACE"
+              value: ($namespace)
+            - name: "CLUSTER"
+              value: ($cluster)
+          content: |
+
+            SELECTOR=postgres-operator.crunchydata.com/cluster=$CLUSTER,postgres-operator.crunchydata.com/role=master
+            PRIMARY=$(kubectl get pod --namespace "${NAMESPACE}" --output name --selector ${SELECTOR})
+            EXEC_INFO=$(
+              kubectl exec --namespace "${NAMESPACE}" "${PRIMARY}" -- \
+                pgbackrest info
+            )
+            CLI_INFO=$(
+                kubectl-pgo --namespace "${NAMESPACE}" show backup $CLUSTER
+            )
+            status=$?
+            if [ "$status" -ne 0 ]; then
+                echo "pgo command unsuccessful"
+                exit 1
+            fi
+
+            # check command output is not empty and equals 'exec' output
+            if [ -n "$CLI_INFO" ] && [ "$EXEC_INFO" = "$CLI_INFO" ]; then
+                exit 0
+            fi
+
+            exit 1
+
+    - name: Show pgbackrest info repo1
+      try:
+      - script:
+          env:
+            - name: "NAMESPACE"
+              value: ($namespace)
+            - name: "CLUSTER"
+              value: ($cluster)
+          content: |
+
+            SELECTOR=postgres-operator.crunchydata.com/cluster=$CLUSTER,postgres-operator.crunchydata.com/role=master
+            PRIMARY=$(kubectl get pod --namespace "${NAMESPACE}" --output name --selector ${SELECTOR})
+            EXEC_INFO=$(
+              kubectl exec --namespace "${NAMESPACE}" "${PRIMARY}" -- \
+                pgbackrest info --repo=1
+            )
+            CLI_INFO=$(
+                kubectl-pgo --namespace "${NAMESPACE}" show backup $CLUSTER --repoName=repo1
+            )
+            status=$?
+            if [ "$status" -ne 0 ]; then
+                echo "pgo command unsuccessful"
+                exit 1
+            fi
+
+            # check command output is not empty and equals 'exec' output
+            if [ -n "$CLI_INFO" ] && [ "$EXEC_INFO" = "$CLI_INFO" ]; then
+                exit 0
+            fi
+
+            exit 1
+
+    - name: "Sleep 30s"
+      try:
+        - sleep:
+            duration: 30s
+
+    - name: Show pgbackrest info output json
+      try:
+      - script:
+          env:
+            - name: "NAMESPACE"
+              value: ($namespace)
+            - name: "CLUSTER"
+              value: ($cluster)
+          content: |
+
+            SELECTOR=postgres-operator.crunchydata.com/cluster=$CLUSTER,postgres-operator.crunchydata.com/role=master
+            PRIMARY=$(kubectl get pod --namespace "${NAMESPACE}" --output name --selector ${SELECTOR})
+            EXEC_INFO=$(
+              kubectl exec --namespace "${NAMESPACE}" "${PRIMARY}" -- \
+                pgbackrest info --output=json
+            )
+            CLI_INFO=$(
+                kubectl-pgo --namespace "${NAMESPACE}" show backup $CLUSTER --output=json
+            )
+            status=$?
+            if [ "$status" -ne 0 ]; then
+                echo "pgo command unsuccessful"
+                exit 1
+            fi
+
+            # check command output is not empty and equals 'exec' output
+            if [ -n "$CLI_INFO" ] && [ "$EXEC_INFO" = "$CLI_INFO" ]; then
+                exit 0
+            fi
+
+            exit 1
+
+    - name: Show pgbackrest info output bad format
+      try:
+      - script:
+          env:
+            - name: "NAMESPACE"
+              value: ($namespace)
+            - name: "CLUSTER"
+              value: ($cluster)
+          content: |
+
+            SELECTOR=postgres-operator.crunchydata.com/cluster=$CLUSTER,postgres-operator.crunchydata.com/role=master
+            PRIMARY=$(kubectl get pod --namespace "${NAMESPACE}" --output name --selector ${SELECTOR})
+            CLI_INFO=$(
+                kubectl-pgo --namespace "${NAMESPACE}" show backup $CLUSTER -o bad 2>&1
+            )
+            status=$?
+            if [ "$status" -ne 1 ]; then
+                echo "expected bad format to fail"
+                exit 1
+            fi
+
+            # check command output is not empty and contains the expected error
+            # Note: case is used as it allows for the use of a wildcard (*)
+            # and is POSIX compliant
+            case "$CLI_INFO" in
+            "")
+                exit 1
+                ;;
+            *"must be one of \"text\", \"json\""*)
+                exit 0
+                ;;
+            esac
+
+            exit 1
+
+    - name: "Sleep 30s"
+      try:
+        - sleep:
+            duration: 30s
+
+
+    - name: Show patronictl list
+      try:
+      - script:
+          env:
+            - name: "NAMESPACE"
+              value: ($namespace)
+            - name: "CLUSTER"
+              value: ($cluster)
+          content: |
+
+            SELECTOR=postgres-operator.crunchydata.com/cluster=$CLUSTER,postgres-operator.crunchydata.com/role=master
+            PRIMARY=$(kubectl get pod --namespace "${NAMESPACE}" --output name --selector ${SELECTOR})
+            EXEC_INFO=$(
+              kubectl exec --namespace "${NAMESPACE}" "${PRIMARY}" -- \
+                patronictl list
+            )
+            CLI_HA=$(
+                kubectl-pgo --namespace "${NAMESPACE}" show ha $CLUSTER
+            )
+            status=$?
+            if [ "$status" -ne 0 ]; then
+                echo "pgo command unsuccessful"
+                exit 1
+            fi
+
+            # check command output is not empty and equals 'exec' output
+            if [ -n "$CLI_HA" ] && [ "$EXEC_INFO" = "$CLI_HA" ]; then
+                exit 0
+            fi
+
+            exit 1
+
+    - name: "Sleep 30s"
+      try:
+        - sleep:
+            duration: 30s
+
+
+    - name: Show patronictl list output json
+      try:
+      - script:
+          env:
+            - name: "NAMESPACE"
+              value: ($namespace)
+            - name: "CLUSTER"
+              value: ($cluster)
+          content: |
+
+            SELECTOR=postgres-operator.crunchydata.com/cluster=$CLUSTER,postgres-operator.crunchydata.com/role=master
+            PRIMARY=$(kubectl get pod --namespace "${NAMESPACE}" --output name --selector ${SELECTOR})
+            EXEC_INFO=$(
+              kubectl exec --namespace "${NAMESPACE}" "${PRIMARY}" -- \
+                patronictl list -f json
+            )
+            CLI_HA=$(
+                kubectl-pgo --namespace "${NAMESPACE}" show ha $CLUSTER -o json
+            )
+            status=$?
+            if [ "$status" -ne 0 ]; then
+                echo "pgo command unsuccessful"
+                exit 1
+            fi
+
+            # check command output is not empty and equals 'exec' output
+            if [ -n "$CLI_HA" ] && [ "$EXEC_INFO" = "$CLI_HA" ]; then
+                exit 0
+            fi
+
+            exit 1
+
+    - name: "Sleep 30s"
+      try:
+        - sleep:
+            duration: 30s
+
+    - name: Show patronictl list output bad
+      try:
+      - script:
+          env:
+            - name: "NAMESPACE"
+              value: ($namespace)
+            - name: "CLUSTER"
+              value: ($cluster)
+          content: |
+
+            SELECTOR=postgres-operator.crunchydata.com/cluster=$CLUSTER,postgres-operator.crunchydata.com/role=master
+            PRIMARY=$(kubectl get pod --namespace "${NAMESPACE}" --output name --selector ${SELECTOR})
+            
+            CLI_HA=$(
+                kubectl-pgo --namespace "${NAMESPACE}" show ha $CLUSTER -o bad 2>&1
+            )
+            status=$?
+            if [ "$status" -ne 1 ]; then
+                echo "expected bad format to fail"
+                exit 1
+            fi
+
+            # check command output contains the expected error
+            # Note: case is used as it allows for the use of a wildcard (*)
+            # and is POSIX compliant
+            case "$CLI_HA" in
+            "")
+                exit 1
+                ;;
+            *"must be one of \"pretty\", \"tsv\", \"json\", \"yaml\""*)
+                exit 0
+                ;;
+            esac
+
+            exit 1
+
+
+    - name: Show user
+      try:
+      - script:
+          env:
+            - name: "NAMESPACE"
+              value: ($namespace)
+            - name: "CLUSTER"
+              value: ($cluster)
+          content: |
+            SELECTOR=postgres-operator.crunchydata.com/cluster=$CLUSTER,postgres-operator.crunchydata.com/role=master
+            PRIMARY=$(kubectl get pod --namespace "${NAMESPACE}" --output name --selector ${SELECTOR})
+  
+            CLI_USER=$(
+                kubectl-pgo --namespace "${NAMESPACE}" show user --cluster $CLUSTER
+            )
+  
+            status=$?
+            if [ "$status" -ne 0 ]; then
+                echo "pgo command unsuccessful"
+                exit 1
+            fi
+  
+            # expected output
+            SHOW_USER_OUTPUT="
+            CLUSTER        USERNAME
+            chainsaw-show  chainsaw-show"
+
+  
+            # check command output is not empty and equals the expected output
+            if [ -z ${CLI_USER} ] || [ "${CLI_USER}" != "${SHOW_USER_OUTPUT}" ]; then
+                echo "pgo command output unexpected: expected ${SHOW_USER_OUTPUT} got ${CLI_USER}"
+                exit 1
+            fi
+  
+            CLI_USER_SENSITIVE=$(
+                echo yes | kubectl-pgo --namespace "${NAMESPACE}" show user --cluster ${CLUSTER} --show-connection-info
+            )
+  
+            SECRET_DATA=$(kubectl get secret -n "${NAMESPACE}" ${CLUSTER}-pguser-${CLUSTER} -o jsonpath={.data})
+  
+            PASSWORD=$(echo "${SECRET_DATA}" | jq -r .password | base64 -d)
+            USER=$(echo "${SECRET_DATA}" | jq -r .user | base64 -d)
+            HOST=$(echo "${SECRET_DATA}" | jq -r .host | base64 -d)
+            PORT=$(echo "${SECRET_DATA}" | jq -r .port | base64 -d)
+  
+            # check command output is not empty and contains the connection URL field
+            # Note: case is used as it allows for the use of a wildcard (*)
+            # and is POSIX compliant
+            case "$CLI_USER_SENSITIVE" in
+            "")
+                exit 1
+                ;;
+            *"postgres://${USER}:${PASSWORD}@${HOST}:${PORT}/${CLUSTER}"*)
+                exit 0
+                ;;
+            esac
+  
+            echo "pgo command output for connection info unexpected: got ${CLI_USER_SENSITIVE}"
+            exit 1
+
+
+    - name: Show entire command
+      try:
+      - script:
+          env:
+            - name: "NAMESPACE"
+              value: ($namespace)
+            - name: "CLUSTER"
+              value: ($cluster)
+          content: |
+            SELECTOR=postgres-operator.crunchydata.com/cluster=$CLUSTER,postgres-operator.crunchydata.com/role=master
+            PRIMARY=$(kubectl get pod --namespace "${NAMESPACE}" --output name --selector ${SELECTOR})
+  
+            PGBACKREST_INFO_EXEC=$(
+                kubectl exec --namespace "${NAMESPACE}" "${PRIMARY}" -- \
+                  pgbackrest info
+            )
+  
+            PATRONI_LIST_EXEC=$(
+                kubectl exec --namespace "${NAMESPACE}" "${PRIMARY}" -- \
+                  patronictl list
+            )
+  
+            EXPECTED_SHOW_COMMAND="BACKUP
+  
+            $PGBACKREST_INFO_EXEC
+  
+            HA
+  
+            $PATRONI_LIST_EXEC"
+  
+            echo $EXPECTED_SHOW_COMMAND
+  
+            CLI_SHOW=$(
+                kubectl-pgo --namespace "${NAMESPACE}" show $CLUSTER
+            )
+  
+            status=$?
+            if [ "$status" -ne 0 ]; then
+                echo "pgo command unsuccessful"
+                exit 1
+            fi
+  
+            # check command output is not empty and equals expected output
+            if [ -n "$CLI_SHOW" ] && [ "$EXPECTED_SHOW_COMMAND" = "$CLI_SHOW" ]; then
+                exit 0
+            fi
+  
+            exit 1
+
+

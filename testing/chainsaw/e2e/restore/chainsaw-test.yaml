@@ -1,0 +1,713 @@
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: check-restore-no-repo-name
+spec:
+  bindings:
+    - name: cluster
+      value: check-restore-no-repo-name
+
+    - name: postgresVersion
+      value: (to_string($values.versions.postgres))
+
+    - name: backupSelector
+      value: (join(',', [
+                'postgres-operator.crunchydata.com/cluster=CLUSTER',
+                'postgres-operator.crunchydata.com/pgbackrest-backup=BACKUP_TYPE',
+                'postgres-operator.crunchydata.com/pgbackrest-repo=repo1'
+              ]))
+
+  steps:
+
+    - name: 'Create Cluster from manifest'
+      use:
+        template: '../templates/create-cluster-from-manifest.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
+
+    - name: 'Confirm cluster is created'
+      use:
+        template: '../templates/confirm-created.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
+
+    - name: 'Confirm Replica backup completed'
+      use:
+        template: '../templates/replica-backup-complete.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
+
+    - name: run 'restore' with no options
+      try:
+      - command:
+          env:
+            - name: "NAMESPACE"
+              value: ($namespace)
+            - name: "CLUSTER"
+              value: ($cluster)
+          entrypoint: "sh"
+          args:
+          - "-c"
+          - "kubectl-pgo restore $CLUSTER -n $NAMESPACE"
+          timeout: 10s
+          check:
+            (contains($stderr, 'Required value')): true
+
+    - name: "Sleep 30s"
+      try:
+        - sleep:
+            duration: 30s
+
+    - name: Confirm spec.backups.pgbackrest.restore is not in the manifest
+      try:
+      - error:
+          resource:
+            apiVersion: postgres-operator.crunchydata.com/v1beta1
+            kind: PostgresCluster
+            metadata:
+              name: ($cluster)
+            spec:
+              backups:
+                pgbackrest:
+                  restore: {}
+---
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: check-restore-confirm-no
+spec:
+  bindings:
+    - name: cluster
+      value: check-restore-confirm-no
+
+    - name: postgresVersion
+      value: (to_string($values.versions.postgres))
+
+    - name: backupSelector
+      value: (join(',', [
+                'postgres-operator.crunchydata.com/cluster=CLUSTER',
+                'postgres-operator.crunchydata.com/pgbackrest-backup=BACKUP_TYPE',
+                'postgres-operator.crunchydata.com/pgbackrest-repo=repo1'
+              ]))
+
+  steps:
+
+    - name: 'Create Cluster from manifest'
+      use:
+        template: '../templates/create-cluster-from-manifest.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
+
+    - name: 'Confirm cluster is created'
+      use:
+        template: '../templates/confirm-created.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
+
+    - name: 'Confirm Replica backup completed'
+      use:
+        template: '../templates/replica-backup-complete.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
+
+    - name: run 'restore' with confirm 'no'
+      try:
+      - command:
+          env:
+            - name: "NAMESPACE"
+              value: ($namespace)
+            - name: "CLUSTER"
+              value: ($cluster)
+          entrypoint: "sh"
+          args:
+          - "-c"
+          - "echo no | kubectl-pgo restore $CLUSTER -n $NAMESPACE --repoName repo1"
+          timeout: 10s
+          check:
+            (contains($stderr, '')): true
+
+    - name: "Sleep 30s"
+      try:
+        - sleep:
+            duration: 30s
+
+    - name: Confirm spec.backups.pgbackrest.restore is not in the manifest
+      try:
+      - error:
+          resource:
+            apiVersion: postgres-operator.crunchydata.com/v1beta1
+            kind: PostgresCluster
+            metadata:
+              name: ($cluster)
+            spec:
+              backups:
+                pgbackrest:
+                  restore: {}
+---
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: check-restore-confirm-yes
+spec:
+  bindings:
+    - name: cluster
+      value: check-restore-confirm-yes
+
+    - name: postgresVersion
+      value: (to_string($values.versions.postgres))
+
+    - name: backupSelector
+      value: (join(',', [
+                'postgres-operator.crunchydata.com/cluster=CLUSTER',
+                'postgres-operator.crunchydata.com/pgbackrest-backup=BACKUP_TYPE',
+                'postgres-operator.crunchydata.com/pgbackrest-repo=repo1'
+              ]))
+
+  steps:
+
+    - name: 'Create Cluster from manifest'
+      use:
+        template: '../templates/create-cluster-from-manifest.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
+
+    - name: 'Confirm cluster is created'
+      use:
+        template: '../templates/confirm-created.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
+
+    - name: 'Confirm Replica backup completed'
+      use:
+        template: '../templates/replica-backup-complete.yaml'
+
+    - name: "Sleep 30s"
+      try:
+        - sleep:
+            duration: 30s
+
+    - name: run 'restore' with confirm 'yes'
+      try:
+      - command:
+          env:
+            - name: "NAMESPACE"
+              value: ($namespace)
+            - name: "CLUSTER"
+              value: ($cluster)
+          entrypoint: "sh"
+          args:
+          - "-c"
+          - "echo yes | kubectl-pgo restore $CLUSTER -n $NAMESPACE --repoName repo1"
+          timeout: 10s
+          check:
+            (contains($stdout, 'patched')): true
+
+    - name: "Sleep 30s"
+      try:
+        - sleep:
+            duration: 30s
+
+    - name: Confirm restore annotation is present
+      try:
+      - assert:
+          timeout: 60s
+          resource:
+            apiVersion: postgres-operator.crunchydata.com/v1beta1
+            kind: PostgresCluster
+            metadata:
+              name: ($cluster)
+              annotations:
+                postgres-operator.crunchydata.com/pgbackrest-restore: {}
+
+    - name: Confirm manifest is correct after the restore
+      try:
+      - assert:
+          timeout: 60s
+          resource:
+            apiVersion: postgres-operator.crunchydata.com/v1beta1
+            kind: PostgresCluster
+            metadata:
+              name: ($cluster)
+            spec:
+              backups:
+                pgbackrest:
+                  restore:
+                    enabled: true
+                    repoName: repo1
+            status:
+              pgbackrest:
+                restore:
+                  succeeded: 1
+              instances:
+                - replicas: 2
+---
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: check-restore-confirm-yes-with-options
+spec:
+  bindings:
+    - name: cluster
+      value: check-restore-confirm-yes-with-options
+
+    - name: postgresVersion
+      value: (to_string($values.versions.postgres))
+
+    - name: backupSelector
+      value: (join(',', [
+                'postgres-operator.crunchydata.com/cluster=CLUSTER',
+                'postgres-operator.crunchydata.com/pgbackrest-backup=BACKUP_TYPE',
+                'postgres-operator.crunchydata.com/pgbackrest-repo=repo1'
+              ]))
+
+  steps:
+
+    - name: 'Create Cluster from manifest'
+      use:
+        template: '../templates/create-cluster-from-manifest.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
+
+    - name: 'Confirm cluster is created'
+      use:
+        template: '../templates/confirm-created.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
+
+    - name: 'Confirm Replica backup completed'
+      use:
+        template: '../templates/replica-backup-complete.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
+
+    - name: run 'restore' with confirm 'yes'
+      try:
+      - command:
+          env:
+            - name: "NAMESPACE"
+              value: ($namespace)
+            - name: "CLUSTER"
+              value: ($cluster)
+          entrypoint: "sh"
+          args:
+          - "-c"
+          - "echo yes | kubectl-pgo restore $CLUSTER -n $NAMESPACE --repoName repo1 --options=--buffer-size=8MiB --options=--io-timeout=120 --options=--process-max=2"
+          timeout: 10s
+          check:
+            (contains($stdout, 'patched')): true
+            (contains($stdout, 'options:[--buffer-size=8MiB --io-timeout=120 --process-max=2] repoName:repo1')): true
+
+    - name: "Sleep 30s"
+      try:
+        - sleep:
+            duration: 30s
+
+    - name: Confirm restore annotation is present
+      try:
+      - assert:
+          timeout: 60s
+          resource:
+            apiVersion: postgres-operator.crunchydata.com/v1beta1
+            kind: PostgresCluster
+            metadata:
+              name: ($cluster)
+              annotations:
+                postgres-operator.crunchydata.com/pgbackrest-restore: {}
+
+    - name: Confirm manifest is correct after the restore
+      try:
+      - assert:
+          timeout: 60s
+          resource:
+            apiVersion: postgres-operator.crunchydata.com/v1beta1
+            kind: PostgresCluster
+            metadata:
+              name: ($cluster)
+            spec:
+              backups:
+                pgbackrest:
+                  restore:
+                    enabled: true
+                    repoName: repo1
+                    options:
+                      - --buffer-size=8MiB
+                      - --io-timeout=120
+                      - --process-max=2
+            status:
+              pgbackrest:
+                restore:
+                  succeeded: 1
+              instances:
+                - replicas: 2
+---
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: check-restore-disable-restores
+spec:
+  bindings:
+    - name: cluster
+      value: check-restore-disable-restores
+
+    - name: postgresVersion
+      value: (to_string($values.versions.postgres))
+
+    - name: backupSelector
+      value: (join(',', [
+                'postgres-operator.crunchydata.com/cluster=CLUSTER',
+                'postgres-operator.crunchydata.com/pgbackrest-backup=BACKUP_TYPE',
+                'postgres-operator.crunchydata.com/pgbackrest-repo=repo1'
+              ]))
+
+  steps:
+
+    - name: 'Create Cluster from manifest'
+      use:
+        template: '../templates/create-cluster-from-manifest.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
+
+    - name: 'Confirm cluster is created'
+      use:
+        template: '../templates/confirm-created.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
+
+    - name: 'Confirm Replica backup completed'
+      use:
+        template: '../templates/replica-backup-complete.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
+
+    - name: run 'restore disable'
+      try:
+      - command:
+          env:
+            - name: "NAMESPACE"
+              value: ($namespace)
+            - name: "CLUSTER"
+              value: ($cluster)
+          entrypoint: "sh"
+          args:
+          - "-c"
+          - "kubectl-pgo restore disable $CLUSTER -n $NAMESPACE"
+          timeout: 10s
+          check:
+            (contains($stdout, 'patched')): true
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
+
+    - name: Confirm spec.backups.pgbackrest.restore is not in the manifest
+      try:
+      - error:
+          timeout: 60s
+          resource:
+            apiVersion: postgres-operator.crunchydata.com/v1beta1
+            kind: PostgresCluster
+            metadata:
+              name: ($cluster)
+            spec:
+              backups:
+                pgbackrest:
+                  restore: {}
+---
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: check-restore-predefined-settings
+spec:
+  bindings:
+    - name: cluster
+      value: check-restore-predefined-settings
+
+    - name: postgresVersion
+      value: (to_string($values.versions.postgres))
+
+    - name: backupSelector
+      value: (join(',', [
+                'postgres-operator.crunchydata.com/cluster=CLUSTER',
+                'postgres-operator.crunchydata.com/pgbackrest-backup=BACKUP_TYPE',
+                'postgres-operator.crunchydata.com/pgbackrest-repo=repo1'
+              ]))
+
+  steps:
+
+    - name: 'Create Cluster from manifest'
+      use:
+        template: '../templates/create-cluster-from-manifest.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
+
+    - name: 'Confirm cluster is created'
+      use:
+        template: '../templates/confirm-created.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
+
+    - name: 'Confirm Replica backup completed'
+      use:
+        template: '../templates/replica-backup-complete.yaml'
+
+    - name: Sleep for 30s
+      try:
+      - sleep:
+          duration: 30s
+
+    - name: Change ownership of spec.backups.pgbackrest.restore to kubectl-patch
+      try:
+        - script:
+            env:
+              - name: "NAMESPACE"
+                value: ($namespace)
+              - name: "CLUSTER"
+                value: ($cluster)
+            content: |
+              kubectl patch postgrescluster $CLUSTER -n $NAMESPACE --type=merge -p '{
+                "spec": {
+                  "backups": {
+                    "pgbackrest": {
+                      "restore": { "enabled": true, "repoName": "repo1" }
+                    }
+                  }
+                }
+              }'
+            check:
+              (contains($stdout, 'patched')): true
+
+    - name: run 'restore' with confirm 'yes'
+      try:
+      - command:
+          env:
+            - name: "NAMESPACE"
+              value: ($namespace)
+            - name: "CLUSTER"
+              value: ($cluster)
+          entrypoint: "sh"
+          args:
+          - "-c"
+          - "echo yes | kubectl-pgo restore $CLUSTER -n $NAMESPACE --repoName repo1 --options=--buffer-size=8MiB"
+          timeout: 10s
+          check:
+            (contains($stdout, 'patched')): true
+            (contains($stdout, 'options:[--buffer-size=8MiB] repoName:repo1')): true
+
+    - name: Sleep for 30s
+      try:
+      - sleep:
+          duration: 30s
+
+    - name: Confirm restore annotation is present
+      try:
+      - assert:
+          timeout: 60s
+          resource:
+            apiVersion: postgres-operator.crunchydata.com/v1beta1
+            kind: PostgresCluster
+            metadata:
+              name: ($cluster)
+              annotations:
+                postgres-operator.crunchydata.com/pgbackrest-restore: {}
+
+    - name: Confirm manifest is correct after the restore
+      try:
+      - assert:
+          timeout: 60s
+          resource:
+            apiVersion: postgres-operator.crunchydata.com/v1beta1
+            kind: PostgresCluster
+            metadata:
+              name: ($cluster)
+            spec:
+              backups:
+                pgbackrest:
+                  restore:
+                    enabled: true
+                    repoName: repo1
+                    options:
+                      - --buffer-size=8MiB
+            status:
+              pgbackrest:
+                restore:
+                  succeeded: 1
+              instances:
+                - replicas: 2
+---
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: check-restore-force-conflicts
+spec:
+  bindings:
+    - name: cluster
+      value: check-restore-force-conflicts
+
+    - name: postgresVersion
+      value: (to_string($values.versions.postgres))
+
+    - name: backupSelector
+      value: (join(',', [
+                'postgres-operator.crunchydata.com/cluster=CLUSTER',
+                'postgres-operator.crunchydata.com/pgbackrest-backup=BACKUP_TYPE',
+                'postgres-operator.crunchydata.com/pgbackrest-repo=repo1'
+              ]))
+
+  steps:
+
+    - name: 'Create Cluster from manifest'
+      use:
+        template: '../templates/create-cluster-from-manifest.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
+
+    - name: 'Confirm cluster is created'
+      use:
+        template: '../templates/confirm-created.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
+
+    - name: 'Confirm Replica backup completed'
+      use:
+        template: '../templates/replica-backup-complete.yaml'
+
+    - name: Sleep for 10s
+      try:
+      - sleep:
+          duration: 10s
+
+    - name: Change ownership of spec.backups.pgbackrest.restore to kubectl-patch
+      try:
+        - script:
+            env:
+              - name: "NAMESPACE"
+                value: ($namespace)
+              - name: "CLUSTER"
+                value: ($cluster)
+            content: |
+              kubectl patch postgrescluster $CLUSTER -n $NAMESPACE --type=merge -p '{
+                "spec": {
+                  "backups": {
+                    "pgbackrest": {
+                      "restore": { "enabled": false, "repoName": "repo1" }
+                    }
+                  }
+                }
+              }'
+            check:
+              (contains($stdout, 'patched')): true
+
+    - name: Change ownership of annotation to kubectl-annotate
+      try:
+        - script:
+            env:
+              - name: "NAMESPACE"
+                value: ($namespace)
+              - name: "CLUSTER"
+                value: ($cluster)
+            content: |
+              kubectl --namespace "${NAMESPACE}" annotate postgrescluster/$CLUSTER \
+              --overwrite 'postgres-operator.crunchydata.com/pgbackrest-restore=anything'
+            check:
+              (contains($stdout, 'annotated')): true
+
+    - name: run 'restore' with confirm 'yes' and expect error
+      try:
+      - command:
+          env:
+            - name: "NAMESPACE"
+              value: ($namespace)
+            - name: "CLUSTER"
+              value: ($cluster)
+          entrypoint: "sh"
+          args:
+          - "-c"
+          - "echo yes | kubectl-pgo restore $CLUSTER -n $NAMESPACE --repoName repo1"
+          timeout: 10s
+          check:
+            (contains($stderr, 'Apply failed')): true
+            (contains($stderr, '2 conflicts')): true
+
+    - name: run 'restore' with confirm 'yes' and --force-conflicts
+      try:
+        - script:
+            env:
+              - name: "NAMESPACE"
+                value: ($namespace)
+              - name: "CLUSTER"
+                value: ($cluster)
+            content: |
+              pgbackrest_restore_annotation() {
+                kubectl --namespace "${NAMESPACE}" get postgrescluster/$CLUSTER \
+                  --output "jsonpath-as-json={.metadata.annotations['postgres-operator\.crunchydata\.com/pgbackrest-restore']}"
+              }
+              kubectl --namespace "${NAMESPACE}" annotate postgrescluster/$CLUSTER \
+                postgres-operator.crunchydata.com/pgbackrest-restore="$(date)" --overwrite || exit
+              PRIOR=$(pgbackrest_restore_annotation)
+              # Running restore will update the annotation.
+              echo yes | kubectl-pgo --namespace="${NAMESPACE}" restore $CLUSTER --repoName="repo1" --force-conflicts
+              CURRENT=$(pgbackrest_restore_annotation)
+              if [ "${CURRENT}" != "${PRIOR}" ]; then
+                echo "restore was successful"
+                exit 0
+              fi
+              printf 'Expected annotation to change, got PRIOR %s CURRENT %s' "${PRIOR}" "${CURRENT}"
+              echo "RESULT from taking restore: ${RESULT}"
+              exit 1
+            check:
+              (contains($stdout, 'restore was successful')): true
