@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with: { go-version: stable }
 
       - run: make check
@@ -28,7 +28,7 @@ jobs:
         kubernetes: [v1.27, v1.24, v1.21]
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with: { go-version: stable }
 
       - name: Start k3s
