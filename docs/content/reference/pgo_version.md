@@ -31,7 +31,7 @@ pgo version
 ```
 ### Example output
 ```
-Client Version: v0.5.2
+Client Version: v0.5.3
 Operator Version: v5.7.0
 ```
 
