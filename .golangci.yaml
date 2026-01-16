@@ -63,7 +63,7 @@ linters:
     goheader:
       values:
         regexp:
-          DATES: (202[1-4] - 2025|2025)
+          DATES: (202[1-5] - 2026|2026)
       template: |-
         Copyright {{ DATES }} Crunchy Data Solutions, Inc.
 
