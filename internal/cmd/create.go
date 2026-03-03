@@ -6,8 +6,10 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"strconv"
 
 	"github.com/spf13/cobra"
@@ -30,6 +32,7 @@ func newCreateCommand(config *internal.Config) *cobra.Command {
 	}
 
 	cmd.AddCommand(newCreateClusterCommand(config))
+	cmd.AddCommand(newCreateOperatorCommand(config))
 
 	return cmd
 }
@@ -160,4 +163,139 @@ spec:
 	}
 
 	return &cluster, nil
+}
+
+// Creating a custom value type that satisfies the Value interface
+// https://pkg.go.dev/github.com/spf13/pflag#Value
+// This allows us to set a custom enum-type var
+type installToolString string
+
+const (
+	installToolStringKustomize installToolString = "kustomize"
+	installToolStringHelm      installToolString = "helm"
+)
+
+func (its *installToolString) String() string {
+	return string(*its)
+}
+
+func (its *installToolString) Set(v string) error {
+	switch v {
+	case "kustomize", "helm":
+		*its = installToolString(v)
+		return nil
+	default:
+		return errors.New(`must be one of "kustomize" or "helm"`)
+	}
+}
+
+// Type is only used in help text
+func (its *installToolString) Type() string {
+	return "installToolString"
+}
+
+// newCreateOperatorCommand returns the create operator subcommand.
+// create operator will take a cluster name as an argument and create a basic
+// operator using a kube client.
+func newCreateOperatorCommand(config *internal.Config) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "operator",
+		Aliases: []string{"operators"},
+		Short:   "Create Postgres-Operator",
+		Long: `Create Postgres-Operator.
+
+An operator is deployed:
+
+- from any remote or local source (defaults to github.com/CrunchyData/postgres-operator-examples for kustomize installations and oci://registry.developers.crunchydata.com/crunchydata/pgo for Helm installations);
+- using either kustomize or Helm (defaults to kustomize).
+
+Note: The tool used to install must already be present.
+
+If Helm is used as the deployment tool, you may optionally supply a name (defaults to "crunchy") and values file (defaults to "values.yaml" file).
+
+### RBAC Requirements
+    Resources	Verbs
+    ---------	-----
+    pods	[create]
+	TODO...
+
+### Usage`,
+	}
+
+	cmd.Args = cobra.ExactArgs(0)
+
+	var source string
+	cmd.Flags().StringVar(&source,
+		"source",
+		"https://github.com/CrunchyData/postgres-operator-examples.git/kustomize/install/default?timeout=120&ref=main",
+		"Source to deploy the operator from; defaults to github.com/CrunchyData/postgres-operator-examples for kustomize installations and oci://registry.developers.crunchydata.com/crunchydata/pgo for Helm installations")
+
+	// Default to using kustomize
+	var installTool = installToolStringKustomize
+	cmd.Flags().VarP(&installTool,
+		"install-tool",
+		"t",
+		"Tool to deploy the operator (either kustomize or helm); defaults to kustomize")
+
+	var installName string
+	cmd.Flags().StringVar(&installName,
+		"name",
+		"crunchy",
+		"Name for the Helm installation (defaults to 'crunchy')")
+
+	var valueFile string
+	cmd.Flags().StringVar(&valueFile,
+		"values",
+		"",
+		"Location of a values file")
+
+	cmd.Example = internal.FormatExample(`# Create an operator with defaults:
+pgo create operator
+
+# Create an operator with Helm in a particular namespace.
+# The namespace has to exist prior to the command being run:
+pgo create operator --install-tool helm --namespace postgres-operator
+
+# Create an operator...
+`)
+
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+
+		// Note: Kustomize has a namespace in the overlay; for now,
+		// use that namespace.
+		installNamespace, err := config.Namespace()
+		if err != nil {
+			return err
+		}
+
+		var ex *exec.Cmd
+		// Need to install with --server-side flag due to size
+		// of CRD
+		if installTool == installToolStringKustomize {
+			ex = exec.Command("kubectl", "apply", "--kustomize", source, "--server-side")
+		}
+
+		if installTool == installToolStringHelm {
+			// If the source wasn't changed from default, set it for our Helm default
+			if !cmd.Flags().Changed("source") {
+				source = "oci://registry.developers.crunchydata.com/crunchydata/pgo"
+			}
+			args := []string{"install", installName, source, "--namespace", installNamespace}
+			if valueFile != "" {
+				args = append(args, "--values", valueFile)
+			}
+			ex = exec.Command("helm", args...)
+		}
+
+		msg, err := ex.Output()
+		if err != nil {
+			return err
+		}
+
+		cmd.Printf("%s", msg)
+
+		return nil
+	}
+
+	return cmd
 }
