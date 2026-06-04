@@ -16,7 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 
 	"github.com/crunchydata/postgres-operator-client/internal"
-	"github.com/crunchydata/postgres-operator-client/internal/apis/postgres-operator.crunchydata.com/v1beta1"
+	postgresoperator "github.com/crunchydata/postgres-operator-client/internal/apis/postgres-operator.crunchydata.com"
 	"github.com/crunchydata/postgres-operator-client/internal/util"
 )
 
@@ -81,12 +81,12 @@ postgresclusters/hippo created`)
 			return err
 		}
 
-		mapping, client, err := v1beta1.NewPostgresClusterClient(config)
+		mapping, client, apiVersion, err := postgresoperator.NewPostgresClusterClient(config.APIVersion, config)
 		if err != nil {
 			return err
 		}
 
-		cluster, err := generateUnstructuredClusterYaml(clusterName, strconv.Itoa(pgMajorVersion))
+		cluster, err := generateUnstructuredClusterYaml(clusterName, strconv.Itoa(pgMajorVersion), apiVersion)
 		if err != nil {
 			return err
 		}
@@ -124,12 +124,16 @@ postgresclusters/hippo created`)
 	return cmd
 }
 
-// generateUnstructuredClusterYaml takes a name and returns a PostgresCluster
-// in the unstructured format.
-func generateUnstructuredClusterYaml(name, pgMajorVersion string) (*unstructured.Unstructured, error) {
+// generateUnstructuredClusterYaml takes a name, a Postgres major version, and
+// the PostgresCluster CRD API version (e.g. "v1" or "v1beta1") and returns a
+// PostgresCluster in the unstructured format.
+func generateUnstructuredClusterYaml(name, pgMajorVersion, apiVersion string) (*unstructured.Unstructured, error) {
+	if apiVersion == "" {
+		apiVersion = postgresoperator.DefaultAPIVersion
+	}
 	var cluster unstructured.Unstructured
 	err := yaml.Unmarshal([]byte(fmt.Sprintf(`
-apiVersion: postgres-operator.crunchydata.com/v1beta1
+apiVersion: postgres-operator.crunchydata.com/%s
 kind: PostgresCluster
 metadata:
   name: %s
@@ -153,7 +157,7 @@ spec:
             resources:
               requests:
                 storage: 1Gi
-`, name, pgMajorVersion)), &cluster)
+`, apiVersion, name, pgMajorVersion)), &cluster)
 
 	if err != nil {
 		return nil, err

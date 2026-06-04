@@ -44,6 +44,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/crunchydata/postgres-operator-client/internal"
+	postgresoperator "github.com/crunchydata/postgres-operator-client/internal/apis/postgres-operator.crunchydata.com"
 	"github.com/crunchydata/postgres-operator-client/internal/apis/postgres-operator.crunchydata.com/v1beta1"
 	"github.com/crunchydata/postgres-operator-client/internal/util"
 )
@@ -357,7 +358,7 @@ Collecting PGO CLI logs...
 		// any information.
 		// Since we check for the cluster before creating the file, these logs only
 		// appear in stdout/stderr
-		_, postgresClient, err := v1beta1.NewPostgresClusterClient(config)
+		_, postgresClient, _, err := postgresoperator.NewPostgresClusterClient(config.APIVersion, config)
 		if err != nil {
 			return err
 		}

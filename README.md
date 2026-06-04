@@ -60,6 +60,30 @@ oc pgo version
 
 The `pgo` CLI supports all actively maintained versions of PGO v5+.
 
+### PostgresCluster API version
+
+The `pgo` CLI talks to the PostgresCluster CRD over either the `v1` or
+`v1beta1` API of `postgres-operator.crunchydata.com`. The version used for a
+given invocation is resolved in this order:
+
+1. The `--pgo-api-version` flag, if set (e.g. `--pgo-api-version=v1`).
+2. The `PGO_API_VERSION` environment variable, if set.
+3. Auto-detected via the Kubernetes discovery API: if the target cluster
+   serves `postgres-operator.crunchydata.com/v1`, `v1` is used; otherwise the
+   CLI falls back to `v1beta1`.
+4. A final default of `v1beta1` if discovery is unavailable.
+
+Examples:
+
+```sh
+# Pin a single command to v1
+kubectl pgo --pgo-api-version=v1 create postgrescluster hippo --pg-major-version 16
+
+# Pin every pgo command in a shell to v1
+export PGO_API_VERSION=v1
+kubectl pgo create postgrescluster hippo --pg-major-version 16
+```
+
 ## More Information
 
 For more about PGO, please see the
@@ -71,3 +95,19 @@ The PGO client has several KUTTL tests that run through some common scenarios.
 In order to run these tests, we need a PGO operator or the equivalent running, i.e., `make deploy-dev`.
 
 Note: the `support export` test requires a PGO operator running in the `postgres-operator` namespace.
+
+The KUTTL test YAMLs reference the PostgresCluster CRD via the
+`${PGO_API_VERSION}` placeholder. The `make check-kuttl` target renders the
+tests into `testing/kuttl/.rendered/` with the value of `PGO_API_VERSION`
+(defaulting to `v1beta1`) and then runs `kubectl kuttl test` against that
+rendered tree. The same `PGO_API_VERSION` value is exported into the kuttl
+environment so that the `pgo` CLI invocations inside the tests use the
+matching API version.
+
+```sh
+# Run the kuttl suite against v1beta1 (default)
+make check-kuttl
+
+# Run the kuttl suite against v1
+make check-kuttl PGO_API_VERSION=v1
+```

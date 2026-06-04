@@ -1,7 +1,7 @@
 apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 delete:
-- apiVersion: postgres-operator.crunchydata.com/v1beta1
+- apiVersion: postgres-operator.crunchydata.com/${PGO_API_VERSION}
   kind: PostgresCluster
   name: kuttl-support-monitoring-cluster
 - apiVersion: apps/v1
