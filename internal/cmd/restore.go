@@ -17,7 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/crunchydata/postgres-operator-client/internal"
-	"github.com/crunchydata/postgres-operator-client/internal/apis/postgres-operator.crunchydata.com/v1beta1"
+	postgresoperator "github.com/crunchydata/postgres-operator-client/internal/apis/postgres-operator.crunchydata.com"
 	"github.com/crunchydata/postgres-operator-client/internal/util"
 )
 
@@ -141,7 +141,7 @@ func (config pgBackRestRestore) Run(ctx context.Context) error {
 		return
 	}
 
-	mapping, client, err := v1beta1.NewPostgresClusterClient(config)
+	mapping, client, _, err := postgresoperator.NewPostgresClusterClient(config.APIVersion, config)
 	if err != nil {
 		return err
 	}
@@ -274,7 +274,7 @@ type pgBackRestRestoreDisable struct {
 }
 
 func (config pgBackRestRestoreDisable) Run(ctx context.Context) error {
-	mapping, client, err := v1beta1.NewPostgresClusterClient(config)
+	mapping, client, _, err := postgresoperator.NewPostgresClusterClient(config.APIVersion, config)
 	if err != nil {
 		return err
 	}

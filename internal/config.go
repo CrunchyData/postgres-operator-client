@@ -15,11 +15,28 @@ type Config struct {
 	genericclioptions.IOStreams
 
 	Patch PatchConfig
+
+	// APIVersion is the PostgresCluster API version override (e.g. "v1" or
+	// "v1beta1"). When empty, the postgresoperator package falls back to the
+	// PGO_API_VERSION env var, then discovery, then a default of v1beta1.
+	APIVersion string
 }
 
 func (cfg *Config) Namespace() (string, error) {
 	ns, _, err := cfg.ToRawKubeConfigLoader().Namespace()
 	return ns, err
+}
+
+// AddPGOFlags registers PGO-specific persistent flags on the given flag set.
+// Currently this adds --pgo-api-version. The flag is bound with an empty
+// default so that env-var lookup and discovery happen in a single place
+// (postgresoperator.ResolvePostgresClusterVersion); that keeps error
+// messages and behavior consistent regardless of whether the value came
+// from the flag, the env var, or discovery.
+func (cfg *Config) AddPGOFlags(flags *pflag.FlagSet) {
+	flags.StringVar(&cfg.APIVersion, "pgo-api-version", "",
+		"PostgresCluster API version to use (v1 or v1beta1). "+
+			"Defaults to PGO_API_VERSION env var, then auto-detect, then v1beta1.")
 }
 
 type PatchConfig struct {

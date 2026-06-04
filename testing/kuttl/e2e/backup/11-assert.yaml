@@ -1,6 +1,6 @@
 ---
 # The cluster should not have changed.
-apiVersion: postgres-operator.crunchydata.com/v1beta1
+apiVersion: postgres-operator.crunchydata.com/${PGO_API_VERSION}
 kind: PostgresCluster
 metadata:
   name: backup-cluster

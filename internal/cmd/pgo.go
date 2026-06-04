@@ -109,6 +109,9 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
 	// - https://docs.k8s.io/concepts/configuration/organize-cluster-access-kubeconfig/
 	config.AddFlags(root.PersistentFlags())
 
+	// Add PGO-specific persistent flags (e.g. --pgo-api-version).
+	config.AddPGOFlags(root.PersistentFlags())
+
 	// Defined command output. If not set, it falls back to [os.Stderr].
 	// - https://pkg.go.dev/github.com/spf13/cobra#Command.Print
 	root.SetOut(stdout)

@@ -3,3 +3,4 @@
 .vscode
 .DS_Store
 /vendor/
+/testing/kuttl/.rendered/

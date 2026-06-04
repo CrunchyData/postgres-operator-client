@@ -17,7 +17,7 @@ import (
 	"k8s.io/client-go/dynamic"
 
 	"github.com/crunchydata/postgres-operator-client/internal"
-	"github.com/crunchydata/postgres-operator-client/internal/apis/postgres-operator.crunchydata.com/v1beta1"
+	postgresoperator "github.com/crunchydata/postgres-operator-client/internal/apis/postgres-operator.crunchydata.com"
 )
 
 type ShutdownRequestArgs struct {
@@ -58,7 +58,7 @@ postgresclusters/hippo start initiated`)
 	var forceConflicts bool
 	cmdStart.Flags().BoolVar(&forceConflicts, "force-conflicts", false, "take ownership and overwrite the shutdown setting")
 	cmdStart.RunE = func(cmd *cobra.Command, args []string) error {
-		mapping, client, err := v1beta1.NewPostgresClusterClient(config)
+		mapping, client, _, err := postgresoperator.NewPostgresClusterClient(config.APIVersion, config)
 		if err != nil {
 			return err
 		}

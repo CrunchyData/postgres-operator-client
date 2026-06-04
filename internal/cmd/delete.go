@@ -13,7 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/crunchydata/postgres-operator-client/internal"
-	"github.com/crunchydata/postgres-operator-client/internal/apis/postgres-operator.crunchydata.com/v1beta1"
+	postgresoperator "github.com/crunchydata/postgres-operator-client/internal/apis/postgres-operator.crunchydata.com"
 	"github.com/crunchydata/postgres-operator-client/internal/util"
 )
 
@@ -81,7 +81,7 @@ postgresclusters/hippo deleted`)
 			return err
 		}
 
-		mapping, client, err := v1beta1.NewPostgresClusterClient(config)
+		mapping, client, _, err := postgresoperator.NewPostgresClusterClient(config.APIVersion, config)
 		if err != nil {
 			return err
 		}
